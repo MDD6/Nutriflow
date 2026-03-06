@@ -47,6 +47,16 @@ class SessionService {
 
     return user;
   }
+
+  async requirePatient(request) {
+    const user = await this.requireAuthenticatedUser(request);
+
+    if (String(user.profile || '').trim().toLowerCase() !== 'paciente') {
+      throw new AppError('Acesso permitido apenas para pacientes.', 403);
+    }
+
+    return user;
+  }
 }
 
 module.exports = {

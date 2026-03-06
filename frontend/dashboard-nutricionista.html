@@ -282,7 +282,26 @@
               <div><span class="glass-pill">Mensagens</span><h2 class="mt-4 text-2xl font-bold tracking-[-0.05em]">Conversas recentes</h2></div>
               <span class="rounded-full bg-[#eef6e8] px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-nutriflow-700">Inbox ativo</span>
             </div>
-            <div id="messagesList" class="mt-6 space-y-4"></div>
+            <div class="mt-6 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+              <div id="messagesList" class="space-y-4"></div>
+              <div class="rounded-[26px] border border-nutriflow-100 bg-[#f8faf7] p-4">
+                <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <p class="text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Conversa ativa</p>
+                    <h3 id="conversationPatientName" class="mt-2 text-xl font-semibold tracking-[-0.04em] text-nutriflow-950">Selecione um paciente</h3>
+                    <p id="conversationPatientMeta" class="mt-2 text-sm leading-7 text-nutriflow-600">Escolha um paciente para acompanhar o historico da conversa e responder no mesmo fluxo.</p>
+                  </div>
+                  <span id="conversationPendingBadge" class="rounded-full bg-[#eef6e8] px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-nutriflow-700">Sem conversa</span>
+                </div>
+
+                <div id="conversationStream" class="chat-stream mt-6 space-y-4"></div>
+
+                <form id="conversationForm" class="mt-4 flex flex-col gap-3 rounded-[24px] border border-nutriflow-100 bg-white p-4 sm:flex-row">
+                  <input id="conversationInput" class="chat-input flex-1" type="text" placeholder="Responder paciente selecionado" />
+                  <button id="conversationSubmitButton" class="rounded-2xl bg-nutriflow-950 px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-nutriflow-800" type="submit">Responder</button>
+                </form>
+              </div>
+            </div>
           </article>
         </section>
 

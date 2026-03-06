@@ -12,6 +12,12 @@ const authHeading = document.getElementById('authHeading');
 const authSubheading = document.getElementById('authSubheading');
 const contactForm = document.getElementById('contactForm');
 const contactMessage = document.getElementById('contactMessage');
+const registerProfile = document.getElementById('registerProfile');
+const patientConnectionFields = document.getElementById('patientConnectionFields');
+const registerNutritionistEmail = document.getElementById('registerNutritionistEmail');
+const registerAge = document.getElementById('registerAge');
+const registerObjective = document.getElementById('registerObjective');
+const registerRestrictions = document.getElementById('registerRestrictions');
 
 function resetAuthMessages() {
   loginMessage?.classList.add('hidden');
@@ -29,6 +35,31 @@ function showMessage(element, message, isError = false) {
   element.classList.toggle('text-red-700', isError);
   element.classList.toggle('bg-nutriflow-100', !isError);
   element.classList.toggle('text-nutriflow-800', !isError);
+}
+
+function syncPatientRegistrationFields() {
+  const isPatient = isPatientProfile(registerProfile?.value);
+
+  patientConnectionFields?.classList.toggle('hidden', !isPatient);
+
+  if (registerNutritionistEmail) {
+    registerNutritionistEmail.required = isPatient;
+  }
+
+  if (registerAge) {
+    registerAge.required = isPatient;
+  }
+
+  if (registerObjective) {
+    registerObjective.required = isPatient;
+  }
+
+  if (!isPatient && registerNutritionistEmail && registerAge && registerObjective && registerRestrictions) {
+    registerNutritionistEmail.value = '';
+    registerAge.value = '';
+    registerObjective.value = '';
+    registerRestrictions.value = '';
+  }
 }
 
 function setAuthView(view) {
@@ -56,6 +87,7 @@ function setAuthView(view) {
   }
 
   resetAuthMessages();
+  syncPatientRegistrationFields();
 }
 
 function openModal(view = 'login') {
@@ -165,6 +197,8 @@ authSwitchButtons.forEach((button) => {
   });
 });
 
+registerProfile?.addEventListener('change', syncPatientRegistrationFields);
+
 closeLogin?.addEventListener('click', closeModal);
 
 loginModal?.addEventListener('click', (event) => {
@@ -210,6 +244,10 @@ registerForm?.addEventListener('submit', async (event) => {
   const password = document.getElementById('registerPassword').value.trim();
   const confirmPassword = document.getElementById('registerConfirm').value.trim();
   const acceptedTerms = document.getElementById('registerTerms').checked;
+  const nutritionistEmail = registerNutritionistEmail?.value.trim() || '';
+  const age = registerAge?.value.trim() || '';
+  const objective = registerObjective?.value.trim() || '';
+  const restrictions = registerRestrictions?.value.trim() || '';
 
   if (!name || !email || !profile || !password || !confirmPassword) {
     showMessage(registerMessage, 'Preencha todos os campos para concluir o cadastro.', true);
@@ -231,17 +269,30 @@ registerForm?.addEventListener('submit', async (event) => {
     return;
   }
 
+  if (isPatientProfile(profile) && (!nutritionistEmail || !age || !objective)) {
+    showMessage(registerMessage, 'Informe o nutricionista, a idade e o objetivo do paciente.', true);
+    return;
+  }
+
   try {
     const data = await sendAuthRequest('/api/auth/register', {
       name,
       email,
       profile,
       password,
+      nutritionistEmail,
+      age,
+      objective,
+      restrictions,
     });
 
     saveSession(data);
-    showMessage(registerMessage, `${data.message} Conta criada para ${data.user.name}.`);
+    const linkedNutritionistMessage = data.user?.nutritionist
+      ? ` Vinculado a ${data.user.nutritionist.name}.`
+      : '';
+    showMessage(registerMessage, `${data.message} Conta criada para ${data.user.name}.${linkedNutritionistMessage}`);
     registerForm.reset();
+    syncPatientRegistrationFields();
     handlePostAuthNavigation(data);
   } catch (error) {
     showMessage(registerMessage, error.message, true);

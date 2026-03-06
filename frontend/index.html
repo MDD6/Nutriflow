@@ -392,6 +392,31 @@
               </select>
             </label>
 
+            <div id="patientConnectionFields" class="hidden space-y-4 rounded-[24px] border border-nutriflow-100 bg-nutriflow-50 px-4 py-4">
+              <p class="text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-600">Vinculo com nutricionista</p>
+
+              <label class="block">
+                <span class="mb-2 block text-sm font-medium">E-mail do nutricionista</span>
+                <input id="registerNutritionistEmail" class="w-full rounded-2xl border border-nutriflow-200 px-4 py-3 outline-none transition focus:border-nutriflow-500" type="email" placeholder="nutricionista@nutriflow.com" />
+              </label>
+
+              <div class="grid gap-4 md:grid-cols-2">
+                <label class="block">
+                  <span class="mb-2 block text-sm font-medium">Idade</span>
+                  <input id="registerAge" class="w-full rounded-2xl border border-nutriflow-200 px-4 py-3 outline-none transition focus:border-nutriflow-500" type="number" min="1" max="120" placeholder="28" />
+                </label>
+                <label class="block">
+                  <span class="mb-2 block text-sm font-medium">Objetivo nutricional</span>
+                  <input id="registerObjective" class="w-full rounded-2xl border border-nutriflow-200 px-4 py-3 outline-none transition focus:border-nutriflow-500" type="text" placeholder="Emagrecimento, hipertrofia, reeducacao..." />
+                </label>
+              </div>
+
+              <label class="block">
+                <span class="mb-2 block text-sm font-medium">Restricoes alimentares (opcional)</span>
+                <input id="registerRestrictions" class="w-full rounded-2xl border border-nutriflow-200 px-4 py-3 outline-none transition focus:border-nutriflow-500" type="text" placeholder="Ex: sem lactose, alergia a castanhas" />
+              </label>
+            </div>
+
             <div class="grid gap-4 md:grid-cols-2">
               <label class="block">
                 <span class="mb-2 block text-sm font-medium">Senha</span>

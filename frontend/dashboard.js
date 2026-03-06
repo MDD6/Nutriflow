@@ -22,6 +22,13 @@ function isPatientProfile(profile) {
   return String(profile || '').trim().toLowerCase() === 'paciente';
 }
 
+function getLinkedNutritionist() {
+  return user?.nutritionist || {
+    name: 'Dra. Helena',
+    email: 'helena@nutriflow.com',
+  };
+}
+
 function getFirstName(name) {
   return String(name || '').trim().split(/\s+/)[0] || 'Paciente';
 }
@@ -59,6 +66,7 @@ function hydrateUser() {
   const fullName = user?.name || 'Paciente NutriFlow';
   const profile = user?.profile || 'Paciente';
   const email = user?.email || 'paciente@nutriflow.com';
+  const nutritionist = getLinkedNutritionist();
 
   document.querySelectorAll('[data-user-name]').forEach((element) => {
     element.textContent = fullName;
@@ -75,6 +83,19 @@ function hydrateUser() {
   document.querySelectorAll('[data-user-initial]').forEach((element) => {
     element.textContent = getInitials(fullName);
   });
+
+  document.querySelectorAll('[data-linked-nutritionist-name]').forEach((element) => {
+    element.textContent = nutritionist.name;
+  });
+
+  document.querySelectorAll('[data-linked-nutritionist-initial]').forEach((element) => {
+    element.textContent = getInitials(nutritionist.name);
+  });
+
+  const chatPlaceholder = document.querySelector('[data-chat-placeholder]');
+  if (chatPlaceholder) {
+    chatPlaceholder.placeholder = `Escreva uma mensagem para ${nutritionist.name}`;
+  }
 
   const greetingElement = document.querySelector('[data-greeting]');
   if (greetingElement) {
@@ -93,13 +114,14 @@ function hydrateUser() {
 }
 
 function createChatMessage(content, isUserMessage = false) {
+  const nutritionist = getLinkedNutritionist();
   const row = document.createElement('div');
   row.className = `chat-row${isUserMessage ? ' is-user' : ''}`;
 
   if (!isUserMessage) {
     const avatar = document.createElement('div');
     avatar.className = 'chat-avatar';
-    avatar.textContent = 'DH';
+    avatar.textContent = getInitials(nutritionist.name);
     row.appendChild(avatar);
   }
 
@@ -107,7 +129,7 @@ function createChatMessage(content, isUserMessage = false) {
   bubble.className = `chat-bubble${isUserMessage ? ' is-user' : ''}`;
   bubble.innerHTML = `
     <p class="${isUserMessage ? 'text-xs font-semibold uppercase tracking-[0.14em] text-white/60' : 'text-xs font-semibold uppercase tracking-[0.14em] text-nutriflow-500'}">
-      ${isUserMessage ? 'Voce' : 'Dra. Helena'} - agora
+      ${isUserMessage ? 'Voce' : nutritionist.name} - agora
     </p>
     <p class="mt-2 text-sm leading-7">${content}</p>
   `;

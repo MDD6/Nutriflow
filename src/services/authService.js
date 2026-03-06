@@ -91,38 +91,43 @@ class AuthService {
       const nutritionistEmail = normalizeEmail(payload.nutritionistEmail);
       const objective = normalizeText(payload.objective);
 
-      if (!nutritionistEmail) {
-        throw new AppError('Informe o e-mail do nutricionista responsavel.', 400);
+      if (nutritionistEmail) {
+        if (!objective) {
+          throw new AppError('Informe o objetivo nutricional do paciente.', 400);
+        }
+
+        const nutritionist = await this.userRepository.findByEmail(nutritionistEmail);
+
+        if (!nutritionist || !isNutritionistProfile(nutritionist.profile)) {
+          throw new AppError('Nutricionista nao encontrado com este e-mail.', 404);
+        }
+
+        user = await this.userRepository.createPatient({
+          name,
+          email,
+          profile,
+          passwordHash: this.passwordService.hash(password),
+          patientProfile: {
+            nutritionistId: nutritionist.id,
+            age: parsePatientAge(payload.age),
+            objective,
+            status: 'Ativo',
+            restrictions: normalizeText(payload.restrictions) || 'Sem restricoes informadas.',
+            lastMeal: 'Nenhuma refeicao registrada.',
+            currentWeight: 0,
+            height: 0,
+            bodyFat: 0,
+            progress: 0,
+          },
+        });
+      } else {
+        user = await this.userRepository.create({
+          name,
+          email,
+          profile,
+          passwordHash: this.passwordService.hash(password),
+        });
       }
-
-      if (!objective) {
-        throw new AppError('Informe o objetivo nutricional do paciente.', 400);
-      }
-
-      const nutritionist = await this.userRepository.findByEmail(nutritionistEmail);
-
-      if (!nutritionist || !isNutritionistProfile(nutritionist.profile)) {
-        throw new AppError('Nutricionista nao encontrado com este e-mail.', 404);
-      }
-
-      user = await this.userRepository.createPatient({
-        name,
-        email,
-        profile,
-        passwordHash: this.passwordService.hash(password),
-        patientProfile: {
-          nutritionistId: nutritionist.id,
-          age: parsePatientAge(payload.age),
-          objective,
-          status: 'Ativo',
-          restrictions: normalizeText(payload.restrictions) || 'Sem restricoes informadas.',
-          lastMeal: 'Nenhuma refeicao registrada.',
-          currentWeight: 0,
-          height: 0,
-          bodyFat: 0,
-          progress: 0,
-        },
-      });
     } else {
       user = await this.userRepository.create({
         name,

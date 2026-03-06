@@ -2,13 +2,31 @@ const { AppError } = require('../errors/appError');
 
 const SHORT_MONTHS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
+function normalizeEmail(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
 function normalizeText(value) {
   return String(value || '').trim();
+}
+
+function isNutritionistProfile(profile) {
+  return normalizeText(profile).toLowerCase() === 'nutricionista';
 }
 
 function toNumber(value, fallback = 0) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function parsePatientAge(value) {
+  const age = Number.parseInt(String(value || '').trim(), 10);
+
+  if (!Number.isInteger(age) || age <= 0 || age > 120) {
+    throw new AppError('Informe uma idade valida para o paciente.', 400);
+  }
+
+  return age;
 }
 
 function clampPercentage(value) {
@@ -194,13 +212,87 @@ function getPaceLabel(objective) {
 }
 
 class PatientDashboardService {
-  constructor(patientDashboardRepository) {
+  constructor(patientDashboardRepository, userRepository) {
     this.patientDashboardRepository = patientDashboardRepository;
+    this.userRepository = userRepository;
   }
 
   async getDashboard(patientUser) {
-    const patientProfile = await this.requirePatientProfile(patientUser.id);
+    const patientProfile = await this.patientDashboardRepository.findByUserId(patientUser.id);
+
+    if (!patientProfile) {
+      return this.toSetupDto(patientUser);
+    }
+
     return this.toDashboardDto(patientProfile);
+  }
+
+  async linkNutritionist(patientUser, payload) {
+    const nutritionistEmail = normalizeEmail(payload.nutritionistEmail);
+
+    if (!nutritionistEmail) {
+      throw new AppError('Informe o e-mail do nutricionista para concluir o vinculo.', 400);
+    }
+
+    const nutritionist = await this.userRepository.findByEmail(nutritionistEmail);
+
+    if (!nutritionist || !isNutritionistProfile(nutritionist.profile)) {
+      throw new AppError('Nutricionista nao encontrado com este e-mail.', 404);
+    }
+
+    const patientAccount = await this.userRepository.findByIdWithPatientProfile(patientUser.id);
+
+    if (!patientAccount) {
+      throw new AppError('Usuario paciente nao encontrado.', 404);
+    }
+
+    let patientProfile = patientAccount.patientProfile;
+
+    if (patientProfile) {
+      if (patientProfile.nutritionistId !== nutritionist.id) {
+        throw new AppError(
+          `Este paciente ja esta vinculado a ${patientProfile.nutritionist?.name || 'outro nutricionista'}.`,
+          409,
+        );
+      }
+    } else {
+      const objective = normalizeText(payload.objective);
+
+      if (!objective) {
+        throw new AppError('Informe o objetivo nutricional para concluir o vinculo.', 400);
+      }
+
+      patientProfile = await this.userRepository.createPatientProfile({
+        userId: patientUser.id,
+        nutritionistId: nutritionist.id,
+        age: parsePatientAge(payload.age),
+        objective,
+        status: 'Ativo',
+        restrictions: normalizeText(payload.restrictions) || 'Sem restricoes informadas.',
+        lastMeal: 'Nenhuma refeicao registrada.',
+        currentWeight: 0,
+        height: 0,
+        bodyFat: 0,
+        progress: 0,
+      });
+    }
+
+    return {
+      message: `Paciente vinculado com sucesso a ${nutritionist.name}.`,
+      setupRequired: false,
+      patient: {
+        id: patientUser.id,
+        name: patientUser.name,
+        email: patientUser.email,
+        profile: patientUser.profile,
+        objective: patientProfile.objective,
+        nutritionist: {
+          id: nutritionist.id,
+          name: nutritionist.name,
+          email: nutritionist.email,
+        },
+      },
+    };
   }
 
   async createMealEntry(patientUser, payload) {
@@ -259,6 +351,22 @@ class PatientDashboardService {
     }
 
     return patientProfile;
+  }
+
+  toSetupDto(patientUser) {
+    return {
+      setupRequired: true,
+      patient: {
+        id: patientUser.id,
+        name: patientUser.name,
+        email: patientUser.email,
+        profile: patientUser.profile,
+      },
+      connection: {
+        linked: false,
+        message: 'Conecte sua conta a um nutricionista para liberar plano alimentar, chat e acompanhamento.',
+      },
+    };
   }
 
   toDashboardDto(patientProfile) {

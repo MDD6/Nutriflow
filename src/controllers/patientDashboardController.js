@@ -22,6 +22,13 @@ class PatientDashboardController {
     }, 201, true);
   }
 
+  async linkNutritionist(request, response) {
+    await this.execute(request, response, async (body) => {
+      const patient = await this.sessionService.requirePatient(request);
+      return this.patientDashboardService.linkNutritionist(patient, body);
+    }, 200, true);
+  }
+
   async sendMessage(request, response) {
     await this.execute(request, response, async (body) => {
       const patient = await this.sessionService.requirePatient(request);

@@ -168,6 +168,29 @@
           <article class="dashboard-surface dashboard-card nutritionist-summary-card rounded-[28px] p-5"><p class="text-xs font-semibold uppercase tracking-[0.18em] text-nutriflow-500">Mensagens pendentes</p><p id="pendingMessagesCount" class="mt-4 text-4xl font-bold tracking-[-0.06em] text-nutriflow-950">0</p><p class="mt-2 text-sm text-nutriflow-700">Conversas aguardando retorno</p></article>
         </section>
 
+        <section class="workspace-banner lg:grid-cols-2 2xl:grid-cols-4">
+          <article class="workspace-chip">
+            <p class="text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Inbox</p>
+            <strong id="workspacePendingMessagesValue">0 pendencias</strong>
+            <span id="workspacePendingMessagesMeta">Mensagens do paciente aparecem aqui para priorizacao rapida.</span>
+          </article>
+          <article class="workspace-chip">
+            <p class="text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Agenda do dia</p>
+            <strong id="workspaceTodayAppointmentsValue">0 acompanhamentos</strong>
+            <span id="workspaceTodayAppointmentsMeta">Consultas e retornos programados entram neste resumo.</span>
+          </article>
+          <article class="workspace-chip">
+            <p class="text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Planos para revisar</p>
+            <strong id="workspacePlansReviewValue">0 revisoes</strong>
+            <span id="workspacePlansReviewMeta">Monitore pacientes com plano atrasado ou em revisao.</span>
+          </article>
+          <article class="workspace-chip">
+            <p class="text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Paciente em foco</p>
+            <strong id="workspaceSelectedPatientValue">Nenhum selecionado</strong>
+            <span id="workspaceSelectedPatientMeta">Ao abrir um paciente, este resumo acompanha o contexto clinico.</span>
+          </article>
+        </section>
+
         <section id="pacientes" class="grid gap-6 2xl:grid-cols-[1.18fr_.82fr]">
           <article class="dashboard-surface dashboard-card rounded-[30px] p-6">
             <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
@@ -187,6 +210,30 @@
               <label class="rounded-2xl border border-nutriflow-100 bg-white px-4 py-3 text-sm text-nutriflow-700"><span class="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Objetivo</span><select id="patientObjectiveFilter" class="w-full bg-transparent outline-none"><option value="">Todos</option><option value="Emagrecimento">Emagrecimento</option><option value="Hipertrofia">Hipertrofia</option><option value="Reeducacao alimentar">Reeducacao alimentar</option><option value="Saude metabolica">Saude metabolica</option></select></label>
               <label class="rounded-2xl border border-nutriflow-100 bg-white px-4 py-3 text-sm text-nutriflow-700"><span class="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Status</span><select id="patientStatusFilter" class="w-full bg-transparent outline-none"><option value="">Todos</option><option value="Ativo">Ativo</option><option value="Revisao">Revisao</option><option value="Atrasado">Atrasado</option></select></label>
             </div>
+
+            <form id="patientLinkForm" class="mt-4 grid gap-4 rounded-[24px] border border-nutriflow-100 bg-[#f8faf7] p-4 lg:grid-cols-[1.2fr_.55fr_.9fr_1fr_auto]">
+              <div class="lg:col-span-full">
+                <p class="text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Vinculo manual</p>
+                <p class="mt-2 text-sm leading-7 text-nutriflow-700">Use este bloco para conectar pacientes que ja criaram conta no sistema, mas ainda nao foram associados a sua carteira.</p>
+              </div>
+              <label class="rounded-2xl border border-nutriflow-100 bg-white px-4 py-3 text-sm text-nutriflow-700">
+                <span class="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">E-mail do paciente</span>
+                <input id="linkPatientEmail" class="w-full bg-transparent outline-none placeholder:text-nutriflow-400" type="email" placeholder="paciente@nutriflow.com" />
+              </label>
+              <label class="rounded-2xl border border-nutriflow-100 bg-white px-4 py-3 text-sm text-nutriflow-700">
+                <span class="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Idade</span>
+                <input id="linkPatientAge" class="w-full bg-transparent outline-none placeholder:text-nutriflow-400" type="number" min="1" max="120" placeholder="29" />
+              </label>
+              <label class="rounded-2xl border border-nutriflow-100 bg-white px-4 py-3 text-sm text-nutriflow-700">
+                <span class="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Objetivo</span>
+                <input id="linkPatientObjective" class="w-full bg-transparent outline-none placeholder:text-nutriflow-400" type="text" placeholder="Emagrecimento" />
+              </label>
+              <label class="rounded-2xl border border-nutriflow-100 bg-white px-4 py-3 text-sm text-nutriflow-700">
+                <span class="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Restricoes</span>
+                <input id="linkPatientRestrictions" class="w-full bg-transparent outline-none placeholder:text-nutriflow-400" type="text" placeholder="Ex: sem lactose" />
+              </label>
+              <button id="linkPatientSubmitButton" class="rounded-2xl bg-nutriflow-950 px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-nutriflow-800" type="submit">Vincular paciente</button>
+            </form>
 
             <div class="mt-6 overflow-hidden rounded-[24px] border border-nutriflow-100">
               <div class="hidden grid-cols-[1.1fr_.45fr_.95fr_.85fr_.9fr_.7fr] bg-[#f7faf5] px-4 py-3 text-xs font-semibold uppercase tracking-[0.14em] text-nutriflow-500 md:grid"><span>Paciente</span><span>Idade</span><span>Objetivo</span><span>Ultima avaliacao</span><span>Status plano</span><span class="text-right">Acao</span></div>
@@ -415,6 +462,8 @@
   </div>
   <div id="nutritionistToast" class="nf-toast hidden"></div>
 
+  <script src="ui.js"></script>
+  <script src="api.js"></script>
   <script src="dashboard-nutricionista.js"></script>
 </body>
 </html>

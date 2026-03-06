@@ -1,5 +1,27 @@
 const { AppError } = require('../errors/appError');
 
+function normalizeEmail(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function normalizeText(value) {
+  return String(value || '').trim();
+}
+
+function isPatientProfile(profile) {
+  return normalizeText(profile).toLowerCase() === 'paciente';
+}
+
+function parsePatientAge(value) {
+  const age = Number.parseInt(String(value || '').trim(), 10);
+
+  if (!Number.isInteger(age) || age <= 0 || age > 120) {
+    throw new AppError('Informe uma idade valida para o paciente.', 400);
+  }
+
+  return age;
+}
+
 function formatShortDate(date) {
   const instance = new Date(date);
 
@@ -75,9 +97,10 @@ function calculateAverage(numbers) {
 }
 
 class NutritionistDashboardService {
-  constructor(nutritionistDashboardRepository, passwordService) {
+  constructor(nutritionistDashboardRepository, passwordService, userRepository) {
     this.nutritionistDashboardRepository = nutritionistDashboardRepository;
     this.passwordService = passwordService;
+    this.userRepository = userRepository;
   }
 
   async getDashboard(nutritionist) {
@@ -212,6 +235,69 @@ class NutritionistDashboardService {
     return {
       message: 'Desafio nutricional criado com sucesso.',
       challenge: this.toChallengeDto(challenge),
+    };
+  }
+
+  async linkPatient(nutritionist, payload) {
+    const patientEmail = normalizeEmail(payload.patientEmail);
+
+    if (!patientEmail) {
+      throw new AppError('Informe o e-mail do paciente para concluir o vinculo.', 400);
+    }
+
+    const patientUser = await this.userRepository.findByEmail(patientEmail);
+
+    if (!patientUser || !isPatientProfile(patientUser.profile)) {
+      throw new AppError('Paciente nao encontrado com este e-mail.', 404);
+    }
+
+    if (patientUser.patientProfile) {
+      if (patientUser.patientProfile.nutritionistId !== nutritionist.id) {
+        throw new AppError(
+          `Este paciente ja esta vinculado a ${patientUser.patientProfile.nutritionist?.name || 'outro nutricionista'}.`,
+          409,
+        );
+      }
+
+      return {
+        message: `${patientUser.name} ja esta vinculado a sua carteira.`,
+        patient: {
+          id: patientUser.patientProfile.id,
+          name: patientUser.name,
+          email: patientUser.email,
+          objective: patientUser.patientProfile.objective,
+        },
+      };
+    }
+
+    const objective = normalizeText(payload.objective);
+
+    if (!objective) {
+      throw new AppError('Informe o objetivo nutricional para criar o vinculo do paciente.', 400);
+    }
+
+    const patientProfile = await this.userRepository.createPatientProfile({
+      userId: patientUser.id,
+      nutritionistId: nutritionist.id,
+      age: parsePatientAge(payload.age),
+      objective,
+      status: 'Ativo',
+      restrictions: normalizeText(payload.restrictions) || 'Sem restricoes informadas.',
+      lastMeal: 'Nenhuma refeicao registrada.',
+      currentWeight: 0,
+      height: 0,
+      bodyFat: 0,
+      progress: 0,
+    });
+
+    return {
+      message: `${patientUser.name} foi vinculado com sucesso a sua carteira.`,
+      patient: {
+        id: patientProfile.id,
+        name: patientUser.name,
+        email: patientUser.email,
+        objective: patientProfile.objective,
+      },
     };
   }
 

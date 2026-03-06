@@ -21,6 +21,7 @@ const state = {
   reports: null,
   isLoadingConversation: false,
   isSendingConversation: false,
+  isLinkingPatient: false,
 };
 
 const patientNameFilter = document.getElementById('patientNameFilter');
@@ -39,6 +40,12 @@ const assessmentWeight = document.getElementById('assessmentWeight');
 const assessmentHeight = document.getElementById('assessmentHeight');
 const assessmentImc = document.getElementById('assessmentImc');
 const challengeForm = document.getElementById('challengeForm');
+const patientLinkForm = document.getElementById('patientLinkForm');
+const linkPatientEmail = document.getElementById('linkPatientEmail');
+const linkPatientAge = document.getElementById('linkPatientAge');
+const linkPatientObjective = document.getElementById('linkPatientObjective');
+const linkPatientRestrictions = document.getElementById('linkPatientRestrictions');
+const linkPatientSubmitButton = document.getElementById('linkPatientSubmitButton');
 const conversationForm = document.getElementById('conversationForm');
 const conversationInput = document.getElementById('conversationInput');
 const conversationSubmitButton = document.getElementById('conversationSubmitButton');
@@ -134,7 +141,7 @@ async function apiRequest(url, options = {}) {
     headers.set('Content-Type', 'application/json');
   }
 
-  const response = await fetch(url, {
+  const response = await window.NutriFlowApi.request(url, {
     ...options,
     headers,
   });
@@ -195,6 +202,13 @@ async function createAssessment(payload) {
 
 async function createChallenge(payload) {
   return apiRequest('/api/nutritionist/challenges', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+async function linkPatient(payload) {
+  return apiRequest('/api/nutritionist/link-patient', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
@@ -272,6 +286,7 @@ function getSelectedPatient() {
 async function syncSelectedPatientView() {
   renderPatientsList();
   renderSelectedPatient();
+  renderWorkspaceBanner();
   renderEvolution();
   await loadConversation(state.selectedPatientId);
 }
@@ -336,6 +351,31 @@ function renderSummaryCards() {
   document.getElementById('sidebarAppointmentsCount').textContent = state.appointments.length;
   document.getElementById('sidebarPlansReviewCount').textContent = plansToReview;
   document.getElementById('sidebarUnreadCount').textContent = summary.pendingMessages;
+}
+
+function renderWorkspaceBanner() {
+  const summary = state.summary || {
+    pendingMessages: 0,
+  };
+  const selectedPatient = getSelectedPatient();
+  const plansToReview = state.mealPlans.filter((plan) => plan.status !== 'Ativo').length;
+
+  document.getElementById('workspacePendingMessagesValue').textContent = `${summary.pendingMessages} pendencia(s)`;
+  document.getElementById('workspacePendingMessagesMeta').textContent = summary.pendingMessages > 0
+    ? 'Existe paciente aguardando retorno na inbox do dashboard.'
+    : 'Nenhuma conversa critica aguardando resposta neste momento.';
+  document.getElementById('workspaceTodayAppointmentsValue').textContent = `${state.appointments.length} acompanhamento(s)`;
+  document.getElementById('workspaceTodayAppointmentsMeta').textContent = state.appointments.length
+    ? 'A agenda ativa mostra consultas, retornos e revisoes da carteira.'
+    : 'Sem acompanhamentos agendados para a janela atual.';
+  document.getElementById('workspacePlansReviewValue').textContent = `${plansToReview} revisao(oes)`;
+  document.getElementById('workspacePlansReviewMeta').textContent = plansToReview
+    ? 'Pacientes com plano atrasado ou em revisao pedem ajuste de estrategia.'
+    : 'Todos os planos principais estao ativos ou atualizados.';
+  document.getElementById('workspaceSelectedPatientValue').textContent = selectedPatient?.name || 'Nenhum selecionado';
+  document.getElementById('workspaceSelectedPatientMeta').textContent = selectedPatient
+    ? `${selectedPatient.objective} • status ${selectedPatient.status.toLowerCase()}`
+    : 'Ao abrir um paciente, este resumo acompanha o contexto clinico.';
 }
 
 function getFilteredPatients() {
@@ -969,6 +1009,13 @@ function resolveParticipantIds(participantsRaw) {
   };
 }
 
+function setPatientLinkFormState(isLoading) {
+  if (linkPatientSubmitButton) {
+    linkPatientSubmitButton.disabled = isLoading;
+    linkPatientSubmitButton.textContent = isLoading ? 'Vinculando...' : 'Vincular paciente';
+  }
+}
+
 function bindForms() {
   mealPlanForm?.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -1064,6 +1111,45 @@ function bindForms() {
     }
   });
 
+  patientLinkForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+
+    if (state.isLinkingPatient) {
+      return;
+    }
+
+    const patientEmail = linkPatientEmail?.value.trim() || '';
+    const age = linkPatientAge?.value.trim() || '';
+    const objective = linkPatientObjective?.value.trim() || '';
+    const restrictions = linkPatientRestrictions?.value.trim() || '';
+
+    if (!patientEmail) {
+      showToast('Informe o e-mail do paciente para concluir o vinculo.');
+      return;
+    }
+
+    state.isLinkingPatient = true;
+    setPatientLinkFormState(true);
+
+    try {
+      const result = await linkPatient({
+        patientEmail,
+        age,
+        objective,
+        restrictions,
+      });
+
+      patientLinkForm.reset();
+      await refreshDashboard(state.selectedPatientId);
+      showToast(result.message || 'Paciente vinculado com sucesso.');
+    } catch (error) {
+      showToast(error.message);
+    } finally {
+      state.isLinkingPatient = false;
+      setPatientLinkFormState(false);
+    }
+  });
+
   conversationForm?.addEventListener('submit', async (event) => {
     event.preventDefault();
 
@@ -1116,6 +1202,7 @@ async function init() {
   bindFilters();
   bindActions();
   bindForms();
+  window.NutriFlowUi?.setupSectionNavigation({ linkSelector: '.sidebar-link, .mobile-nav-pill' });
 
   try {
     await refreshDashboard();

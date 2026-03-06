@@ -127,6 +127,65 @@
       </div>
 
       <main class="mt-4 space-y-6 pb-6">
+        <section class="dashboard-highlight-grid lg:grid-cols-2 2xl:grid-cols-4">
+          <article class="dashboard-highlight-card">
+            <p>Nutricionista conectado</p>
+            <strong id="patientHighlightNutritionistValue">Nenhum vinculo</strong>
+            <span id="patientHighlightNutritionistMeta">Conecte seu profissional para liberar acompanhamento completo.</span>
+          </article>
+          <article class="dashboard-highlight-card">
+            <p>Objetivo atual</p>
+            <strong id="patientHighlightObjectiveValue">A definir</strong>
+            <span id="patientHighlightObjectiveMeta">Seu objetivo nutricional aparece aqui assim que o vinculo estiver completo.</span>
+          </article>
+          <article class="dashboard-highlight-card">
+            <p>Proximo acompanhamento</p>
+            <strong id="patientHighlightConsultationValue">Sem agenda</strong>
+            <span id="patientHighlightConsultationMeta">Assim que uma consulta for marcada, este card mostra o proximo passo.</span>
+          </article>
+          <article class="dashboard-highlight-card is-dark">
+            <p>Canal com nutricionista</p>
+            <strong id="patientHighlightChatValue">Disponivel</strong>
+            <span id="patientHighlightChatMeta">Use o chat para ajustes rapidos de plano, fome, treino e rotina.</span>
+          </article>
+        </section>
+
+        <section id="patientConnectionSection" class="dashboard-surface dashboard-card rounded-[30px] p-6 md:p-7">
+          <div class="grid gap-6 xl:grid-cols-[1fr_.95fr] xl:items-start">
+            <div>
+              <span class="glass-pill">Vinculo profissional</span>
+              <h2 id="patientConnectionTitle" class="mt-4 text-2xl font-bold tracking-[-0.05em]">Conecte sua conta ao nutricionista</h2>
+              <p id="patientConnectionDescription" class="mt-3 max-w-2xl text-sm leading-7 text-nutriflow-700">Use o e-mail do profissional para liberar plano alimentar, chat, consultas e acompanhamento dentro do NutriFlow.</p>
+              <div class="mt-5 flex flex-wrap gap-3">
+                <span id="patientConnectionStatus" class="rounded-full bg-[#eef6e8] px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-nutriflow-700">Aguardando vinculo</span>
+                <span id="patientLinkedNutritionistName" class="rounded-full bg-[#f4f8f2] px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-nutriflow-700">Nenhum nutricionista conectado</span>
+              </div>
+            </div>
+
+            <form id="patientConnectionForm" class="grid gap-4">
+              <label class="rounded-2xl border border-nutriflow-100 bg-white px-4 py-3 text-sm text-nutriflow-700">
+                <span class="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">E-mail do nutricionista</span>
+                <input id="patientNutritionistEmail" class="w-full bg-transparent outline-none placeholder:text-nutriflow-400" type="email" placeholder="nutricionista@nutriflow.com" />
+              </label>
+              <div class="grid gap-4 sm:grid-cols-2">
+                <label class="rounded-2xl border border-nutriflow-100 bg-white px-4 py-3 text-sm text-nutriflow-700">
+                  <span class="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Idade</span>
+                  <input id="patientConnectionAge" class="w-full bg-transparent outline-none placeholder:text-nutriflow-400" type="number" min="1" max="120" placeholder="29" />
+                </label>
+                <label class="rounded-2xl border border-nutriflow-100 bg-white px-4 py-3 text-sm text-nutriflow-700">
+                  <span class="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Objetivo</span>
+                  <input id="patientConnectionObjective" class="w-full bg-transparent outline-none placeholder:text-nutriflow-400" type="text" placeholder="Emagrecimento, hipertrofia..." />
+                </label>
+              </div>
+              <label class="rounded-2xl border border-nutriflow-100 bg-white px-4 py-3 text-sm text-nutriflow-700">
+                <span class="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Restricoes alimentares</span>
+                <input id="patientConnectionRestrictions" class="w-full bg-transparent outline-none placeholder:text-nutriflow-400" type="text" placeholder="Ex: sem lactose, alergia a castanhas" />
+              </label>
+              <button id="patientConnectionSubmitButton" class="rounded-2xl bg-nutriflow-950 px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-nutriflow-800" type="submit">Conectar ao nutricionista</button>
+            </form>
+          </div>
+        </section>
+
         <section id="visao-geral" class="grid gap-6 2xl:grid-cols-[1.2fr_.8fr]">
           <article class="dashboard-surface dashboard-card rounded-[30px] p-6 md:p-7">
             <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
@@ -397,6 +456,8 @@
   </div>
 
   <div id="patientToast" class="nf-toast hidden"></div>
+  <script src="ui.js"></script>
+  <script src="api.js"></script>
   <script src="dashboard.js"></script>
 </body>
 </html>

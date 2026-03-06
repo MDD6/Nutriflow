@@ -11,6 +11,7 @@ const state = {
   dashboard: null,
   isAddingMeal: false,
   isSendingMessage: false,
+  isLinkingNutritionist: false,
 };
 
 const chatMessages = document.getElementById('chatMessages');
@@ -21,6 +22,12 @@ const addMealButton = document.getElementById('addMealButton');
 const quickAddMealButton = document.getElementById('quickAddMealButton');
 const toast = document.getElementById('patientToast');
 const overviewRing = document.querySelector('.metric-ring');
+const patientConnectionForm = document.getElementById('patientConnectionForm');
+const patientNutritionistEmail = document.getElementById('patientNutritionistEmail');
+const patientConnectionAge = document.getElementById('patientConnectionAge');
+const patientConnectionObjective = document.getElementById('patientConnectionObjective');
+const patientConnectionRestrictions = document.getElementById('patientConnectionRestrictions');
+const patientConnectionSubmitButton = document.getElementById('patientConnectionSubmitButton');
 
 function getSessionToken() {
   return localStorage.getItem('nutriflow.token');
@@ -149,7 +156,7 @@ async function apiRequest(url, options = {}) {
     headers.set('Content-Type', 'application/json');
   }
 
-  const response = await fetch(url, {
+  const response = await window.NutriFlowApi.request(url, {
     ...options,
     headers,
   });
@@ -189,6 +196,13 @@ async function sendPatientMessage(payload) {
   });
 }
 
+async function linkNutritionist(payload) {
+  return apiRequest('/api/patient/link-nutritionist', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
 function applyDashboardState(payload) {
   state.dashboard = payload || null;
 
@@ -213,6 +227,10 @@ function getPatientData() {
       email: 'nutricionista@nutriflow.com',
     },
   };
+}
+
+function isSetupRequired() {
+  return state.dashboard?.setupRequired === true;
 }
 
 function getNutritionistData() {
@@ -272,6 +290,118 @@ function renderHeader() {
 
   if (chatInput) {
     chatInput.placeholder = `Escreva uma mensagem para ${nutritionist.name || 'sua nutricionista'}`;
+  }
+}
+
+function renderHighlights() {
+  const patient = getPatientData();
+  const nutritionist = patient.nutritionist;
+  const clinical = state.dashboard?.clinical;
+  const chat = state.dashboard?.chat;
+  const pendingChecklist = (clinical?.checklist || []).filter((item) => !item.done).length;
+
+  setTextContent(
+    document.getElementById('patientHighlightNutritionistValue'),
+    nutritionist?.name || 'Sem vinculo',
+  );
+  setTextContent(
+    document.getElementById('patientHighlightNutritionistMeta'),
+    nutritionist?.email || 'Conecte seu profissional para liberar dashboard, plano e chat.',
+  );
+  setTextContent(
+    document.getElementById('patientHighlightObjectiveValue'),
+    patient.objective || 'A definir',
+  );
+  setTextContent(
+    document.getElementById('patientHighlightObjectiveMeta'),
+    patient.objective
+      ? 'Seu objetivo atual guia plano alimentar, metas e acompanhamento.'
+      : 'Defina seu objetivo nutricional ao concluir o vinculo inicial.',
+  );
+  setTextContent(
+    document.getElementById('patientHighlightConsultationValue'),
+    clinical?.nextAppointment?.dateLabel || 'Sem agenda',
+  );
+  setTextContent(
+    document.getElementById('patientHighlightConsultationMeta'),
+    clinical?.nextAppointment?.description || 'Assim que uma consulta for marcada, este card mostra o proximo passo.',
+  );
+  setTextContent(
+    document.getElementById('patientHighlightChatValue'),
+    isSetupRequired() ? 'Bloqueado' : (chat?.responseTimeLabel || 'Disponivel'),
+  );
+  setTextContent(
+    document.getElementById('patientHighlightChatMeta'),
+    isSetupRequired()
+      ? 'Conecte sua conta para liberar o canal com o nutricionista.'
+      : pendingChecklist > 0
+        ? `${pendingChecklist} ponto(s) do acompanhamento ainda pedem sua atencao.`
+        : 'Use o chat para ajustes rapidos de plano, fome, treino e rotina.',
+  );
+}
+
+function setInteractionsEnabled(isEnabled) {
+  [addMealButton, quickAddMealButton].forEach((button) => {
+    if (button) {
+      button.disabled = !isEnabled || state.isAddingMeal;
+    }
+  });
+
+  if (chatInput) {
+    chatInput.disabled = !isEnabled || state.isSendingMessage;
+  }
+
+  const submitButton = chatForm?.querySelector('button[type="submit"]');
+  if (submitButton) {
+    submitButton.disabled = !isEnabled || state.isSendingMessage;
+  }
+}
+
+function renderConnectionPanel() {
+  const patient = getPatientData();
+  const nutritionist = patient.nutritionist || null;
+  const isDisconnected = isSetupRequired();
+  const statusElement = document.getElementById('patientConnectionStatus');
+  const linkedNameElement = document.getElementById('patientLinkedNutritionistName');
+
+  setTextContent(
+    document.getElementById('patientConnectionTitle'),
+    isDisconnected ? 'Conecte sua conta ao nutricionista' : 'Seu vinculo com o nutricionista',
+  );
+  setTextContent(
+    document.getElementById('patientConnectionDescription'),
+    isDisconnected
+      ? 'Informe o e-mail do profissional e complete seus dados basicos para liberar dashboard, chat e plano alimentar.'
+      : 'Seu acompanhamento esta conectado. Se precisar reconfirmar o vinculo, use o mesmo e-mail do profissional abaixo.',
+  );
+
+  if (statusElement) {
+    statusElement.textContent = isDisconnected ? 'Aguardando vinculo' : 'Conta conectada';
+    statusElement.className = isDisconnected
+      ? 'rounded-full bg-[#fdf6e7] px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-[#916a12]'
+      : 'rounded-full bg-[#eef6e8] px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-nutriflow-700';
+  }
+
+  setTextContent(
+    linkedNameElement,
+    nutritionist ? `Nutricionista: ${nutritionist.name}` : 'Nenhum nutricionista conectado',
+  );
+
+  if (patientNutritionistEmail && !patientNutritionistEmail.value && nutritionist?.email) {
+    patientNutritionistEmail.value = nutritionist.email;
+  }
+
+  if (patientConnectionObjective && !patientConnectionObjective.value && patient.objective) {
+    patientConnectionObjective.value = patient.objective;
+  }
+
+  setInteractionsEnabled(!isDisconnected);
+
+  if (patientConnectionSubmitButton) {
+    patientConnectionSubmitButton.disabled = state.isLinkingNutritionist;
+    patientConnectionSubmitButton.textContent = state.isLinkingNutritionist
+      ? 'Conectando...'
+      : (isDisconnected ? 'Conectar ao nutricionista' : 'Atualizar vinculo');
   }
 }
 
@@ -731,6 +861,8 @@ function renderClinical() {
 
 function renderDashboard() {
   renderHeader();
+  renderHighlights();
+  renderConnectionPanel();
   renderSidebar();
   renderOverview();
   renderGoals();
@@ -768,6 +900,11 @@ function setMealButtonsLoading(isLoading) {
 }
 
 async function handleAddMeal() {
+  if (isSetupRequired()) {
+    showToast('Conecte sua conta a um nutricionista antes de registrar refeicoes.');
+    return;
+  }
+
   if (state.isAddingMeal) {
     return;
   }
@@ -789,6 +926,11 @@ async function handleAddMeal() {
 
 async function handleChatSubmit(event) {
   event.preventDefault();
+
+  if (isSetupRequired()) {
+    showToast('Conecte sua conta a um nutricionista antes de usar o chat.');
+    return;
+  }
 
   if (!chatInput || state.isSendingMessage) {
     return;
@@ -828,6 +970,55 @@ async function handleChatSubmit(event) {
   }
 }
 
+async function handleNutritionistLink(event) {
+  event.preventDefault();
+
+  if (state.isLinkingNutritionist) {
+    return;
+  }
+
+  const nutritionistEmail = patientNutritionistEmail?.value.trim() || '';
+  const age = patientConnectionAge?.value.trim() || '';
+  const objective = patientConnectionObjective?.value.trim() || '';
+  const restrictions = patientConnectionRestrictions?.value.trim() || '';
+
+  if (!nutritionistEmail) {
+    showToast('Informe o e-mail do nutricionista para concluir o vinculo.');
+    return;
+  }
+
+  if (isSetupRequired() && (!age || !objective)) {
+    showToast('Informe idade e objetivo para concluir a conexao inicial.');
+    return;
+  }
+
+  state.isLinkingNutritionist = true;
+  renderConnectionPanel();
+
+  try {
+    const result = await linkNutritionist({
+      nutritionistEmail,
+      age,
+      objective,
+      restrictions,
+    });
+
+    persistCurrentUser({
+      ...state.currentUser,
+      ...result.patient,
+      nutritionist: result.patient?.nutritionist,
+    });
+
+    await refreshDashboard();
+    showToast(result.message || 'Vinculo atualizado com sucesso.');
+  } catch (error) {
+    showToast(error.message || 'Nao foi possivel concluir o vinculo.');
+  } finally {
+    state.isLinkingNutritionist = false;
+    renderConnectionPanel();
+  }
+}
+
 function bindNavigationState() {
   document.querySelectorAll('.mobile-nav-pill').forEach((button) => {
     button.addEventListener('click', () => {
@@ -844,6 +1035,7 @@ function bindEvents() {
   addMealButton?.addEventListener('click', handleAddMeal);
   quickAddMealButton?.addEventListener('click', handleAddMeal);
   chatForm?.addEventListener('submit', handleChatSubmit);
+  patientConnectionForm?.addEventListener('submit', handleNutritionistLink);
   bindNavigationState();
 }
 
@@ -854,6 +1046,7 @@ async function init() {
 
   renderHeader();
   bindEvents();
+  window.NutriFlowUi?.setupSectionNavigation({ linkSelector: '.sidebar-link, .mobile-nav-pill' });
 
   try {
     await refreshDashboard();

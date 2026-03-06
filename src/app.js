@@ -28,8 +28,9 @@ function createDependencies() {
   const nutritionistDashboardService = new NutritionistDashboardService(
     nutritionistDashboardRepository,
     passwordService,
+    userRepository,
   );
-  const patientDashboardService = new PatientDashboardService(patientDashboardRepository);
+  const patientDashboardService = new PatientDashboardService(patientDashboardRepository, userRepository);
   const authController = new AuthController(authService);
   const nutritionistDashboardController = new NutritionistDashboardController(
     sessionService,
@@ -60,8 +61,18 @@ function createApp() {
   } = createDependencies();
 
   const server = http.createServer(async (request, response) => {
+    response.setHeader('Access-Control-Allow-Origin', '*');
+    response.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    response.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+
     if (!request.url) {
       sendJson(response, 400, { message: 'Requisicao invalida.' });
+      return;
+    }
+
+    if (request.method === 'OPTIONS') {
+      response.writeHead(204);
+      response.end();
       return;
     }
 
@@ -100,6 +111,11 @@ function createApp() {
       return;
     }
 
+    if (request.method === 'POST' && request.url === '/api/nutritionist/link-patient') {
+      await nutritionistDashboardController.linkPatient(request, response);
+      return;
+    }
+
     if (request.method === 'POST' && request.url === '/api/nutritionist/messages') {
       await nutritionistDashboardController.sendMessage(request, response);
       return;
@@ -112,6 +128,11 @@ function createApp() {
 
     if (request.method === 'POST' && request.url === '/api/patient/meals') {
       await patientDashboardController.createMealEntry(request, response);
+      return;
+    }
+
+    if (request.method === 'POST' && request.url === '/api/patient/link-nutritionist') {
+      await patientDashboardController.linkNutritionist(request, response);
       return;
     }
 

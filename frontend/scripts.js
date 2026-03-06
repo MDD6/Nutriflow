@@ -39,19 +39,20 @@ function showMessage(element, message, isError = false) {
 
 function syncPatientRegistrationFields() {
   const isPatient = isPatientProfile(registerProfile?.value);
+  const hasNutritionistEmail = Boolean(registerNutritionistEmail?.value.trim());
 
   patientConnectionFields?.classList.toggle('hidden', !isPatient);
 
   if (registerNutritionistEmail) {
-    registerNutritionistEmail.required = isPatient;
+    registerNutritionistEmail.required = false;
   }
 
   if (registerAge) {
-    registerAge.required = isPatient;
+    registerAge.required = isPatient && hasNutritionistEmail;
   }
 
   if (registerObjective) {
-    registerObjective.required = isPatient;
+    registerObjective.required = isPatient && hasNutritionistEmail;
   }
 
   if (!isPatient && registerNutritionistEmail && registerAge && registerObjective && registerRestrictions) {
@@ -112,7 +113,7 @@ function closeModal() {
 }
 
 async function sendAuthRequest(url, payload) {
-  const response = await fetch(url, {
+  const response = await window.NutriFlowApi.request(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -198,6 +199,7 @@ authSwitchButtons.forEach((button) => {
 });
 
 registerProfile?.addEventListener('change', syncPatientRegistrationFields);
+registerNutritionistEmail?.addEventListener('input', syncPatientRegistrationFields);
 
 closeLogin?.addEventListener('click', closeModal);
 
@@ -269,8 +271,8 @@ registerForm?.addEventListener('submit', async (event) => {
     return;
   }
 
-  if (isPatientProfile(profile) && (!nutritionistEmail || !age || !objective)) {
-    showMessage(registerMessage, 'Informe o nutricionista, a idade e o objetivo do paciente.', true);
+  if (isPatientProfile(profile) && nutritionistEmail && (!age || !objective)) {
+    showMessage(registerMessage, 'Ao informar um nutricionista, preencha tambem idade e objetivo do paciente.', true);
     return;
   }
 
@@ -289,6 +291,8 @@ registerForm?.addEventListener('submit', async (event) => {
     saveSession(data);
     const linkedNutritionistMessage = data.user?.nutritionist
       ? ` Vinculado a ${data.user.nutritionist.name}.`
+      : isPatientProfile(profile)
+        ? ' Voce pode concluir o vinculo depois, pelo dashboard do paciente ou do nutricionista.'
       : '';
     showMessage(registerMessage, `${data.message} Conta criada para ${data.user.name}.${linkedNutritionistMessage}`);
     registerForm.reset();
@@ -307,3 +311,4 @@ contactForm?.addEventListener('submit', (event) => {
 });
 
 setAuthView('login');
+window.NutriFlowUi?.setupSectionNavigation({ linkSelector: '.landing-nav-link' });

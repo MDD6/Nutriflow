@@ -36,6 +36,13 @@ class NutritionistDashboardController {
     }, 201, true);
   }
 
+  async linkPatient(request, response) {
+    await this.execute(request, response, async (body) => {
+      const nutritionist = await this.sessionService.requireNutritionist(request);
+      return this.nutritionistDashboardService.linkPatient(nutritionist, body);
+    }, 200, true);
+  }
+
   async getConversation(request, response) {
     await this.execute(request, response, async () => {
       const nutritionist = await this.sessionService.requireNutritionist(request);

@@ -18,6 +18,19 @@ function resetAuthMessages() {
   registerMessage?.classList.add('hidden');
 }
 
+function showMessage(element, message, isError = false) {
+  if (!element) {
+    return;
+  }
+
+  element.textContent = message;
+  element.classList.remove('hidden');
+  element.classList.toggle('bg-red-100', isError);
+  element.classList.toggle('text-red-700', isError);
+  element.classList.toggle('bg-nutriflow-100', !isError);
+  element.classList.toggle('text-nutriflow-800', !isError);
+}
+
 function setAuthView(view) {
   const selectedView = view === 'register' ? 'register' : 'login';
 
@@ -38,7 +51,7 @@ function setAuthView(view) {
       authSubheading.textContent = 'Cadastre-se para iniciar seu acompanhamento nutricional.';
     } else {
       authHeading.textContent = 'Acesse sua area NutriFlow';
-      authSubheading.textContent = 'Faça login para acompanhar metas, refeições e evolução.';
+      authSubheading.textContent = 'Faca login para acompanhar metas, refeicoes e evolucao.';
     }
   }
 
@@ -64,6 +77,35 @@ function closeModal() {
   loginModal.classList.add('hidden');
   loginModal.classList.remove('flex');
   document.body.classList.remove('modal-open');
+}
+
+async function sendAuthRequest(url, payload) {
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await response.json().catch(() => ({
+    message: 'Resposta invalida do servidor.',
+  }));
+
+  if (!response.ok) {
+    throw new Error(data.message || 'Erro na autenticacao.');
+  }
+
+  return data;
+}
+
+function saveSession(data) {
+  if (!data?.token || !data?.user) {
+    return;
+  }
+
+  localStorage.setItem('nutriflow.token', data.token);
+  localStorage.setItem('nutriflow.user', JSON.stringify(data.user));
 }
 
 openButtons.forEach((button) => {
@@ -99,24 +141,29 @@ document.addEventListener('keydown', (event) => {
   }
 });
 
-loginForm?.addEventListener('submit', (event) => {
+loginForm?.addEventListener('submit', async (event) => {
   event.preventDefault();
 
   const email = document.getElementById('email').value.trim();
   const password = document.getElementById('password').value.trim();
 
   if (!email || !password) {
-    loginMessage.classList.remove('hidden');
-    loginMessage.textContent = 'Preencha e-mail e senha para continuar.';
+    showMessage(loginMessage, 'Preencha e-mail e senha para continuar.', true);
     return;
   }
 
-  loginMessage.classList.remove('hidden');
-  loginMessage.textContent = `Login simulado realizado para ${email}. Integre este formulário com seu backend Node.js + Prisma.`;
-  loginForm.reset();
+  try {
+    const data = await sendAuthRequest('/api/auth/login', { email, password });
+    saveSession(data);
+    showMessage(loginMessage, `${data.message} Bem-vindo, ${data.user.name}.`);
+    loginForm.reset();
+    setTimeout(closeModal, 1000);
+  } catch (error) {
+    showMessage(loginMessage, error.message, true);
+  }
 });
 
-registerForm?.addEventListener('submit', (event) => {
+registerForm?.addEventListener('submit', async (event) => {
   event.preventDefault();
 
   const name = document.getElementById('registerName').value.trim();
@@ -127,37 +174,45 @@ registerForm?.addEventListener('submit', (event) => {
   const acceptedTerms = document.getElementById('registerTerms').checked;
 
   if (!name || !email || !profile || !password || !confirmPassword) {
-    registerMessage.classList.remove('hidden');
-    registerMessage.textContent = 'Preencha todos os campos para concluir o cadastro.';
+    showMessage(registerMessage, 'Preencha todos os campos para concluir o cadastro.', true);
     return;
   }
 
   if (password.length < 8) {
-    registerMessage.classList.remove('hidden');
-    registerMessage.textContent = 'Sua senha precisa ter no minimo 8 caracteres.';
+    showMessage(registerMessage, 'Sua senha precisa ter no minimo 8 caracteres.', true);
     return;
   }
 
   if (password !== confirmPassword) {
-    registerMessage.classList.remove('hidden');
-    registerMessage.textContent = 'As senhas nao conferem. Verifique e tente novamente.';
+    showMessage(registerMessage, 'As senhas nao conferem. Verifique e tente novamente.', true);
     return;
   }
 
   if (!acceptedTerms) {
-    registerMessage.classList.remove('hidden');
-    registerMessage.textContent = 'Aceite os termos de uso para criar sua conta.';
+    showMessage(registerMessage, 'Aceite os termos de uso para criar sua conta.', true);
     return;
   }
 
-  registerMessage.classList.remove('hidden');
-  registerMessage.textContent = `Cadastro simulado criado para ${name} (${profile}). Agora conecte este fluxo ao backend Node.js.`;
-  registerForm.reset();
+  try {
+    const data = await sendAuthRequest('/api/auth/register', {
+      name,
+      email,
+      profile,
+      password,
+    });
+
+    saveSession(data);
+    showMessage(registerMessage, `${data.message} Conta criada para ${data.user.name}.`);
+    registerForm.reset();
+    setTimeout(closeModal, 1000);
+  } catch (error) {
+    showMessage(registerMessage, error.message, true);
+  }
 });
 
 contactForm?.addEventListener('submit', (event) => {
   event.preventDefault();
-  contactMessage.textContent = 'Mensagem enviada com sucesso. Agora você pode integrar este formulário à sua API.';
+  contactMessage.textContent = 'Mensagem enviada com sucesso. Agora voce pode integrar este formulario a sua API.';
   contactMessage.classList.remove('hidden');
   contactForm.reset();
 });

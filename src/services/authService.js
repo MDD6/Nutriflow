@@ -1,4 +1,10 @@
 const { AppError } = require('../errors/appError');
+const {
+  normalizeRole,
+  isPatientRole,
+  isNutritionistRole,
+  toRoleLabel,
+} = require('../constants/roles');
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
@@ -6,14 +12,6 @@ function normalizeEmail(email) {
 
 function normalizeText(value) {
   return String(value || '').trim();
-}
-
-function isPatientProfile(profile) {
-  return normalizeText(profile).toLowerCase() === 'paciente';
-}
-
-function isNutritionistProfile(profile) {
-  return normalizeText(profile).toLowerCase() === 'nutricionista';
 }
 
 function parsePatientAge(value) {
@@ -45,7 +43,9 @@ function toPublicUser(user) {
     id: user.id,
     name: user.name,
     email: user.email,
-    profile: user.profile,
+    profile: toRoleLabel(user.profile),
+    role: normalizeRole(user.profile),
+    isActive: user.isActive,
     createdAt: user.createdAt,
   };
 
@@ -53,6 +53,13 @@ function toPublicUser(user) {
 
   if (linkedNutritionist) {
     publicUser.nutritionist = linkedNutritionist;
+  }
+
+  if (user?.nutritionistProfile) {
+    publicUser.nutritionistProfile = {
+      crn: user.nutritionistProfile.crn,
+      clinic: user.nutritionistProfile.clinic,
+    };
   }
 
   return publicUser;
@@ -68,10 +75,10 @@ class AuthService {
   async register(payload) {
     const name = normalizeText(payload.name);
     const email = normalizeEmail(payload.email);
-    const profile = normalizeText(payload.profile);
+    const role = normalizeRole(payload.role || payload.profile);
     const password = String(payload.password || '');
 
-    if (!name || !email || !profile || !password) {
+    if (!name || !email || !role || !password) {
       throw new AppError('Preencha nome, e-mail, perfil e senha.', 400);
     }
 
@@ -87,7 +94,7 @@ class AuthService {
 
     let user;
 
-    if (isPatientProfile(profile)) {
+    if (isPatientRole(role)) {
       const nutritionistEmail = normalizeEmail(payload.nutritionistEmail);
       const objective = normalizeText(payload.objective);
 
@@ -98,14 +105,14 @@ class AuthService {
 
         const nutritionist = await this.userRepository.findByEmail(nutritionistEmail);
 
-        if (!nutritionist || !isNutritionistProfile(nutritionist.profile)) {
+        if (!nutritionist || !isNutritionistRole(nutritionist.profile)) {
           throw new AppError('Nutricionista nao encontrado com este e-mail.', 404);
         }
 
         user = await this.userRepository.createPatient({
           name,
           email,
-          profile,
+          profile: role,
           passwordHash: this.passwordService.hash(password),
           patientProfile: {
             nutritionistId: nutritionist.id,
@@ -124,7 +131,7 @@ class AuthService {
         user = await this.userRepository.create({
           name,
           email,
-          profile,
+          profile: role,
           passwordHash: this.passwordService.hash(password),
         });
       }
@@ -132,8 +139,18 @@ class AuthService {
       user = await this.userRepository.create({
         name,
         email,
-        profile,
+        profile: role,
         passwordHash: this.passwordService.hash(password),
+        ...(isNutritionistRole(role)
+          ? {
+              nutritionistProfile: {
+                create: {
+                  crn: normalizeText(payload.crn) || null,
+                  clinic: normalizeText(payload.clinic) || null,
+                },
+              },
+            }
+          : {}),
       });
     }
 
@@ -156,6 +173,10 @@ class AuthService {
 
     if (!user || !this.passwordService.verify(password, user.passwordHash)) {
       throw new AppError('E-mail ou senha invalidos.', 401);
+    }
+
+    if (!user.isActive) {
+      throw new AppError('Sua conta esta bloqueada. Procure o administrador da plataforma.', 403);
     }
 
     return {

@@ -126,7 +126,7 @@
 
             <div>
               <p class="text-xs font-semibold uppercase tracking-[0.2em] text-nutriflow-600">Workspace premium</p>
-              <h1 class="mt-2 text-3xl font-extrabold tracking-[-0.06em]" data-header-greeting>Bom dia, Dra. Helena</h1>
+              <h1 class="mt-2 text-3xl font-extrabold tracking-[-0.06em]" data-header-greeting>Carregando workspace</h1>
               <p class="mt-2 text-sm text-nutriflow-700" data-header-date>Visao operacional de pacientes, planos, mensagens e evolucao.</p>
             </div>
           </div>
@@ -138,9 +138,9 @@
             </label>
 
             <div class="flex items-center gap-3 rounded-2xl border border-nutriflow-100 bg-white px-3 py-2 shadow-[0_12px_24px_rgba(28,38,24,.06)]">
-              <div class="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-nutriflow-500 to-nutriflow-700 text-sm font-bold text-white" data-nutritionist-initial>DH</div>
+              <div class="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-nutriflow-500 to-nutriflow-700 text-sm font-bold text-white" data-nutritionist-initial>--</div>
               <div class="min-w-0">
-                <p class="truncate text-sm font-semibold text-nutriflow-950" data-nutritionist-name>Dra. Helena Duarte</p>
+                <p class="truncate text-sm font-semibold text-nutriflow-950" data-nutritionist-name>Conta do nutricionista</p>
                 <p class="truncate text-xs text-nutriflow-600">Nutricionista clinica</p>
               </div>
             </div>
@@ -248,32 +248,32 @@
                 <span class="glass-pill">Perfil resumido</span>
                 <h2 class="mt-4 text-2xl font-bold tracking-[-0.05em]">Paciente selecionado</h2>
               </div>
-              <span id="selectedPatientStatusBadge" class="rounded-full bg-[#eef6e8] px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-nutriflow-700">Ativo</span>
+              <span id="selectedPatientStatusBadge" class="rounded-full bg-[#eef6e8] px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-nutriflow-700">Sem dados</span>
             </div>
 
             <div class="mt-6 rounded-[26px] bg-gradient-to-br from-nutriflow-950 to-nutriflow-800 p-5 text-white">
               <div class="flex items-center gap-4">
-                <div id="selectedPatientInitials" class="grid h-16 w-16 place-items-center rounded-2xl bg-white/12 text-lg font-bold">AR</div>
+                <div id="selectedPatientInitials" class="grid h-16 w-16 place-items-center rounded-2xl bg-white/12 text-lg font-bold">--</div>
                 <div>
-                  <p id="selectedPatientName" class="text-2xl font-bold tracking-[-0.05em]">Amanda Rocha</p>
-                  <p id="selectedPatientGoal" class="mt-1 text-sm text-white/72">Emagrecimento</p>
+                  <p id="selectedPatientName" class="text-2xl font-bold tracking-[-0.05em]">Nenhum paciente selecionado</p>
+                  <p id="selectedPatientGoal" class="mt-1 text-sm text-white/72">Conecte pacientes para visualizar o resumo clinico.</p>
                 </div>
               </div>
               <div class="mt-5 grid grid-cols-2 gap-3 text-sm">
-                <div class="rounded-2xl bg-white/8 p-3"><p class="text-white/62">Peso atual</p><p id="selectedPatientWeight" class="mt-2 text-lg font-semibold">78.4kg</p></div>
-                <div class="rounded-2xl bg-white/8 p-3"><p class="text-white/62">Altura</p><p id="selectedPatientHeight" class="mt-2 text-lg font-semibold">1.67m</p></div>
+                <div class="rounded-2xl bg-white/8 p-3"><p class="text-white/62">Peso atual</p><p id="selectedPatientWeight" class="mt-2 text-lg font-semibold">--</p></div>
+                <div class="rounded-2xl bg-white/8 p-3"><p class="text-white/62">Altura</p><p id="selectedPatientHeight" class="mt-2 text-lg font-semibold">--</p></div>
               </div>
             </div>
 
             <div class="mt-6 grid gap-4 sm:grid-cols-2">
-              <div class="rounded-[24px] border border-nutriflow-100 bg-white p-4"><p class="text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Alergias e restricoes</p><p id="selectedPatientRestrictions" class="mt-3 text-sm leading-7 text-nutriflow-700">Sem lactose, evita frutos do mar.</p></div>
-              <div class="rounded-[24px] border border-nutriflow-100 bg-white p-4"><p class="text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Ultima refeicao registrada</p><p id="selectedPatientMeal" class="mt-3 text-sm leading-7 text-nutriflow-700">Almoco com frango, arroz integral e legumes.</p></div>
+              <div class="rounded-[24px] border border-nutriflow-100 bg-white p-4"><p class="text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Alergias e restricoes</p><p id="selectedPatientRestrictions" class="mt-3 text-sm leading-7 text-nutriflow-700">Sem informacoes disponiveis.</p></div>
+              <div class="rounded-[24px] border border-nutriflow-100 bg-white p-4"><p class="text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Ultima refeicao registrada</p><p id="selectedPatientMeal" class="mt-3 text-sm leading-7 text-nutriflow-700">Sem refeicao registrada.</p></div>
             </div>
 
             <div class="mt-4 rounded-[24px] border border-nutriflow-100 bg-white p-4">
-              <div class="flex items-center justify-between gap-3 text-sm font-medium text-nutriflow-800"><span>Progresso da meta</span><span id="selectedPatientProgressLabel">72%</span></div>
-              <div class="mini-progress mt-3"><span id="selectedPatientProgressBar" style="width:72%"></span></div>
-              <p id="selectedPatientLastAssessment" class="mt-3 text-xs text-nutriflow-600">Ultima avaliacao em 03 Mar 2026</p>
+              <div class="flex items-center justify-between gap-3 text-sm font-medium text-nutriflow-800"><span>Progresso da meta</span><span id="selectedPatientProgressLabel">0%</span></div>
+              <div class="mini-progress mt-3"><span id="selectedPatientProgressBar" style="width:0%"></span></div>
+              <p id="selectedPatientLastAssessment" class="mt-3 text-xs text-nutriflow-600">Nenhuma avaliacao registrada.</p>
             </div>
 
             <div class="mt-4 grid gap-3">
@@ -304,7 +304,7 @@
           <article class="dashboard-surface dashboard-card rounded-[30px] p-6">
             <div class="flex items-center justify-between gap-4">
               <div><span class="glass-pill">Evolucao dos pacientes</span><h2 class="mt-4 text-2xl font-bold tracking-[-0.05em]">Peso, adesao ao plano e progresso</h2></div>
-              <span id="selectedChartPatient" class="rounded-full bg-[#f4f8f2] px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-nutriflow-700">Amanda Rocha</span>
+              <span id="selectedChartPatient" class="rounded-full bg-[#f4f8f2] px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-nutriflow-700">Sem paciente</span>
             </div>
             <div class="mt-6 grid gap-6 lg:grid-cols-[1fr_.92fr]">
               <div class="rounded-[26px] border border-nutriflow-100 bg-[#f8faf7] p-4">

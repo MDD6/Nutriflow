@@ -1,6 +1,8 @@
 const http = require('http');
+const express = require('express');
 const { config } = require('./config');
 const { createPrismaClient } = require('./infra/database');
+const { AdminRepository } = require('./repositories/adminRepository');
 const { UserRepository } = require('./repositories/userRepository');
 const { NutritionistDashboardRepository } = require('./repositories/nutritionistDashboardRepository');
 const { PatientDashboardRepository } = require('./repositories/patientDashboardRepository');
@@ -8,16 +10,22 @@ const { PasswordService } = require('./services/passwordService');
 const { TokenService } = require('./services/tokenService');
 const { AuthService } = require('./services/authService');
 const { SessionService } = require('./services/sessionService');
+const { AdminService } = require('./services/adminService');
 const { NutritionistDashboardService } = require('./services/nutritionistDashboardService');
 const { PatientDashboardService } = require('./services/patientDashboardService');
 const { AuthController } = require('./controllers/authController');
+const { AdminController } = require('./controllers/adminController');
 const { NutritionistDashboardController } = require('./controllers/nutritionistDashboardController');
 const { PatientDashboardController } = require('./controllers/patientDashboardController');
-const { StaticFileHandler } = require('./http/staticFileHandler');
-const { sendJson } = require('./http/response');
+const { createAuthRoutes } = require('./routes/authRoutes');
+const { createAdminRoutes } = require('./routes/adminRoutes');
+const { createNutritionistRoutes } = require('./routes/nutritionistRoutes');
+const { createPatientRoutes } = require('./routes/patientRoutes');
+const { errorHandler } = require('./middlewares/errorHandler');
 
 function createDependencies() {
   const prisma = createPrismaClient(config.databaseUrl);
+  const adminRepository = new AdminRepository(prisma);
   const userRepository = new UserRepository(prisma);
   const nutritionistDashboardRepository = new NutritionistDashboardRepository(prisma);
   const patientDashboardRepository = new PatientDashboardRepository(prisma);
@@ -25,13 +33,14 @@ function createDependencies() {
   const tokenService = new TokenService(config.tokenSecret);
   const authService = new AuthService(userRepository, passwordService, tokenService);
   const sessionService = new SessionService(tokenService, userRepository);
+  const adminService = new AdminService(adminRepository);
   const nutritionistDashboardService = new NutritionistDashboardService(
     nutritionistDashboardRepository,
-    passwordService,
     userRepository,
   );
   const patientDashboardService = new PatientDashboardService(patientDashboardRepository, userRepository);
   const authController = new AuthController(authService);
+  const adminController = new AdminController(sessionService, adminService);
   const nutritionistDashboardController = new NutritionistDashboardController(
     sessionService,
     nutritionistDashboardService,
@@ -40,14 +49,13 @@ function createDependencies() {
     sessionService,
     patientDashboardService,
   );
-  const staticFileHandler = new StaticFileHandler(config.frontendDir);
 
   return {
     prisma,
     authController,
+    adminController,
     nutritionistDashboardController,
     patientDashboardController,
-    staticFileHandler,
   };
 }
 
@@ -55,99 +63,43 @@ function createApp() {
   const {
     prisma,
     authController,
+    adminController,
     nutritionistDashboardController,
     patientDashboardController,
-    staticFileHandler,
   } = createDependencies();
 
-  const server = http.createServer(async (request, response) => {
+  const expressApp = express();
+
+  expressApp.use((request, response, next) => {
     response.setHeader('Access-Control-Allow-Origin', '*');
     response.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    response.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-
-    if (!request.url) {
-      sendJson(response, 400, { message: 'Requisicao invalida.' });
-      return;
-    }
+    response.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
 
     if (request.method === 'OPTIONS') {
-      response.writeHead(204);
-      response.end();
+      response.sendStatus(204);
       return;
     }
 
-    if (request.method === 'POST' && request.url === '/api/auth/register') {
-      await authController.register(request, response);
-      return;
-    }
-
-    if (request.method === 'POST' && request.url === '/api/auth/login') {
-      await authController.login(request, response);
-      return;
-    }
-
-    if (request.method === 'GET' && request.url === '/api/nutritionist/dashboard') {
-      await nutritionistDashboardController.getDashboard(request, response);
-      return;
-    }
-
-    if (request.method === 'GET' && request.url.startsWith('/api/nutritionist/conversation')) {
-      await nutritionistDashboardController.getConversation(request, response);
-      return;
-    }
-
-    if (request.method === 'POST' && request.url === '/api/nutritionist/meal-plans') {
-      await nutritionistDashboardController.createMealPlan(request, response);
-      return;
-    }
-
-    if (request.method === 'POST' && request.url === '/api/nutritionist/assessments') {
-      await nutritionistDashboardController.createAssessment(request, response);
-      return;
-    }
-
-    if (request.method === 'POST' && request.url === '/api/nutritionist/challenges') {
-      await nutritionistDashboardController.createChallenge(request, response);
-      return;
-    }
-
-    if (request.method === 'POST' && request.url === '/api/nutritionist/link-patient') {
-      await nutritionistDashboardController.linkPatient(request, response);
-      return;
-    }
-
-    if (request.method === 'POST' && request.url === '/api/nutritionist/messages') {
-      await nutritionistDashboardController.sendMessage(request, response);
-      return;
-    }
-
-    if (request.method === 'GET' && request.url === '/api/patient/dashboard') {
-      await patientDashboardController.getDashboard(request, response);
-      return;
-    }
-
-    if (request.method === 'POST' && request.url === '/api/patient/meals') {
-      await patientDashboardController.createMealEntry(request, response);
-      return;
-    }
-
-    if (request.method === 'POST' && request.url === '/api/patient/link-nutritionist') {
-      await patientDashboardController.linkNutritionist(request, response);
-      return;
-    }
-
-    if (request.method === 'POST' && request.url === '/api/patient/messages') {
-      await patientDashboardController.sendMessage(request, response);
-      return;
-    }
-
-    if (request.method === 'GET') {
-      staticFileHandler.handle(request, response);
-      return;
-    }
-
-    sendJson(response, 404, { message: 'Rota nao encontrada.' });
+    next();
   });
+
+  expressApp.use(express.json({ limit: '1mb' }));
+
+  expressApp.use('/api/auth', createAuthRoutes(authController));
+  expressApp.use('/api/patient', createPatientRoutes(patientDashboardController));
+  expressApp.use('/api/nutritionist', createNutritionistRoutes(nutritionistDashboardController));
+  expressApp.use('/api/admin', createAdminRoutes(adminController));
+  expressApp.use(express.static(config.frontendDir));
+
+  expressApp.use('/api', (request, response) => {
+    response.status(404).json({
+      message: 'Rota nao encontrada.',
+    });
+  });
+
+  expressApp.use(errorHandler);
+
+  const server = http.createServer(expressApp);
 
   async function shutdown() {
     await prisma.$disconnect();

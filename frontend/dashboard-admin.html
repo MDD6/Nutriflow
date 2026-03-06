@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NutriFlow | Painel Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            nutriflow: {
+              50: '#f3f7f1',
+              100: '#e5eedf',
+              200: '#cadbbf',
+              300: '#a8c297',
+              400: '#85a96f',
+              500: '#6f9656',
+              600: '#5f8249',
+              700: '#4f6b3d',
+              800: '#425734',
+              900: '#37482d',
+              950: '#1c2618'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="dashboard-body text-nutriflow-950">
+  <div class="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_top_right,rgba(28,38,24,.08),transparent_24%),radial-gradient(circle_at_bottom_left,rgba(111,150,86,.16),transparent_28%)]"></div>
+  <div class="relative mx-auto min-h-screen max-w-[1680px] px-4 py-4 md:px-6">
+    <header class="dashboard-surface sticky top-4 z-20 rounded-[28px] px-5 py-4 md:px-6">
+      <div class="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-[0.18em] text-nutriflow-600">Painel administrativo</p>
+          <h1 class="mt-3 text-3xl font-extrabold tracking-[-0.06em]" id="adminGreeting">Carregando operacao</h1>
+          <p class="mt-2 text-sm text-nutriflow-700">Gerencie usuarios, base de alimentos e metricas operacionais do NutriFlow.</p>
+        </div>
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div class="flex items-center gap-3 rounded-2xl border border-nutriflow-100 bg-white px-3 py-2 shadow-[0_12px_24px_rgba(28,38,24,.06)]">
+            <div id="adminAvatar" class="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-nutriflow-500 to-nutriflow-700 text-sm font-bold text-white">--</div>
+            <div class="min-w-0">
+              <p id="adminName" class="truncate text-sm font-semibold text-nutriflow-950">Conta admin</p>
+              <p id="adminEmail" class="truncate text-xs text-nutriflow-600">--</p>
+            </div>
+          </div>
+          <button id="adminLogoutButton" class="rounded-2xl bg-nutriflow-950 px-4 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-nutriflow-800">Sair</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="mt-4 space-y-6 pb-6">
+      <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <article class="dashboard-surface rounded-[28px] p-5">
+          <p class="text-xs font-semibold uppercase tracking-[0.18em] text-nutriflow-500">Usuarios</p>
+          <p id="summaryTotalUsers" class="mt-4 text-4xl font-bold tracking-[-0.06em]">0</p>
+          <p class="mt-2 text-sm text-nutriflow-700">Base total da plataforma</p>
+        </article>
+        <article class="dashboard-surface rounded-[28px] p-5">
+          <p class="text-xs font-semibold uppercase tracking-[0.18em] text-nutriflow-500">Pacientes</p>
+          <p id="summaryTotalPatients" class="mt-4 text-4xl font-bold tracking-[-0.06em]">0</p>
+          <p class="mt-2 text-sm text-nutriflow-700">Contas de acompanhamento</p>
+        </article>
+        <article class="dashboard-surface rounded-[28px] p-5">
+          <p class="text-xs font-semibold uppercase tracking-[0.18em] text-nutriflow-500">Nutricionistas</p>
+          <p id="summaryTotalNutritionists" class="mt-4 text-4xl font-bold tracking-[-0.06em]">0</p>
+          <p class="mt-2 text-sm text-nutriflow-700">Profissionais ativos no sistema</p>
+        </article>
+        <article class="dashboard-surface rounded-[28px] p-5">
+          <p class="text-xs font-semibold uppercase tracking-[0.18em] text-nutriflow-500">Alimentos</p>
+          <p id="summaryTotalFoods" class="mt-4 text-4xl font-bold tracking-[-0.06em]">0</p>
+          <p class="mt-2 text-sm text-nutriflow-700">Base nutricional cadastrada</p>
+        </article>
+      </section>
+
+      <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <article class="dashboard-surface rounded-[26px] p-5">
+          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Usuarios ativos</p>
+          <strong id="summaryActiveUsers" class="mt-4 block text-3xl font-bold tracking-[-0.05em]">0</strong>
+        </article>
+        <article class="dashboard-surface rounded-[26px] p-5">
+          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Usuarios bloqueados</p>
+          <strong id="summaryBlockedUsers" class="mt-4 block text-3xl font-bold tracking-[-0.05em]">0</strong>
+        </article>
+        <article class="dashboard-surface rounded-[26px] p-5">
+          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Logs alimentares hoje</p>
+          <strong id="summaryFoodLogsToday" class="mt-4 block text-3xl font-bold tracking-[-0.05em]">0</strong>
+        </article>
+        <article class="dashboard-surface rounded-[26px] p-5">
+          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Planos ativos</p>
+          <strong id="summaryActiveMealPlans" class="mt-4 block text-3xl font-bold tracking-[-0.05em]">0</strong>
+        </article>
+      </section>
+
+      <section class="grid gap-6 xl:grid-cols-[1.25fr_.75fr]">
+        <article class="dashboard-surface rounded-[30px] p-6">
+          <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            <div>
+              <span class="glass-pill">Usuarios</span>
+              <h2 class="mt-4 text-2xl font-bold tracking-[-0.05em]">Gestao de contas da plataforma</h2>
+              <p class="mt-2 text-sm leading-7 text-nutriflow-700">Filtre por papel, acompanhe status e bloqueie ou remova acessos quando necessario.</p>
+            </div>
+          </div>
+          <div class="mt-6 grid gap-3 md:grid-cols-[1.2fr_.7fr]">
+            <label class="rounded-2xl border border-nutriflow-100 bg-white px-4 py-3 text-sm text-nutriflow-700">
+              <span class="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Busca</span>
+              <input id="adminUserSearch" class="w-full bg-transparent outline-none placeholder:text-nutriflow-400" type="text" placeholder="Nome ou e-mail" />
+            </label>
+            <label class="rounded-2xl border border-nutriflow-100 bg-white px-4 py-3 text-sm text-nutriflow-700">
+              <span class="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Papel</span>
+              <select id="adminRoleFilter" class="w-full bg-transparent outline-none">
+                <option value="">Todos</option>
+                <option value="PATIENT">Paciente</option>
+                <option value="NUTRITIONIST">Nutricionista</option>
+                <option value="ADMIN">Administrador</option>
+              </select>
+            </label>
+          </div>
+          <div class="mt-6 overflow-hidden rounded-[24px] border border-nutriflow-100">
+            <div class="hidden grid-cols-[1.2fr_.7fr_.55fr_.6fr_.8fr] bg-[#f7faf5] px-4 py-3 text-xs font-semibold uppercase tracking-[0.14em] text-nutriflow-500 md:grid">
+              <span>Usuario</span>
+              <span>Papel</span>
+              <span>Status</span>
+              <span>Criado em</span>
+              <span class="text-right">Acoes</span>
+            </div>
+            <div id="adminUsersList" class="divide-y divide-nutriflow-100 bg-white"></div>
+            <div id="adminEmptyUsers" class="hidden px-6 py-10 text-center text-sm text-nutriflow-600">Nenhum usuario encontrado para os filtros atuais.</div>
+          </div>
+        </article>
+
+        <article class="dashboard-surface rounded-[30px] p-6">
+          <span class="glass-pill">Alimentos</span>
+          <h2 class="mt-4 text-2xl font-bold tracking-[-0.05em]">Base nutricional</h2>
+          <p class="mt-2 text-sm leading-7 text-nutriflow-700">Cadastre alimentos da base para dar suporte a metas, diarios e prescricoes alimentares.</p>
+
+          <form id="foodForm" class="mt-6 grid gap-4">
+            <label class="rounded-2xl border border-nutriflow-100 bg-white px-4 py-3 text-sm text-nutriflow-700">
+              <span class="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Nome</span>
+              <input id="foodName" class="w-full bg-transparent outline-none placeholder:text-nutriflow-400" type="text" placeholder="Ex: Aveia em flocos" />
+            </label>
+            <div class="grid gap-4 sm:grid-cols-2">
+              <label class="rounded-2xl border border-nutriflow-100 bg-white px-4 py-3 text-sm text-nutriflow-700">
+                <span class="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Calorias</span>
+                <input id="foodCalories" class="w-full bg-transparent outline-none" type="number" min="0" placeholder="120" />
+              </label>
+              <label class="rounded-2xl border border-nutriflow-100 bg-white px-4 py-3 text-sm text-nutriflow-700">
+                <span class="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Proteina</span>
+                <input id="foodProtein" class="w-full bg-transparent outline-none" type="number" min="0" placeholder="5" />
+              </label>
+              <label class="rounded-2xl border border-nutriflow-100 bg-white px-4 py-3 text-sm text-nutriflow-700">
+                <span class="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Carboidrato</span>
+                <input id="foodCarbs" class="w-full bg-transparent outline-none" type="number" min="0" placeholder="18" />
+              </label>
+              <label class="rounded-2xl border border-nutriflow-100 bg-white px-4 py-3 text-sm text-nutriflow-700">
+                <span class="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Gordura</span>
+                <input id="foodFat" class="w-full bg-transparent outline-none" type="number" min="0" placeholder="3" />
+              </label>
+            </div>
+            <button id="foodSubmitButton" class="rounded-2xl bg-nutriflow-950 px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-nutriflow-800" type="submit">Cadastrar alimento</button>
+          </form>
+
+          <div class="mt-6 rounded-[24px] border border-nutriflow-100 bg-[#f8faf7] p-4">
+            <div class="flex items-center justify-between gap-3">
+              <p class="text-sm font-semibold text-nutriflow-950">Alimentos cadastrados</p>
+              <input id="foodSearch" class="rounded-full border border-nutriflow-100 bg-white px-4 py-2 text-sm outline-none" type="text" placeholder="Buscar alimento" />
+            </div>
+            <div id="foodsList" class="mt-4 space-y-3"></div>
+          </div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <div id="adminToast" class="nf-toast hidden"></div>
+
+  <script src="ui.js"></script>
+  <script src="api.js"></script>
+  <script src="dashboard-admin.js"></script>
+</body>
+</html>

@@ -1,4 +1,5 @@
 const { AppError } = require('../errors/appError');
+const { isPatientRole } = require('../constants/roles');
 
 function normalizeEmail(value) {
   return String(value || '').trim().toLowerCase();
@@ -6,10 +7,6 @@ function normalizeEmail(value) {
 
 function normalizeText(value) {
   return String(value || '').trim();
-}
-
-function isPatientProfile(profile) {
-  return normalizeText(profile).toLowerCase() === 'paciente';
 }
 
 function parsePatientAge(value) {
@@ -97,15 +94,12 @@ function calculateAverage(numbers) {
 }
 
 class NutritionistDashboardService {
-  constructor(nutritionistDashboardRepository, passwordService, userRepository) {
+  constructor(nutritionistDashboardRepository, userRepository) {
     this.nutritionistDashboardRepository = nutritionistDashboardRepository;
-    this.passwordService = passwordService;
     this.userRepository = userRepository;
   }
 
   async getDashboard(nutritionist) {
-    await this.ensureWorkspace(nutritionist.id);
-
     const workspace = await this.nutritionistDashboardRepository.findDashboard(nutritionist.id);
 
     if (!workspace) {
@@ -247,7 +241,7 @@ class NutritionistDashboardService {
 
     const patientUser = await this.userRepository.findByEmail(patientEmail);
 
-    if (!patientUser || !isPatientProfile(patientUser.profile)) {
+    if (!patientUser || !isPatientRole(patientUser.profile)) {
       throw new AppError('Paciente nao encontrado com este e-mail.', 404);
     }
 
@@ -356,19 +350,6 @@ class NutritionistDashboardService {
         nutritionist.name,
       ),
     };
-  }
-
-  async ensureWorkspace(nutritionistId) {
-    const patientCount = await this.nutritionistDashboardRepository.countManagedPatients(nutritionistId);
-
-    if (patientCount > 0) {
-      return;
-    }
-
-    await this.nutritionistDashboardRepository.seedWorkspace(
-      nutritionistId,
-      this.passwordService.hash('nutriflow123'),
-    );
   }
 
   toDashboardDto(workspace) {

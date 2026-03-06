@@ -14,15 +14,18 @@ model User {
   email        String   @unique
   profile      String
   passwordHash String
+  isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   patientProfile       PatientProfile?       @relation("PatientUserProfile")
+  nutritionistProfile  NutritionistProfile?
   managedPatients      PatientProfile[]      @relation("NutritionistPatients")
   mealPlans            MealPlan[]            @relation("NutritionistMealPlans")
   assessments          Assessment[]          @relation("NutritionistAssessments")
   messages             PatientMessage[]      @relation("NutritionistMessages")
   appointments         Appointment[]         @relation("NutritionistAppointments")
   challenges           NutritionChallenge[]  @relation("NutritionistChallenges")
+  foodLogs             FoodLog[]
 }
 
 model PatientProfile {
@@ -51,6 +54,17 @@ model PatientProfile {
   mealEntries       MealEntry[]
   progressSnapshots ProgressSnapshot[]
   challengeLinks    ChallengeParticipant[]
+  goal              Goal?
+}
+
+model NutritionistProfile {
+  id        String   @id @default(uuid())
+  userId     String   @unique
+  crn        String?
+  clinic     String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model MealPlan {
@@ -70,6 +84,7 @@ model MealPlan {
   updatedAt        DateTime       @updatedAt
   patientProfile   PatientProfile @relation(fields: [patientProfileId], references: [id], onDelete: Cascade)
   nutritionist     User           @relation("NutritionistMealPlans", fields: [nutritionistId], references: [id], onDelete: Cascade)
+  items            MealPlanItem[]
 }
 
 model Assessment {
@@ -122,6 +137,45 @@ model MealEntry {
   @@index([patientProfileId, loggedAt])
 }
 
+model Food {
+  id         String         @id @default(uuid())
+  name       String         @unique
+  calories   Int
+  protein    Int
+  carbs      Int
+  fat        Int
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  logs       FoodLog[]
+  mealPlanItems MealPlanItem[]
+}
+
+model FoodLog {
+  id        String   @id @default(uuid())
+  userId    String
+  foodId    String
+  quantity  Float
+  loggedAt  DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  food      Food     @relation(fields: [foodId], references: [id], onDelete: Cascade)
+
+  @@index([userId, loggedAt])
+}
+
+model MealPlanItem {
+  id         String   @id @default(uuid())
+  mealPlanId String
+  foodId     String
+  quantity   Float
+  mealTime   String
+  createdAt  DateTime @default(now())
+  mealPlan   MealPlan @relation(fields: [mealPlanId], references: [id], onDelete: Cascade)
+  food       Food     @relation(fields: [foodId], references: [id], onDelete: Cascade)
+
+  @@index([mealPlanId])
+}
+
 model Appointment {
   id               String         @id @default(uuid())
   patientProfileId String
@@ -168,4 +222,16 @@ model ProgressSnapshot {
   recordedAt       DateTime
   createdAt        DateTime       @default(now())
   patientProfile   PatientProfile @relation(fields: [patientProfileId], references: [id], onDelete: Cascade)
+}
+
+model Goal {
+  id             String         @id @default(uuid())
+  patientProfileId String       @unique
+  targetCalories Int            @default(0)
+  targetProtein  Int            @default(0)
+  targetCarbs    Int            @default(0)
+  targetFat      Int            @default(0)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  patientProfile PatientProfile @relation(fields: [patientProfileId], references: [id], onDelete: Cascade)
 }

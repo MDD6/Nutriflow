@@ -1,4 +1,5 @@
 const { AppError } = require('../errors/appError');
+const { isAdminRole, isNutritionistRole, isPatientRole } = require('../constants/roles');
 
 class SessionService {
   constructor(tokenService, userRepository) {
@@ -35,13 +36,17 @@ class SessionService {
       throw new AppError('Usuario autenticado nao encontrado.', 401);
     }
 
+    if (!user.isActive) {
+      throw new AppError('Sua conta esta bloqueada. Procure o administrador da plataforma.', 403);
+    }
+
     return user;
   }
 
   async requireNutritionist(request) {
     const user = await this.requireAuthenticatedUser(request);
 
-    if (String(user.profile || '').trim().toLowerCase() !== 'nutricionista') {
+    if (!isNutritionistRole(user.profile)) {
       throw new AppError('Acesso permitido apenas para nutricionistas.', 403);
     }
 
@@ -51,8 +56,18 @@ class SessionService {
   async requirePatient(request) {
     const user = await this.requireAuthenticatedUser(request);
 
-    if (String(user.profile || '').trim().toLowerCase() !== 'paciente') {
+    if (!isPatientRole(user.profile)) {
       throw new AppError('Acesso permitido apenas para pacientes.', 403);
+    }
+
+    return user;
+  }
+
+  async requireAdmin(request) {
+    const user = await this.requireAuthenticatedUser(request);
+
+    if (!isAdminRole(user.profile)) {
+      throw new AppError('Acesso permitido apenas para administradores.', 403);
     }
 
     return user;

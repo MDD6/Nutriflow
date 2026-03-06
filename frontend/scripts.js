@@ -147,11 +147,18 @@ function redirectToDashboard() {
 }
 
 function isPatientProfile(profile) {
-  return String(profile || '').trim().toLowerCase() === 'paciente';
+  const normalized = String(profile || '').trim().toLowerCase();
+  return normalized === 'paciente' || normalized === 'patient';
 }
 
 function isNutritionistProfile(profile) {
-  return String(profile || '').trim().toLowerCase() === 'nutricionista';
+  const normalized = String(profile || '').trim().toLowerCase();
+  return normalized === 'nutricionista' || normalized === 'nutritionist';
+}
+
+function isAdminProfile(profile) {
+  const normalized = String(profile || '').trim().toLowerCase();
+  return normalized === 'administrador' || normalized === 'admin';
 }
 
 function getDashboardRoute(profile) {
@@ -161,6 +168,10 @@ function getDashboardRoute(profile) {
 
   if (isNutritionistProfile(profile)) {
     return 'dashboard-nutricionista.html';
+  }
+
+  if (isAdminProfile(profile)) {
+    return 'dashboard-admin.html';
   }
 
   return null;

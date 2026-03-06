@@ -219,12 +219,12 @@ function applyDashboardState(payload) {
 
 function getPatientData() {
   return state.dashboard?.patient || state.currentUser || {
-    name: 'Paciente NutriFlow',
-    email: 'paciente@nutriflow.com',
+    name: '',
+    email: '',
     profile: 'Paciente',
     nutritionist: {
-      name: 'Nutricionista',
-      email: 'nutricionista@nutriflow.com',
+      name: '',
+      email: '',
     },
   };
 }
@@ -235,15 +235,15 @@ function isSetupRequired() {
 
 function getNutritionistData() {
   return getPatientData().nutritionist || {
-    name: 'Nutricionista',
-    email: 'nutricionista@nutriflow.com',
+    name: '',
+    email: '',
   };
 }
 
 function getDailyMealTarget() {
   const regularityGoal = state.dashboard?.goals?.items?.find((item) => item.label.toLowerCase().includes('regularidade'));
   const match = regularityGoal?.valueLabel?.match(/\/\s*(\d+)/);
-  return match ? Number(match[1]) : 4;
+  return match ? Number(match[1]) : 0;
 }
 
 function setTextContent(selectorOrElement, value) {
@@ -259,9 +259,15 @@ function setTextContent(selectorOrElement, value) {
 function renderHeader() {
   const patient = getPatientData();
   const nutritionist = getNutritionistData();
+  const hasPatientIdentity = Boolean(patient.name || patient.email);
+  const patientName = patient.name || 'Conta do paciente';
+  const patientEmail = patient.email || '--';
+  const patientInitials = getInitials(patient.name) || '--';
+  const nutritionistName = nutritionist.name || 'Nutricionista nao conectado';
+  const nutritionistInitials = getInitials(nutritionist.name) || '--';
 
   document.querySelectorAll('[data-user-name]').forEach((element) => {
-    element.textContent = patient.name || 'Paciente NutriFlow';
+    element.textContent = patientName;
   });
 
   document.querySelectorAll('[data-user-profile]').forEach((element) => {
@@ -269,22 +275,22 @@ function renderHeader() {
   });
 
   document.querySelectorAll('[data-user-email]').forEach((element) => {
-    element.textContent = patient.email || 'paciente@nutriflow.com';
+    element.textContent = patientEmail;
   });
 
   document.querySelectorAll('[data-user-initial]').forEach((element) => {
-    element.textContent = getInitials(patient.name || 'Paciente NutriFlow');
+    element.textContent = patientInitials;
   });
 
   document.querySelectorAll('[data-linked-nutritionist-name]').forEach((element) => {
-    element.textContent = nutritionist.name || 'Nutricionista';
+    element.textContent = nutritionistName;
   });
 
   document.querySelectorAll('[data-linked-nutritionist-initial]').forEach((element) => {
-    element.textContent = getInitials(nutritionist.name || 'Nutricionista');
+    element.textContent = nutritionistInitials;
   });
 
-  setTextContent('[data-greeting]', `${getGreeting()}, ${getFirstName(patient.name)}`);
+  setTextContent('[data-greeting]', hasPatientIdentity ? `${getGreeting()}, ${getFirstName(patient.name)}` : 'Dashboard do paciente');
   setTextContent('[data-dashboard-date]', `${formatLongDate()} - acompanhe metas, refeicoes e progresso em um unico lugar.`);
   setTextContent('[data-dashboard-date-short]', formatShortDate());
 
@@ -410,27 +416,31 @@ function renderSidebar() {
   const clinical = state.dashboard?.clinical;
   const nutritionist = getNutritionistData();
   const mealCount = state.dashboard?.meals?.length || 0;
-  const remainingMeals = Math.max(0, getDailyMealTarget() - mealCount);
+  const dailyMealTarget = getDailyMealTarget();
+  const remainingMeals = Math.max(0, dailyMealTarget - mealCount);
   const adherencePercent = overview?.adherencePercent || 0;
+  const nutritionistName = nutritionist.name || 'seu nutricionista';
 
   const statusLabel = adherencePercent >= 85
     ? 'boa aderencia'
     : adherencePercent >= 60
       ? 'aderencia estavel'
       : 'espaco para melhorar a consistencia';
-  const remainingText = remainingMeals > 0
+  const remainingText = dailyMealTarget <= 0
+    ? 'Assim que seu plano alimentar estiver configurado, a meta de refeicoes aparece aqui'
+    : remainingMeals > 0
     ? `Faltam ${pluralize(remainingMeals, 'refeicao', 'refeicoes')}`
     : 'Suas refeicoes principais de hoje ja foram registradas';
 
   setTextContent(
     document.getElementById('sidebarStatusText'),
-    `Seu plano de hoje esta com ${statusLabel}. ${remainingText} e seu check-in com ${nutritionist.name}.`,
+    `Seu plano de hoje esta com ${statusLabel}. ${remainingText} e seu check-in com ${nutritionistName}.`,
   );
 
   if (clinical?.nextAppointment) {
     setTextContent(
       document.getElementById('sidebarAppointmentMeta'),
-      `${clinical.nextAppointment.dateLabel} com ${nutritionist.name}`,
+      `${clinical.nextAppointment.dateLabel} com ${nutritionistName}`,
     );
     setTextContent(
       document.getElementById('sidebarAppointmentNote'),
@@ -441,7 +451,7 @@ function renderSidebar() {
 
   setTextContent(
     document.getElementById('sidebarAppointmentMeta'),
-    `Sem consulta agendada com ${nutritionist.name}`,
+    `Sem consulta agendada com ${nutritionistName}`,
   );
   setTextContent(
     document.getElementById('sidebarAppointmentNote'),

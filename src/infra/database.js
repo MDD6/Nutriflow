@@ -41,6 +41,7 @@ function ensureDatabaseSchema(databaseUrl) {
       "email" TEXT NOT NULL,
       "profile" TEXT NOT NULL,
       "passwordHash" TEXT NOT NULL,
+      "isActive" BOOLEAN NOT NULL DEFAULT 1,
       "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
@@ -71,6 +72,18 @@ function ensureDatabaseSchema(databaseUrl) {
     CREATE UNIQUE INDEX IF NOT EXISTS "PatientProfile_userId_key" ON "PatientProfile"("userId");
     CREATE INDEX IF NOT EXISTS "PatientProfile_nutritionistId_idx" ON "PatientProfile"("nutritionistId");
 
+    CREATE TABLE IF NOT EXISTS "NutritionistProfile" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "userId" TEXT NOT NULL,
+      "crn" TEXT,
+      "clinic" TEXT,
+      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "NutritionistProfile_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS "NutritionistProfile_userId_key" ON "NutritionistProfile"("userId");
+
     CREATE TABLE IF NOT EXISTS "MealPlan" (
       "id" TEXT NOT NULL PRIMARY KEY,
       "patientProfileId" TEXT NOT NULL,
@@ -92,6 +105,32 @@ function ensureDatabaseSchema(databaseUrl) {
 
     CREATE INDEX IF NOT EXISTS "MealPlan_patientProfileId_idx" ON "MealPlan"("patientProfileId");
     CREATE INDEX IF NOT EXISTS "MealPlan_nutritionistId_idx" ON "MealPlan"("nutritionistId");
+
+    CREATE TABLE IF NOT EXISTS "Food" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "name" TEXT NOT NULL,
+      "calories" INTEGER NOT NULL,
+      "protein" INTEGER NOT NULL,
+      "carbs" INTEGER NOT NULL,
+      "fat" INTEGER NOT NULL,
+      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS "Food_name_key" ON "Food"("name");
+
+    CREATE TABLE IF NOT EXISTS "MealPlanItem" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "mealPlanId" TEXT NOT NULL,
+      "foodId" TEXT NOT NULL,
+      "quantity" REAL NOT NULL,
+      "mealTime" TEXT NOT NULL,
+      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "MealPlanItem_mealPlanId_fkey" FOREIGN KEY ("mealPlanId") REFERENCES "MealPlan" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+      CONSTRAINT "MealPlanItem_foodId_fkey" FOREIGN KEY ("foodId") REFERENCES "Food" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS "MealPlanItem_mealPlanId_idx" ON "MealPlanItem"("mealPlanId");
 
     CREATE TABLE IF NOT EXISTS "Assessment" (
       "id" TEXT NOT NULL PRIMARY KEY,
@@ -149,6 +188,19 @@ function ensureDatabaseSchema(databaseUrl) {
     CREATE INDEX IF NOT EXISTS "MealEntry_patientProfileId_idx" ON "MealEntry"("patientProfileId");
     CREATE INDEX IF NOT EXISTS "MealEntry_patientProfileId_loggedAt_idx" ON "MealEntry"("patientProfileId", "loggedAt");
 
+    CREATE TABLE IF NOT EXISTS "FoodLog" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "userId" TEXT NOT NULL,
+      "foodId" TEXT NOT NULL,
+      "quantity" REAL NOT NULL,
+      "loggedAt" DATETIME NOT NULL,
+      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "FoodLog_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+      CONSTRAINT "FoodLog_foodId_fkey" FOREIGN KEY ("foodId") REFERENCES "Food" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS "FoodLog_userId_loggedAt_idx" ON "FoodLog"("userId", "loggedAt");
+
     CREATE TABLE IF NOT EXISTS "Appointment" (
       "id" TEXT NOT NULL PRIMARY KEY,
       "patientProfileId" TEXT NOT NULL,
@@ -203,7 +255,22 @@ function ensureDatabaseSchema(databaseUrl) {
     );
 
     CREATE INDEX IF NOT EXISTS "ProgressSnapshot_patientProfileId_idx" ON "ProgressSnapshot"("patientProfileId");
+
+    CREATE TABLE IF NOT EXISTS "Goal" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "patientProfileId" TEXT NOT NULL,
+      "targetCalories" INTEGER NOT NULL DEFAULT 0,
+      "targetProtein" INTEGER NOT NULL DEFAULT 0,
+      "targetCarbs" INTEGER NOT NULL DEFAULT 0,
+      "targetFat" INTEGER NOT NULL DEFAULT 0,
+      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "Goal_patientProfileId_fkey" FOREIGN KEY ("patientProfileId") REFERENCES "PatientProfile" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS "Goal_patientProfileId_key" ON "Goal"("patientProfileId");
   `);
+  ensureColumn('User', 'isActive', 'BOOLEAN NOT NULL DEFAULT 1');
   ensureColumn('PatientMessage', 'senderRole', `TEXT NOT NULL DEFAULT 'PATIENT'`);
   sqlite.close();
 }

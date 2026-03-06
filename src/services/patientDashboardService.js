@@ -1,4 +1,5 @@
 const { AppError } = require('../errors/appError');
+const { isNutritionistRole } = require('../constants/roles');
 
 const SHORT_MONTHS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
@@ -8,10 +9,6 @@ function normalizeEmail(value) {
 
 function normalizeText(value) {
   return String(value || '').trim();
-}
-
-function isNutritionistProfile(profile) {
-  return normalizeText(profile).toLowerCase() === 'nutricionista';
 }
 
 function toNumber(value, fallback = 0) {
@@ -31,6 +28,14 @@ function parsePatientAge(value) {
 
 function clampPercentage(value) {
   return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function calculateTargetProgress(currentValue, targetValue) {
+  if (!targetValue || targetValue <= 0) {
+    return 0;
+  }
+
+  return clampPercentage((currentValue / targetValue) * 100);
 }
 
 function formatShortDate(date) {
@@ -236,7 +241,7 @@ class PatientDashboardService {
 
     const nutritionist = await this.userRepository.findByEmail(nutritionistEmail);
 
-    if (!nutritionist || !isNutritionistProfile(nutritionist.profile)) {
+    if (!nutritionist || !isNutritionistRole(nutritionist.profile)) {
       throw new AppError('Nutricionista nao encontrado com este e-mail.', 404);
     }
 
@@ -377,10 +382,10 @@ class PatientDashboardService {
       .filter((meal) => sameDay(meal.loggedAt, new Date()))
       .sort((left, right) => new Date(left.loggedAt) - new Date(right.loggedAt));
     const todayTotals = sumMeals(todayMeals);
-    const calorieTarget = activePlan?.calories || 2200;
-    const proteinTarget = activePlan?.protein || 150;
-    const carbTarget = activePlan?.carbs || 200;
-    const fatTarget = activePlan?.fats || 60;
+    const calorieTarget = activePlan?.calories || 0;
+    const proteinTarget = activePlan?.protein || 0;
+    const carbTarget = activePlan?.carbs || 0;
+    const fatTarget = activePlan?.fats || 0;
     const mealConsistencyTarget = 4;
     const dailySummaries = this.buildDailySummaries(patientProfile.mealEntries, calorieTarget);
     const snapshots = patientProfile.progressSnapshots.length
@@ -394,11 +399,41 @@ class PatientDashboardService {
             recordedAt: new Date(),
           }]
         : [];
-    const adherencePercent = clampPercentage((
-      clampPercentage((todayTotals.calories / calorieTarget) * 100) +
-      clampPercentage((todayTotals.protein / proteinTarget) * 100) +
-      clampPercentage((todayMeals.length / mealConsistencyTarget) * 100)
-    ) / 3);
+    const calorieProgress = calculateTargetProgress(todayTotals.calories, calorieTarget);
+    const proteinProgress = calculateTargetProgress(todayTotals.protein, proteinTarget);
+    const mealProgress = calculateTargetProgress(todayMeals.length, mealConsistencyTarget);
+    const adherencePercent = activePlan
+      ? clampPercentage((calorieProgress + proteinProgress + mealProgress) / 3)
+      : 0;
+    const goalItems = [];
+
+    if (activePlan) {
+      goalItems.push(
+        {
+          label: 'Bater proteina minima',
+          valueLabel: `${todayTotals.protein} / ${proteinTarget}g`,
+          percent: proteinProgress,
+        },
+        {
+          label: 'Faixa calorica do dia',
+          valueLabel: `${todayTotals.calories} / ${calorieTarget} kcal`,
+          percent: calorieProgress,
+        },
+      );
+    }
+
+    goalItems.push(
+      {
+        label: 'Agua ao longo do dia',
+        valueLabel: `${Number((todayTotals.waterMl / 1000).toFixed(1))} / 2.5L`,
+        percent: calculateTargetProgress(todayTotals.waterMl, 2500),
+      },
+      {
+        label: 'Regularidade das refeicoes',
+        valueLabel: `${todayMeals.length} / ${mealConsistencyTarget}`,
+        percent: mealProgress,
+      },
+    );
 
     return {
       patient: {
@@ -423,54 +458,33 @@ class PatientDashboardService {
           {
             label: 'Proteinas',
             value: todayTotals.protein,
-            progress: clampPercentage((todayTotals.protein / proteinTarget) * 100),
-            note: `${clampPercentage((todayTotals.protein / proteinTarget) * 100)}% da meta diaria`,
+            progress: proteinProgress,
+            note: proteinTarget ? `${proteinProgress}% da meta diaria` : 'Sem meta diaria definida',
           },
           {
             label: 'Carboidratos',
             value: todayTotals.carbs,
-            progress: clampPercentage((todayTotals.carbs / carbTarget) * 100),
-            note: 'Combustivel estavel',
+            progress: calculateTargetProgress(todayTotals.carbs, carbTarget),
+            note: carbTarget ? 'Combustivel estavel' : 'Sem meta diaria definida',
           },
           {
             label: 'Gorduras',
             value: todayTotals.fats,
-            progress: clampPercentage((todayTotals.fats / fatTarget) * 100),
-            note: 'Boa distribuicao',
+            progress: calculateTargetProgress(todayTotals.fats, fatTarget),
+            note: fatTarget ? 'Boa distribuicao' : 'Sem meta diaria definida',
           },
         ],
         weeklyCalories: dailySummaries.slice(-7).map((summary) => ({
           label: summary.weekdayLabel,
-          percent: clampPercentage((summary.calories / calorieTarget) * 100),
+          percent: calculateTargetProgress(summary.calories, calorieTarget),
           calories: summary.calories,
         })),
       },
       goals: {
-        items: [
-          {
-            label: 'Bater proteina minima',
-            valueLabel: `${todayTotals.protein} / ${proteinTarget}g`,
-            percent: clampPercentage((todayTotals.protein / proteinTarget) * 100),
-          },
-          {
-            label: 'Faixa calorica do dia',
-            valueLabel: `${todayTotals.calories} / ${calorieTarget} kcal`,
-            percent: clampPercentage((todayTotals.calories / calorieTarget) * 100),
-          },
-          {
-            label: 'Agua ao longo do dia',
-            valueLabel: `${Number((todayTotals.waterMl / 1000).toFixed(1))} / 2.5L`,
-            percent: clampPercentage((todayTotals.waterMl / 2500) * 100),
-          },
-          {
-            label: 'Regularidade das refeicoes',
-            valueLabel: `${todayMeals.length} / ${mealConsistencyTarget}`,
-            percent: clampPercentage((todayMeals.length / mealConsistencyTarget) * 100),
-          },
-        ],
+        items: goalItems,
         focusTitle: activePlan?.title
           ? `Seguir o plano ${activePlan.title.toLowerCase()} com constancia ao longo do dia.`
-          : `Construir constancia em ${patientProfile.objective.toLowerCase()}.`,
+          : 'Nenhum plano alimentar ativo no momento.',
         observationNote: latestAssessment?.notes || activePlan?.notes || 'Sem observacoes clinicas registradas ate o momento.',
       },
       meals: todayMeals.map((meal) => this.toMealEntryDto(meal)),
@@ -494,10 +508,12 @@ class PatientDashboardService {
         variationLabel: this.getVariationLabel(snapshots),
         currentLabel: patientProfile.currentWeight ? `${patientProfile.currentWeight.toFixed(1)}kg` : '--',
         targetLabel: patientProfile.currentWeight ? `${getTargetWeight(patientProfile.currentWeight, patientProfile.objective).toFixed(1)}kg` : '--',
-        paceLabel: getPaceLabel(patientProfile.objective),
+        paceLabel: patientProfile.currentWeight ? getPaceLabel(patientProfile.objective) : '--',
       },
       chat: {
-        responseTimeLabel: patientProfile.messages.some((message) => message.pending) ? 'Aguardando retorno' : '15 min',
+        responseTimeLabel: patientProfile.messages.length
+          ? (patientProfile.messages.some((message) => message.pending) ? 'Aguardando retorno' : 'Conversa em dia')
+          : 'Sem historico',
         quickReplies: [
           'Hoje mantive todos os horarios do plano.',
           'Treinei no fim da tarde e senti mais fome no jantar.',
@@ -517,7 +533,7 @@ class PatientDashboardService {
             }
           : null,
         checklist: this.buildChecklist(patientProfile, todayMeals, todayTotals.waterMl),
-        insight: latestAssessment?.notes || activePlan?.notes || `Foco atual em ${patientProfile.objective.toLowerCase()} com acompanhamento continuo.`,
+        insight: latestAssessment?.notes || activePlan?.notes || 'Sem insights disponiveis no momento.',
       },
     };
   }
@@ -559,6 +575,10 @@ class PatientDashboardService {
   }
 
   buildPlanSections(activePlan, objective) {
+    if (!activePlan) {
+      return [];
+    }
+
     const planTitle = activePlan?.title || 'Plano alimentar atual';
     const planNotes = activePlan?.notes || `Ajustes focados em ${objective.toLowerCase()}.`;
 

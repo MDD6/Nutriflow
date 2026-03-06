@@ -12,6 +12,7 @@ class UserRepository {
             nutritionist: true,
           },
         },
+        nutritionistProfile: true,
       },
     });
   }
@@ -19,6 +20,14 @@ class UserRepository {
   findById(id) {
     return this.prisma.user.findUnique({
       where: { id },
+      include: {
+        patientProfile: {
+          include: {
+            nutritionist: true,
+          },
+        },
+        nutritionistProfile: true,
+      },
     });
   }
 
@@ -31,6 +40,7 @@ class UserRepository {
             nutritionist: true,
           },
         },
+        nutritionistProfile: true,
       },
     });
   }
@@ -38,6 +48,14 @@ class UserRepository {
   create(data) {
     return this.prisma.user.create({
       data,
+      include: {
+        patientProfile: {
+          include: {
+            nutritionist: true,
+          },
+        },
+        nutritionistProfile: true,
+      },
     });
   }
 
@@ -58,6 +76,7 @@ class UserRepository {
             nutritionist: true,
           },
         },
+        nutritionistProfile: true,
       },
     });
   }

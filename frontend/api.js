@@ -25,22 +25,27 @@
 
   function getCandidateOrigins() {
     const configuredOrigin = getConfiguredOrigin();
+    const locationProtocol = globalScope.location?.protocol || '';
+    const locationHostname = globalScope.location?.hostname || '';
+    const locationPort = globalScope.location?.port || '';
     const origins = [];
 
     if (configuredOrigin) {
       origins.push(configuredOrigin);
     }
 
-    if (globalScope.location?.protocol !== 'file:') {
-      origins.push('');
+    if (locationProtocol === 'file:') {
+      origins.push(DEFAULT_LOCAL_API_ORIGIN);
+      return [...new Set(origins)];
     }
 
-    if (
-      globalScope.location?.protocol === 'file:'
-      || (isLocalHost(globalScope.location?.hostname || '') && globalScope.location?.port !== '3000')
-    ) {
+    if (isLocalHost(locationHostname) && locationPort !== '3000') {
       origins.push(DEFAULT_LOCAL_API_ORIGIN);
+      origins.push('');
+      return [...new Set(origins)];
     }
+
+    origins.push('');
 
     return [...new Set(origins)];
   }

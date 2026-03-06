@@ -117,9 +117,29 @@ function isPatientProfile(profile) {
   return String(profile || '').trim().toLowerCase() === 'paciente';
 }
 
+function isNutritionistProfile(profile) {
+  return String(profile || '').trim().toLowerCase() === 'nutricionista';
+}
+
+function getDashboardRoute(profile) {
+  if (isPatientProfile(profile)) {
+    return 'dashboard.html';
+  }
+
+  if (isNutritionistProfile(profile)) {
+    return 'dashboard-nutricionista.html';
+  }
+
+  return null;
+}
+
 function handlePostAuthNavigation(data) {
-  if (isPatientProfile(data?.user?.profile)) {
-    setTimeout(redirectToDashboard, 900);
+  const route = getDashboardRoute(data?.user?.profile);
+
+  if (route) {
+    setTimeout(() => {
+      window.location.assign(route);
+    }, 900);
     return;
   }
 

@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NutriFlow | Dashboard do nutricionista</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            nutriflow: {
+              50: '#f3f7f1',
+              100: '#e5eedf',
+              200: '#cadbbf',
+              300: '#a8c297',
+              400: '#85a96f',
+              500: '#6f9656',
+              600: '#5f8249',
+              700: '#4f6b3d',
+              800: '#425734',
+              900: '#37482d',
+              950: '#1c2618'
+            }
+          },
+          boxShadow: {
+            soft: '0 20px 60px rgba(28,38,24,.10)',
+            card: '0 18px 40px rgba(28,38,24,.08)'
+          },
+          borderRadius: {
+            xl2: '28px',
+            xl3: '34px'
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="dashboard-body nutritionist-body text-nutriflow-950 font-sans">
+  <div class="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_top_right,rgba(21,53,93,.12),transparent_22%),radial-gradient(circle_at_bottom_left,rgba(111,150,86,.18),transparent_26%)]"></div>
+  <div class="relative mx-auto flex min-h-screen w-full max-w-[1720px] gap-4 px-4 py-4 md:px-6 xl:gap-6">
+    <aside class="dashboard-sidebar nutritionist-sidebar dashboard-surface sticky top-4 hidden h-[calc(100vh-2rem)] w-[310px] shrink-0 rounded-[32px] p-5 text-white xl:flex xl:flex-col">
+      <div>
+        <a href="index.html" class="flex items-center gap-3">
+          <span class="grid h-12 w-12 place-items-center rounded-2xl bg-white/12">
+            <span class="inline-block h-4 w-4 rounded-full bg-white"></span>
+          </span>
+          <div>
+            <p class="text-xl font-extrabold tracking-[-0.05em]">NutriFlow</p>
+            <p class="text-xs text-white/68">Workspace do nutricionista</p>
+          </div>
+        </a>
+
+        <div class="mt-8 rounded-[26px] border border-white/12 bg-white/8 p-4">
+          <p class="text-xs font-semibold uppercase tracking-[0.2em] text-white/60">Painel de hoje</p>
+          <p class="mt-3 text-3xl font-bold tracking-[-0.06em]" data-sidebar-date>06 Mar</p>
+          <p class="mt-2 text-sm leading-6 text-white/72">Seu dia comeca com consultas, revisao de planos e mensagens de pacientes com foco em adesao.</p>
+        </div>
+
+        <nav class="mt-8 space-y-2">
+          <a href="#dashboard" class="sidebar-link is-active">
+            <span class="sidebar-icon"><svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 13h6V4H4zM14 20h6v-9h-6zM14 10h6V4h-6zM4 20h6v-5H4z"></path></svg></span>
+            <span><span class="block text-sm font-semibold">Dashboard</span><span class="block text-xs text-white/55">Visao geral</span></span>
+          </a>
+          <a href="#pacientes" class="sidebar-link">
+            <span class="sidebar-icon"><svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></span>
+            <span><span class="block text-sm font-semibold">Pacientes</span><span class="block text-xs text-white/55">Carteira ativa</span></span>
+          </a>
+          <a href="#plano-alimentar" class="sidebar-link">
+            <span class="sidebar-icon"><svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13"></path><path d="M8 12h13"></path><path d="M8 18h13"></path><path d="M3 6h.01"></path><path d="M3 12h.01"></path><path d="M3 18h.01"></path></svg></span>
+            <span><span class="block text-sm font-semibold">Planos alimentares</span><span class="block text-xs text-white/55">Prescricoes</span></span>
+          </a>
+          <a href="#avaliacoes" class="sidebar-link">
+            <span class="sidebar-icon"><svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg></span>
+            <span><span class="block text-sm font-semibold">Avaliacoes fisicas</span><span class="block text-xs text-white/55">Check-ins</span></span>
+          </a>
+          <a href="#mensagens" class="sidebar-link">
+            <span class="sidebar-icon"><svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg></span>
+            <span><span class="block text-sm font-semibold">Mensagens</span><span class="block text-xs text-white/55">Conversas recentes</span></span>
+          </a>
+          <a href="#relatorios" class="sidebar-link">
+            <span class="sidebar-icon"><svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10"></path><path d="M18 20V4"></path><path d="M6 20v-4"></path></svg></span>
+            <span><span class="block text-sm font-semibold">Relatorios</span><span class="block text-xs text-white/55">Leituras rapidas</span></span>
+          </a>
+          <a href="#desafios" class="sidebar-link">
+            <span class="sidebar-icon"><svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2"><path d="M8.21 13.89 7 23l5-3 5 3-1.21-9.12"></path><path d="M15 7a3 3 0 1 0-6 0 3 3 0 0 0 6 0Z"></path><path d="M6 9a6 6 0 1 1 12 0c0 4-6 8-6 8S6 13 6 9Z"></path></svg></span>
+            <span><span class="block text-sm font-semibold">Desafios</span><span class="block text-xs text-white/55">Engajamento</span></span>
+          </a>
+          <a href="#configuracoes" class="sidebar-link">
+            <span class="sidebar-icon"><svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4"></path><path d="M12 18v4"></path><path d="m4.93 4.93 2.83 2.83"></path><path d="m16.24 16.24 2.83 2.83"></path><path d="M2 12h4"></path><path d="M18 12h4"></path><path d="m4.93 19.07 2.83-2.83"></path><path d="m16.24 7.76 2.83-2.83"></path><circle cx="12" cy="12" r="3"></circle></svg></span>
+            <span><span class="block text-sm font-semibold">Configuracoes</span><span class="block text-xs text-white/55">Conta e rotina</span></span>
+          </a>
+        </nav>
+      </div>
+
+      <div class="rounded-[28px] border border-white/12 bg-white/8 p-4">
+        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-white/60">Status do dia</p>
+        <div class="mt-4 space-y-3 text-sm text-white/78">
+          <div class="flex items-center justify-between"><span>Consultas</span><strong>04</strong></div>
+          <div class="flex items-center justify-between"><span>Planos para revisar</span><strong>07</strong></div>
+          <div class="flex items-center justify-between"><span>Mensagens nao lidas</span><strong>12</strong></div>
+        </div>
+      </div>
+    </aside>
+    <div class="min-w-0 flex-1">
+      <header class="dashboard-surface sticky top-4 z-20 rounded-[28px] px-5 py-4 md:px-6">
+        <div class="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div class="flex items-center gap-4">
+            <a href="index.html" class="flex items-center gap-3 xl:hidden">
+              <span class="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-nutriflow-500 to-nutriflow-700 text-white">
+                <span class="inline-block h-4 w-4 rounded-full bg-white"></span>
+              </span>
+              <div>
+                <p class="text-lg font-extrabold tracking-[-0.05em]">NutriFlow</p>
+                <p class="text-xs text-nutriflow-600">Dashboard nutricionista</p>
+              </div>
+            </a>
+
+            <div>
+              <p class="text-xs font-semibold uppercase tracking-[0.2em] text-nutriflow-600">Workspace premium</p>
+              <h1 class="mt-2 text-3xl font-extrabold tracking-[-0.06em]" data-header-greeting>Bom dia, Dra. Helena</h1>
+              <p class="mt-2 text-sm text-nutriflow-700" data-header-date>Visao operacional de pacientes, planos, mensagens e evolucao.</p>
+            </div>
+          </div>
+
+          <div class="flex flex-col gap-3 lg:flex-row lg:items-center">
+            <label class="dashboard-search flex min-w-[240px] items-center gap-3 rounded-2xl border border-nutriflow-100 bg-white px-4 py-3 text-sm text-nutriflow-700">
+              <svg viewBox="0 0 24 24" class="h-4 w-4 text-nutriflow-500" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg>
+              <input id="globalPatientSearch" class="w-full bg-transparent outline-none placeholder:text-nutriflow-400" type="text" placeholder="Busca rapida de pacientes" />
+            </label>
+
+            <div class="flex items-center gap-3 rounded-2xl border border-nutriflow-100 bg-white px-3 py-2 shadow-[0_12px_24px_rgba(28,38,24,.06)]">
+              <div class="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-nutriflow-500 to-nutriflow-700 text-sm font-bold text-white" data-nutritionist-initial>DH</div>
+              <div class="min-w-0">
+                <p class="truncate text-sm font-semibold text-nutriflow-950" data-nutritionist-name>Dra. Helena Duarte</p>
+                <p class="truncate text-xs text-nutriflow-600">Nutricionista clinica</p>
+              </div>
+            </div>
+
+            <button id="profileButton" class="rounded-2xl border border-nutriflow-200 bg-white px-4 py-3 text-sm font-semibold text-nutriflow-900 transition hover:-translate-y-0.5 hover:shadow-card">Perfil</button>
+            <button id="logoutButton" class="rounded-2xl bg-nutriflow-950 px-4 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-nutriflow-800">Sair</button>
+          </div>
+        </div>
+      </header>
+      <div class="mt-4 overflow-x-auto xl:hidden">
+        <div class="flex min-w-max gap-3 pb-2">
+          <a href="#dashboard" class="mobile-nav-pill is-active">Dashboard</a>
+          <a href="#pacientes" class="mobile-nav-pill">Pacientes</a>
+          <a href="#plano-alimentar" class="mobile-nav-pill">Planos</a>
+          <a href="#avaliacoes" class="mobile-nav-pill">Avaliacoes</a>
+          <a href="#mensagens" class="mobile-nav-pill">Mensagens</a>
+          <a href="#relatorios" class="mobile-nav-pill">Relatorios</a>
+        </div>
+      </div>
+      <main class="mt-4 space-y-6 pb-6">
+        <section id="dashboard" class="grid gap-4 md:grid-cols-2 2xl:grid-cols-4">
+          <article class="dashboard-surface dashboard-card nutritionist-summary-card rounded-[28px] p-5"><p class="text-xs font-semibold uppercase tracking-[0.18em] text-nutriflow-500">Pacientes ativos</p><p id="activePatientsCount" class="mt-4 text-4xl font-bold tracking-[-0.06em] text-nutriflow-950">0</p><p class="mt-2 text-sm text-nutriflow-700">Carteira acompanhada nesta semana</p></article>
+          <article class="dashboard-surface dashboard-card nutritionist-summary-card rounded-[28px] p-5"><p class="text-xs font-semibold uppercase tracking-[0.18em] text-nutriflow-500">Planos ativos</p><p id="activePlansCount" class="mt-4 text-4xl font-bold tracking-[-0.06em] text-nutriflow-950">0</p><p class="mt-2 text-sm text-nutriflow-700">Prescricoes vigentes agora</p></article>
+          <article class="dashboard-surface dashboard-card nutritionist-summary-card rounded-[28px] p-5"><p class="text-xs font-semibold uppercase tracking-[0.18em] text-nutriflow-500">Avaliacoes no mes</p><p id="monthlyAssessmentsCount" class="mt-4 text-4xl font-bold tracking-[-0.06em] text-nutriflow-950">0</p><p class="mt-2 text-sm text-nutriflow-700">Check-ins fisicos registrados</p></article>
+          <article class="dashboard-surface dashboard-card nutritionist-summary-card rounded-[28px] p-5"><p class="text-xs font-semibold uppercase tracking-[0.18em] text-nutriflow-500">Mensagens pendentes</p><p id="pendingMessagesCount" class="mt-4 text-4xl font-bold tracking-[-0.06em] text-nutriflow-950">0</p><p class="mt-2 text-sm text-nutriflow-700">Conversas aguardando retorno</p></article>
+        </section>
+
+        <section id="pacientes" class="grid gap-6 2xl:grid-cols-[1.18fr_.82fr]">
+          <article class="dashboard-surface dashboard-card rounded-[30px] p-6">
+            <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+              <div>
+                <span class="glass-pill">Pacientes</span>
+                <h2 class="mt-4 text-2xl font-bold tracking-[-0.05em]">Lista de pacientes e acompanhamento rapido</h2>
+                <p class="mt-2 text-sm leading-7 text-nutriflow-700">Filtre por objetivo, status do plano e nome para navegar pela carteira com agilidade.</p>
+              </div>
+              <div class="flex flex-wrap gap-3">
+                <button id="openMealPlanModal" data-open-modal="meal-plan" class="rounded-2xl bg-nutriflow-950 px-4 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-nutriflow-800">Novo plano alimentar</button>
+                <button id="openAssessmentModal" data-open-modal="assessment" class="rounded-2xl border border-nutriflow-200 bg-white px-4 py-3 text-sm font-semibold text-nutriflow-900 transition hover:-translate-y-0.5 hover:shadow-card">Registrar avaliacao fisica</button>
+              </div>
+            </div>
+
+            <div class="mt-6 grid gap-3 md:grid-cols-[1.1fr_.8fr_.8fr]">
+              <label class="rounded-2xl border border-nutriflow-100 bg-white px-4 py-3 text-sm text-nutriflow-700"><span class="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Nome</span><input id="patientNameFilter" class="w-full bg-transparent outline-none placeholder:text-nutriflow-400" type="text" placeholder="Buscar paciente" /></label>
+              <label class="rounded-2xl border border-nutriflow-100 bg-white px-4 py-3 text-sm text-nutriflow-700"><span class="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Objetivo</span><select id="patientObjectiveFilter" class="w-full bg-transparent outline-none"><option value="">Todos</option><option value="Emagrecimento">Emagrecimento</option><option value="Hipertrofia">Hipertrofia</option><option value="Reeducacao alimentar">Reeducacao alimentar</option><option value="Saude metabolica">Saude metabolica</option></select></label>
+              <label class="rounded-2xl border border-nutriflow-100 bg-white px-4 py-3 text-sm text-nutriflow-700"><span class="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Status</span><select id="patientStatusFilter" class="w-full bg-transparent outline-none"><option value="">Todos</option><option value="Ativo">Ativo</option><option value="Revisao">Revisao</option><option value="Atrasado">Atrasado</option></select></label>
+            </div>
+
+            <div class="mt-6 overflow-hidden rounded-[24px] border border-nutriflow-100">
+              <div class="hidden grid-cols-[1.1fr_.45fr_.95fr_.85fr_.9fr_.7fr] bg-[#f7faf5] px-4 py-3 text-xs font-semibold uppercase tracking-[0.14em] text-nutriflow-500 md:grid"><span>Paciente</span><span>Idade</span><span>Objetivo</span><span>Ultima avaliacao</span><span>Status plano</span><span class="text-right">Acao</span></div>
+              <div id="patientsList" class="divide-y divide-nutriflow-100 bg-white"></div>
+              <div id="emptyPatientsState" class="hidden px-6 py-10 text-center text-sm text-nutriflow-600">Nenhum paciente encontrado com os filtros aplicados.</div>
+            </div>
+          </article>
+
+          <article class="dashboard-surface dashboard-card rounded-[30px] p-6">
+            <div class="flex items-center justify-between gap-4">
+              <div>
+                <span class="glass-pill">Perfil resumido</span>
+                <h2 class="mt-4 text-2xl font-bold tracking-[-0.05em]">Paciente selecionado</h2>
+              </div>
+              <span id="selectedPatientStatusBadge" class="rounded-full bg-[#eef6e8] px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-nutriflow-700">Ativo</span>
+            </div>
+
+            <div class="mt-6 rounded-[26px] bg-gradient-to-br from-nutriflow-950 to-nutriflow-800 p-5 text-white">
+              <div class="flex items-center gap-4">
+                <div id="selectedPatientInitials" class="grid h-16 w-16 place-items-center rounded-2xl bg-white/12 text-lg font-bold">AR</div>
+                <div>
+                  <p id="selectedPatientName" class="text-2xl font-bold tracking-[-0.05em]">Amanda Rocha</p>
+                  <p id="selectedPatientGoal" class="mt-1 text-sm text-white/72">Emagrecimento</p>
+                </div>
+              </div>
+              <div class="mt-5 grid grid-cols-2 gap-3 text-sm">
+                <div class="rounded-2xl bg-white/8 p-3"><p class="text-white/62">Peso atual</p><p id="selectedPatientWeight" class="mt-2 text-lg font-semibold">78.4kg</p></div>
+                <div class="rounded-2xl bg-white/8 p-3"><p class="text-white/62">Altura</p><p id="selectedPatientHeight" class="mt-2 text-lg font-semibold">1.67m</p></div>
+              </div>
+            </div>
+
+            <div class="mt-6 grid gap-4 sm:grid-cols-2">
+              <div class="rounded-[24px] border border-nutriflow-100 bg-white p-4"><p class="text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Alergias e restricoes</p><p id="selectedPatientRestrictions" class="mt-3 text-sm leading-7 text-nutriflow-700">Sem lactose, evita frutos do mar.</p></div>
+              <div class="rounded-[24px] border border-nutriflow-100 bg-white p-4"><p class="text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Ultima refeicao registrada</p><p id="selectedPatientMeal" class="mt-3 text-sm leading-7 text-nutriflow-700">Almoco com frango, arroz integral e legumes.</p></div>
+            </div>
+
+            <div class="mt-4 rounded-[24px] border border-nutriflow-100 bg-white p-4">
+              <div class="flex items-center justify-between gap-3 text-sm font-medium text-nutriflow-800"><span>Progresso da meta</span><span id="selectedPatientProgressLabel">72%</span></div>
+              <div class="mini-progress mt-3"><span id="selectedPatientProgressBar" style="width:72%"></span></div>
+              <p id="selectedPatientLastAssessment" class="mt-3 text-xs text-nutriflow-600">Ultima avaliacao em 03 Mar 2026</p>
+            </div>
+
+            <div class="mt-4 grid gap-3">
+              <button id="selectedPatientViewButton" class="rounded-2xl bg-nutriflow-950 px-4 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-nutriflow-800">Ver perfil</button>
+            </div>
+          </article>
+        </section>
+
+        <section class="grid gap-6 xl:grid-cols-2">
+          <article id="plano-alimentar" class="dashboard-surface dashboard-card rounded-[30px] p-6">
+            <div class="flex items-center justify-between gap-4">
+              <div><span class="glass-pill">Plano alimentar</span><h2 class="mt-4 text-2xl font-bold tracking-[-0.05em]">Criacao e acompanhamento de planos</h2></div>
+              <button class="rounded-2xl border border-nutriflow-200 bg-white px-4 py-3 text-sm font-semibold text-nutriflow-900 transition hover:-translate-y-0.5 hover:shadow-card" data-open-modal="meal-plan">Novo plano alimentar</button>
+            </div>
+            <div id="latestMealPlans" class="mt-6 grid gap-4"></div>
+          </article>
+
+          <article id="avaliacoes" class="dashboard-surface dashboard-card rounded-[30px] p-6">
+            <div class="flex items-center justify-between gap-4">
+              <div><span class="glass-pill">Avaliacoes fisicas</span><h2 class="mt-4 text-2xl font-bold tracking-[-0.05em]">Ultimos registros e comparativos</h2></div>
+              <button class="rounded-2xl border border-nutriflow-200 bg-white px-4 py-3 text-sm font-semibold text-nutriflow-900 transition hover:-translate-y-0.5 hover:shadow-card" data-open-modal="assessment">Registrar avaliacao</button>
+            </div>
+            <div id="latestAssessments" class="mt-6 grid gap-4"></div>
+          </article>
+        </section>
+
+        <section class="grid gap-6 2xl:grid-cols-[1.15fr_.85fr]">
+          <article class="dashboard-surface dashboard-card rounded-[30px] p-6">
+            <div class="flex items-center justify-between gap-4">
+              <div><span class="glass-pill">Evolucao dos pacientes</span><h2 class="mt-4 text-2xl font-bold tracking-[-0.05em]">Peso, adesao ao plano e progresso</h2></div>
+              <span id="selectedChartPatient" class="rounded-full bg-[#f4f8f2] px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-nutriflow-700">Amanda Rocha</span>
+            </div>
+            <div class="mt-6 grid gap-6 lg:grid-cols-[1fr_.92fr]">
+              <div class="rounded-[26px] border border-nutriflow-100 bg-[#f8faf7] p-4">
+                <p class="text-sm font-medium text-nutriflow-600">Evolucao de peso</p>
+                <div class="mt-4 rounded-[22px] bg-white p-4"><svg id="weightEvolutionChart" viewBox="0 0 360 200" class="w-full"></svg></div>
+              </div>
+              <div class="grid gap-4">
+                <article class="rounded-[26px] border border-nutriflow-100 bg-[#f8faf7] p-4">
+                  <p class="text-sm font-medium text-nutriflow-600">Adesao ao plano por periodo</p>
+                  <div id="adherenceChart" class="nutritionist-bars mt-5"></div>
+                </article>
+                <article class="rounded-[26px] border border-nutriflow-100 bg-[#f8faf7] p-4">
+                  <p class="text-sm font-medium text-nutriflow-600">Progresso por periodo</p>
+                  <div id="periodProgressList" class="mt-4 space-y-4"></div>
+                </article>
+              </div>
+            </div>
+          </article>
+
+          <article id="mensagens" class="dashboard-surface dashboard-card rounded-[30px] p-6">
+            <div class="flex items-center justify-between gap-4">
+              <div><span class="glass-pill">Mensagens</span><h2 class="mt-4 text-2xl font-bold tracking-[-0.05em]">Conversas recentes</h2></div>
+              <span class="rounded-full bg-[#eef6e8] px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-nutriflow-700">Inbox ativo</span>
+            </div>
+            <div id="messagesList" class="mt-6 space-y-4"></div>
+          </article>
+        </section>
+
+        <section class="grid gap-6 xl:grid-cols-[1fr_.95fr]">
+          <article class="dashboard-surface dashboard-card rounded-[30px] p-6">
+            <div class="flex items-center justify-between gap-4">
+              <div><span class="glass-pill">Agenda</span><h2 class="mt-4 text-2xl font-bold tracking-[-0.05em]">Proximos acompanhamentos</h2></div>
+              <span class="rounded-full bg-[#f4f8f2] px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-nutriflow-700">Semana atual</span>
+            </div>
+            <div id="appointmentsList" class="mt-6 grid gap-4"></div>
+          </article>
+
+          <article id="relatorios" class="dashboard-surface dashboard-card rounded-[30px] p-6">
+            <div class="flex items-center justify-between gap-4">
+              <div><span class="glass-pill">Relatorios rapidos</span><h2 class="mt-4 text-2xl font-bold tracking-[-0.05em]">Leituras de performance da carteira</h2></div>
+              <span class="rounded-full bg-[#f4f8f2] px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-nutriflow-700">Visao executiva</span>
+            </div>
+            <div id="reportsGrid" class="mt-6 grid gap-4 sm:grid-cols-2"></div>
+          </article>
+        </section>
+
+        <section id="desafios" class="grid gap-6 xl:grid-cols-[1.05fr_.95fr]">
+          <article class="dashboard-surface dashboard-card rounded-[30px] p-6">
+            <div class="flex items-center justify-between gap-4">
+              <div><span class="glass-pill">Desafios nutricionais</span><h2 class="mt-4 text-2xl font-bold tracking-[-0.05em]">Desafios ativos e participacao</h2></div>
+              <span class="rounded-full bg-[#eef6e8] px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-nutriflow-700">Engajamento</span>
+            </div>
+            <div id="challengesList" class="mt-6 grid gap-4"></div>
+          </article>
+
+          <article class="dashboard-surface dashboard-card rounded-[30px] p-6">
+            <div class="flex items-center justify-between gap-4">
+              <div><span class="glass-pill">Novo desafio</span><h2 class="mt-4 text-2xl font-bold tracking-[-0.05em]">Criar desafio nutricional</h2></div>
+            </div>
+            <form id="challengeForm" class="mt-6 grid gap-4">
+              <label class="rounded-2xl border border-nutriflow-100 bg-white px-4 py-3 text-sm text-nutriflow-700"><span class="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Titulo</span><input id="challengeTitle" class="w-full bg-transparent outline-none placeholder:text-nutriflow-400" type="text" placeholder="Ex: 7 dias de cafe da manha estruturado" /></label>
+              <label class="rounded-2xl border border-nutriflow-100 bg-white px-4 py-3 text-sm text-nutriflow-700"><span class="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Meta do desafio</span><input id="challengeTarget" class="w-full bg-transparent outline-none placeholder:text-nutriflow-400" type="text" placeholder="Ex: Registrar 2L de agua por 7 dias" /></label>
+              <label class="rounded-2xl border border-nutriflow-100 bg-white px-4 py-3 text-sm text-nutriflow-700"><span class="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Participantes</span><input id="challengeParticipants" class="w-full bg-transparent outline-none placeholder:text-nutriflow-400" type="text" placeholder="Ex: Amanda, Lucas, Fernanda" /></label>
+              <button class="rounded-2xl bg-nutriflow-950 px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-nutriflow-800" type="submit">Criar desafio</button>
+            </form>
+          </article>
+        </section>
+
+        <section id="configuracoes" class="dashboard-surface dashboard-card rounded-[30px] p-6">
+          <div class="flex items-center justify-between gap-4">
+            <div><span class="glass-pill">Configuracoes</span><h2 class="mt-4 text-2xl font-bold tracking-[-0.05em]">Atalhos da conta e operacao</h2></div>
+          </div>
+          <div class="mt-6 grid gap-4 md:grid-cols-3">
+            <div class="rounded-[24px] border border-nutriflow-100 bg-white p-4"><p class="text-sm font-semibold text-nutriflow-950">Perfil profissional</p><p class="mt-2 text-sm leading-7 text-nutriflow-700">Atualize especialidade, foco clinico e assinatura das prescricoes.</p></div>
+            <div class="rounded-[24px] border border-nutriflow-100 bg-white p-4"><p class="text-sm font-semibold text-nutriflow-950">Preferencias de atendimento</p><p class="mt-2 text-sm leading-7 text-nutriflow-700">Defina agenda, lembretes automaticos e cadencia de acompanhamento.</p></div>
+            <div class="rounded-[24px] border border-nutriflow-100 bg-white p-4"><p class="text-sm font-semibold text-nutriflow-950">Automacoes futuras</p><p class="mt-2 text-sm leading-7 text-nutriflow-700">Estrutura pronta para integrar com API Node.js, Express e Prisma.</p></div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <div id="mealPlanModal" class="nf-modal-overlay hidden">
+    <div class="nf-modal-card">
+      <div class="flex items-start justify-between gap-4">
+        <div><p class="text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Plano alimentar</p><h3 class="mt-2 text-2xl font-bold tracking-[-0.05em]">Novo plano alimentar</h3></div>
+        <button class="nf-modal-close" type="button" data-close-modal="meal-plan">x</button>
+      </div>
+      <form id="mealPlanForm" class="mt-6 grid gap-4">
+        <div class="grid gap-4 md:grid-cols-2">
+          <label class="nf-field"><span>Paciente</span><select id="mealPlanPatient"></select></label>
+          <label class="nf-field"><span>Titulo do plano</span><input id="mealPlanTitle" type="text" placeholder="Plano anti-inflamatorio fase 1" /></label>
+        </div>
+        <div class="grid gap-4 md:grid-cols-2">
+          <label class="nf-field"><span>Data de inicio</span><input id="mealPlanStartDate" type="date" /></label>
+          <label class="nf-field"><span>Data de fim</span><input id="mealPlanEndDate" type="date" /></label>
+        </div>
+        <div class="grid gap-4 md:grid-cols-4">
+          <label class="nf-field"><span>Meta calorica</span><input id="mealPlanCalories" type="number" placeholder="2000" /></label>
+          <label class="nf-field"><span>Proteinas</span><input id="mealPlanProtein" type="number" placeholder="140" /></label>
+          <label class="nf-field"><span>Carboidratos</span><input id="mealPlanCarbs" type="number" placeholder="180" /></label>
+          <label class="nf-field"><span>Gorduras</span><input id="mealPlanFats" type="number" placeholder="60" /></label>
+        </div>
+        <label class="nf-field"><span>Observacoes</span><textarea id="mealPlanNotes" rows="4" placeholder="Orientacoes de rotina, substituicoes e observacoes clinicas"></textarea></label>
+        <div class="flex justify-end gap-3">
+          <button class="rounded-2xl border border-nutriflow-200 bg-white px-4 py-3 text-sm font-semibold text-nutriflow-900" type="button" data-close-modal="meal-plan">Cancelar</button>
+          <button class="rounded-2xl bg-nutriflow-950 px-5 py-3 text-sm font-semibold text-white" type="submit">Salvar plano</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <div id="assessmentModal" class="nf-modal-overlay hidden">
+    <div class="nf-modal-card">
+      <div class="flex items-start justify-between gap-4">
+        <div><p class="text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Avaliacao fisica</p><h3 class="mt-2 text-2xl font-bold tracking-[-0.05em]">Registrar avaliacao</h3></div>
+        <button class="nf-modal-close" type="button" data-close-modal="assessment">x</button>
+      </div>
+      <form id="assessmentForm" class="mt-6 grid gap-4">
+        <div class="grid gap-4 md:grid-cols-2">
+          <label class="nf-field"><span>Paciente</span><select id="assessmentPatient"></select></label>
+          <label class="nf-field"><span>Data da avaliacao</span><input id="assessmentDate" type="date" /></label>
+        </div>
+        <div class="grid gap-4 md:grid-cols-4">
+          <label class="nf-field"><span>Peso</span><input id="assessmentWeight" type="number" step="0.1" placeholder="78.4" /></label>
+          <label class="nf-field"><span>Altura</span><input id="assessmentHeight" type="number" step="0.01" placeholder="1.67" /></label>
+          <label class="nf-field"><span>IMC</span><input id="assessmentImc" type="number" step="0.1" placeholder="28.1" /></label>
+          <label class="nf-field"><span>% gordura</span><input id="assessmentBodyFat" type="number" step="0.1" placeholder="31.4" /></label>
+        </div>
+        <label class="nf-field"><span>Observacoes</span><textarea id="assessmentNotes" rows="4" placeholder="Anotacoes sobre medidas, adesao e sensacoes do paciente"></textarea></label>
+        <div class="flex justify-end gap-3">
+          <button class="rounded-2xl border border-nutriflow-200 bg-white px-4 py-3 text-sm font-semibold text-nutriflow-900" type="button" data-close-modal="assessment">Cancelar</button>
+          <button class="rounded-2xl bg-nutriflow-950 px-5 py-3 text-sm font-semibold text-white" type="submit">Salvar avaliacao</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <div id="nutritionistToast" class="nf-toast hidden"></div>
+
+  <script src="dashboard-nutricionista.js"></script>
+</body>
+</html>

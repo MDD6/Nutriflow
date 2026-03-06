@@ -13,6 +13,11 @@ class NutritionistDashboardRepository {
     const now = new Date();
     const dayMs = 24 * 60 * 60 * 1000;
     const daysAgo = (days) => new Date(now.getTime() - days * dayMs);
+    const atTime = (date, hours, minutes = 0) => {
+      const instance = new Date(date);
+      instance.setHours(hours, minutes, 0, 0);
+      return instance;
+    };
     const daysFromNow = (days, hours = 9, minutes = 0) => {
       const date = new Date(now.getTime() + days * dayMs);
       date.setHours(hours, minutes, 0, 0);
@@ -61,10 +66,31 @@ class NutritionistDashboardRepository {
         },
         messages: [
           {
+            senderRole: 'NUTRITIONIST',
+            content: 'Bom dia. Vi que sua adesao ao almoco melhorou bastante. Vamos observar o lanche da tarde.',
+            sentAt: atTime(daysAgo(0), 9, 14),
+            pending: false,
+          },
+          {
+            senderRole: 'PATIENT',
             content: 'Consegui manter o lanche da tarde e reduzi a fome noturna.',
-            sentAt: daysAgo(0),
+            sentAt: atTime(daysAgo(0), 9, 19),
             pending: true,
           },
+          {
+            senderRole: 'NUTRITIONIST',
+            content: 'Otimo. Se sentir fome a noite, adicione fruta com iogurte em vez de repetir o jantar.',
+            sentAt: atTime(daysAgo(0), 9, 22),
+            pending: false,
+          },
+        ],
+        mealEntries: [
+          { mealType: 'Cafe da manha', title: 'Iogurte grego, aveia, banana e chia', description: 'Alta saciedade com proteina e fibra no inicio do dia.', calories: 420, protein: 28, carbs: 46, fats: 11, fiber: 9, waterMl: 350, loggedAt: atTime(daysAgo(0), 7, 30) },
+          { mealType: 'Almoco', title: 'Frango grelhado, arroz integral, feijao e legumes', description: 'Prato principal equilibrado para sustentar a tarde.', calories: 620, protein: 46, carbs: 63, fats: 16, fiber: 11, waterMl: 500, loggedAt: atTime(daysAgo(0), 12, 40) },
+          { mealType: 'Lanche', title: 'Sanduiche integral com cottage e tomate', description: 'Lanche pratico para reduzir a fome noturna.', calories: 310, protein: 20, carbs: 29, fats: 9, fiber: 5, waterMl: 250, loggedAt: atTime(daysAgo(0), 16, 20) },
+          { mealType: 'Cafe da manha', title: 'Omelete com fruta e torrada integral', description: 'Cafe da manha com proteina e carboidrato de baixo volume.', calories: 395, protein: 30, carbs: 34, fats: 12, fiber: 7, waterMl: 300, loggedAt: atTime(daysAgo(1), 7, 20) },
+          { mealType: 'Almoco', title: 'Peixe assado, pure de batata-doce e salada', description: 'Almoco rico em proteina e fibras.', calories: 590, protein: 42, carbs: 54, fats: 18, fiber: 10, waterMl: 450, loggedAt: atTime(daysAgo(1), 12, 35) },
+          { mealType: 'Jantar', title: 'Sopa de legumes com frango desfiado', description: 'Jantar leve com boa digestao.', calories: 360, protein: 28, carbs: 24, fats: 11, fiber: 6, waterMl: 400, loggedAt: atTime(daysAgo(1), 19, 45) },
         ],
         progressSnapshots: [
           { label: 'S1', weight: 81.2, adherence: 82, progress: 58, recordedAt: daysAgo(28) },
@@ -115,10 +141,17 @@ class NutritionistDashboardRepository {
         },
         messages: [
           {
+            senderRole: 'PATIENT',
             content: 'Posso trocar o arroz do jantar por macarrao no pos-treino?',
-            sentAt: daysAgo(0),
+            sentAt: atTime(daysAgo(0), 8, 45),
             pending: true,
           },
+        ],
+        mealEntries: [
+          { mealType: 'Cafe da manha', title: 'Panqueca proteica com banana', description: 'Cafe da manha voltado para energia e saciedade.', calories: 540, protein: 34, carbs: 58, fats: 17, fiber: 7, waterMl: 300, loggedAt: atTime(daysAgo(0), 7, 10) },
+          { mealType: 'Almoco', title: 'Carne magra, arroz, feijao e salada', description: 'Base alimentar com bom aporte proteico.', calories: 760, protein: 48, carbs: 78, fats: 23, fiber: 10, waterMl: 450, loggedAt: atTime(daysAgo(0), 13, 0) },
+          { mealType: 'Pos-treino', title: 'Iogurte, banana e pasta de amendoim', description: 'Reposicao pratica no fim da tarde.', calories: 420, protein: 22, carbs: 41, fats: 18, fiber: 4, waterMl: 250, loggedAt: atTime(daysAgo(0), 17, 50) },
+          { mealType: 'Jantar', title: 'Frango, macarrao e legumes salteados', description: 'Jantar de recuperacao muscular.', calories: 640, protein: 38, carbs: 72, fats: 16, fiber: 6, waterMl: 350, loggedAt: atTime(daysAgo(1), 20, 10) },
         ],
         progressSnapshots: [
           { label: 'S1', weight: 82.8, adherence: 74, progress: 47, recordedAt: daysAgo(28) },
@@ -169,10 +202,17 @@ class NutritionistDashboardRepository {
         },
         messages: [
           {
+            senderRole: 'PATIENT',
             content: 'Enviei as fotos do prato principal da semana.',
-            sentAt: daysAgo(1),
+            sentAt: atTime(daysAgo(1), 18, 5),
             pending: false,
           },
+        ],
+        mealEntries: [
+          { mealType: 'Cafe da manha', title: 'Overnight oats com iogurte e frutas', description: 'Opcao pratica para rotina corrida.', calories: 380, protein: 24, carbs: 42, fats: 10, fiber: 8, waterMl: 300, loggedAt: atTime(daysAgo(0), 7, 45) },
+          { mealType: 'Almoco', title: 'Frango desfiado, quinoa e legumes', description: 'Almoco leve com boa distribuicao de macros.', calories: 510, protein: 36, carbs: 48, fats: 14, fiber: 9, waterMl: 400, loggedAt: atTime(daysAgo(0), 12, 25) },
+          { mealType: 'Jantar', title: 'Sopa cremosa de abobora com frango', description: 'Jantar leve para o fim do dia.', calories: 320, protein: 24, carbs: 26, fats: 9, fiber: 6, waterMl: 350, loggedAt: atTime(daysAgo(0), 19, 35) },
+          { mealType: 'Lanche', title: 'Mix de castanhas com iogurte sem lactose', description: 'Lanche compacto para tarde de trabalho.', calories: 280, protein: 16, carbs: 17, fats: 15, fiber: 4, waterMl: 200, loggedAt: atTime(daysAgo(1), 16, 10) },
         ],
         progressSnapshots: [
           { label: 'S1', weight: 69.1, adherence: 88, progress: 71, recordedAt: daysAgo(28) },
@@ -223,10 +263,16 @@ class NutritionistDashboardRepository {
         },
         messages: [
           {
+            senderRole: 'PATIENT',
             content: 'Quero retomar os registros e revisar o plano.',
-            sentAt: daysAgo(1),
+            sentAt: atTime(daysAgo(1), 10, 0),
             pending: true,
           },
+        ],
+        mealEntries: [
+          { mealType: 'Cafe da manha', title: 'Cafe preto e pao frances', description: 'Cafe da manha incompleto e com baixa saciedade.', calories: 260, protein: 8, carbs: 34, fats: 9, fiber: 2, waterMl: 150, loggedAt: atTime(daysAgo(0), 8, 10) },
+          { mealType: 'Almoco', title: 'Arroz, feijao, bife e salada simples', description: 'Almoco principal do dia.', calories: 710, protein: 34, carbs: 68, fats: 27, fiber: 7, waterMl: 300, loggedAt: atTime(daysAgo(0), 13, 20) },
+          { mealType: 'Jantar', title: 'Lanche rapido na rua', description: 'Opcao com baixa qualidade nutricional no fim do dia.', calories: 590, protein: 18, carbs: 54, fats: 31, fiber: 3, waterMl: 200, loggedAt: atTime(daysAgo(1), 20, 30) },
         ],
         progressSnapshots: [
           { label: 'S1', weight: 95.8, adherence: 61, progress: 54, recordedAt: daysAgo(28) },
@@ -333,6 +379,15 @@ class NutritionistDashboardRepository {
               patientProfileId: profile.id,
               nutritionistId,
               ...message,
+            },
+          });
+        }
+
+        for (const mealEntry of seed.mealEntries || []) {
+          await tx.mealEntry.create({
+            data: {
+              patientProfileId: profile.id,
+              ...mealEntry,
             },
           });
         }

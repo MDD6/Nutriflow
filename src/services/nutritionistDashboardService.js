@@ -229,12 +229,13 @@ class NutritionistDashboardService {
   }
 
   toDashboardDto(workspace) {
+    const patientMessages = workspace.messages.filter((message) => message.senderRole === 'PATIENT');
     const patients = [...workspace.managedPatients]
       .sort((left, right) => left.user.name.localeCompare(right.user.name, 'pt-BR'))
       .map((patient) => this.toPatientDto(patient));
     const mealPlans = workspace.mealPlans.map((mealPlan) => this.toMealPlanDto(mealPlan));
     const assessments = workspace.assessments.map((assessment) => this.toAssessmentDto(assessment));
-    const messages = workspace.messages.map((message) => this.toMessageDto(message));
+    const messages = patientMessages.map((message) => this.toMessageDto(message));
     const appointments = workspace.appointments.map((appointment) => this.toAppointmentDto(appointment));
     const challenges = workspace.challenges.map((challenge) => this.toChallengeDto(challenge));
 
@@ -249,7 +250,7 @@ class NutritionistDashboardService {
         activePatients: patients.filter((patient) => patient.status !== 'Atrasado').length,
         activePlans: mealPlans.filter((plan) => plan.status === 'Ativo').length,
         monthlyAssessments: this.countCurrentMonthAssessments(workspace.assessments),
-        pendingMessages: messages.filter((message) => message.pending).length,
+        pendingMessages: patientMessages.filter((message) => message.pending).length,
       },
       patients,
       mealPlans,

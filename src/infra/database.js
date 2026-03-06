@@ -24,6 +24,16 @@ function ensureDatabaseSchema(databaseUrl) {
 
   const sqlite = new Database(databasePath);
   sqlite.pragma('foreign_keys = ON');
+
+  function ensureColumn(tableName, columnName, definition) {
+    const columns = sqlite.prepare(`PRAGMA table_info("${tableName}")`).all();
+    const columnExists = columns.some((column) => column.name === columnName);
+
+    if (!columnExists) {
+      sqlite.exec(`ALTER TABLE "${tableName}" ADD COLUMN "${columnName}" ${definition}`);
+    }
+  }
+
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS "User" (
       "id" TEXT NOT NULL PRIMARY KEY,
@@ -106,6 +116,7 @@ function ensureDatabaseSchema(databaseUrl) {
       "id" TEXT NOT NULL PRIMARY KEY,
       "patientProfileId" TEXT NOT NULL,
       "nutritionistId" TEXT NOT NULL,
+      "senderRole" TEXT NOT NULL DEFAULT 'PATIENT',
       "content" TEXT NOT NULL,
       "sentAt" DATETIME NOT NULL,
       "pending" BOOLEAN NOT NULL DEFAULT 1,
@@ -116,6 +127,27 @@ function ensureDatabaseSchema(databaseUrl) {
 
     CREATE INDEX IF NOT EXISTS "PatientMessage_patientProfileId_idx" ON "PatientMessage"("patientProfileId");
     CREATE INDEX IF NOT EXISTS "PatientMessage_nutritionistId_idx" ON "PatientMessage"("nutritionistId");
+
+    CREATE TABLE IF NOT EXISTS "MealEntry" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "patientProfileId" TEXT NOT NULL,
+      "mealType" TEXT NOT NULL,
+      "title" TEXT NOT NULL,
+      "description" TEXT NOT NULL,
+      "calories" INTEGER NOT NULL,
+      "protein" INTEGER NOT NULL,
+      "carbs" INTEGER NOT NULL,
+      "fats" INTEGER NOT NULL,
+      "fiber" INTEGER NOT NULL DEFAULT 0,
+      "waterMl" INTEGER NOT NULL DEFAULT 0,
+      "loggedAt" DATETIME NOT NULL,
+      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "MealEntry_patientProfileId_fkey" FOREIGN KEY ("patientProfileId") REFERENCES "PatientProfile" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS "MealEntry_patientProfileId_idx" ON "MealEntry"("patientProfileId");
+    CREATE INDEX IF NOT EXISTS "MealEntry_patientProfileId_loggedAt_idx" ON "MealEntry"("patientProfileId", "loggedAt");
 
     CREATE TABLE IF NOT EXISTS "Appointment" (
       "id" TEXT NOT NULL PRIMARY KEY,
@@ -172,6 +204,7 @@ function ensureDatabaseSchema(databaseUrl) {
 
     CREATE INDEX IF NOT EXISTS "ProgressSnapshot_patientProfileId_idx" ON "ProgressSnapshot"("patientProfileId");
   `);
+  ensureColumn('PatientMessage', 'senderRole', `TEXT NOT NULL DEFAULT 'PATIENT'`);
   sqlite.close();
 }
 

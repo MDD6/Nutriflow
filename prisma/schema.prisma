@@ -48,6 +48,7 @@ model PatientProfile {
   assessments       Assessment[]
   messages          PatientMessage[]
   appointments      Appointment[]
+  mealEntries       MealEntry[]
   progressSnapshots ProgressSnapshot[]
   challengeLinks    ChallengeParticipant[]
 }
@@ -91,12 +92,34 @@ model PatientMessage {
   id               String         @id @default(uuid())
   patientProfileId String
   nutritionistId   String
+  senderRole       String         @default("PATIENT")
   content          String
   sentAt           DateTime
   pending          Boolean        @default(true)
   createdAt        DateTime       @default(now())
   patientProfile   PatientProfile @relation(fields: [patientProfileId], references: [id], onDelete: Cascade)
   nutritionist     User           @relation("NutritionistMessages", fields: [nutritionistId], references: [id], onDelete: Cascade)
+}
+
+model MealEntry {
+  id               String         @id @default(uuid())
+  patientProfileId String
+  mealType         String
+  title            String
+  description      String
+  calories         Int
+  protein          Int
+  carbs            Int
+  fats             Int
+  fiber            Int            @default(0)
+  waterMl          Int            @default(0)
+  loggedAt         DateTime
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  patientProfile   PatientProfile @relation(fields: [patientProfileId], references: [id], onDelete: Cascade)
+
+  @@index([patientProfileId])
+  @@index([patientProfileId, loggedAt])
 }
 
 model Appointment {

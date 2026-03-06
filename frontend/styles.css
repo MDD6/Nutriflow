@@ -1,0 +1,335 @@
+:root {
+  color-scheme: light;
+}
+
+body {
+  background:
+    radial-gradient(circle at top left, rgba(111, 150, 86, 0.18), transparent 28%),
+    linear-gradient(180deg, #eef2ea 0%, #e9eee6 100%);
+}
+
+.avatar-dot {
+  display: inline-block;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+}
+
+.hero-glow {
+  position: absolute;
+  inset: 6% 14% 10%;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 50% 20%, rgba(255, 255, 255, 0.22), transparent 20%),
+    radial-gradient(circle at 50% 46%, rgba(255, 255, 255, 0.14), transparent 40%),
+    linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.02));
+  filter: blur(30px);
+}
+
+.hero-person {
+  position: relative;
+  width: min(460px, 100%);
+  aspect-ratio: .8 / 1;
+}
+
+.hero-body {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 56%;
+  height: 56%;
+  background: linear-gradient(180deg, #7a8f7c 0%, #54665a 100%);
+  border-radius: 35% 35% 18% 18% / 26% 26% 14% 14%;
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.06);
+}
+
+.hero-head {
+  position: absolute;
+  left: 50%;
+  top: 9%;
+  transform: translateX(-50%);
+  width: 24%;
+  aspect-ratio: 1;
+  border-radius: 999px;
+  background: radial-gradient(circle at 45% 36%, #f7c59a 0%, #d49166 72%, #b5764e 100%);
+  box-shadow: inset -8px -10px 18px rgba(0,0,0,.08);
+  z-index: 3;
+}
+
+.hero-hair {
+  position: absolute;
+  inset: -4% -3% 40% -3%;
+  background: linear-gradient(180deg, #2d211d 0%, #4b352b 100%);
+  border-radius: 50% 50% 34% 36%;
+}
+
+.hero-ponytail {
+  position: absolute;
+  right: 18%;
+  top: 16%;
+  width: 12%;
+  height: 34%;
+  background: linear-gradient(180deg, #2f221d, #604235);
+  border-radius: 999px;
+  transform: rotate(6deg);
+  z-index: 1;
+}
+
+.hero-arm {
+  position: absolute;
+  bottom: 18%;
+  width: 15%;
+  height: 34%;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #e2ab7d 0%, #bc7e56 100%);
+  z-index: 2;
+}
+
+.hero-arm-left {
+  left: 18%;
+  transform: rotate(28deg);
+  transform-origin: bottom center;
+}
+
+.hero-arm-right {
+  right: 18%;
+  transform: rotate(-16deg);
+  transform-origin: bottom center;
+}
+
+.hero-bowl {
+  position: absolute;
+  bottom: 13%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 48%;
+  height: 16%;
+  border-radius: 0 0 60% 60% / 0 0 100% 100%;
+  background: linear-gradient(180deg, #f2f4ef 0%, #dfe3dc 100%);
+  box-shadow: inset 0 -8px 12px rgba(0,0,0,.08), 0 12px 24px rgba(0,0,0,.12);
+  z-index: 5;
+}
+
+.hero-salad {
+  position: absolute;
+  bottom: 24%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 43%;
+  height: 12%;
+  z-index: 6;
+  filter: drop-shadow(0 8px 10px rgba(0,0,0,.12));
+  background:
+    radial-gradient(circle at 16% 58%, #7cc145 0, #5aa835 20%, transparent 22%),
+    radial-gradient(circle at 34% 36%, #8dd14f 0, #60b142 20%, transparent 22%),
+    radial-gradient(circle at 52% 50%, #7fc248 0, #5ea73b 20%, transparent 22%),
+    radial-gradient(circle at 70% 32%, #6fb93c 0, #519434 21%, transparent 23%),
+    radial-gradient(circle at 82% 58%, #8fd34e 0, #68b342 20%, transparent 22%),
+    radial-gradient(circle at 30% 54%, #ef3c3c 0, #d22929 11%, transparent 12%),
+    radial-gradient(circle at 60% 38%, #ef3c3c 0, #d22929 11%, transparent 12%),
+    radial-gradient(circle at 74% 48%, #ef3c3c 0, #d22929 11%, transparent 12%),
+    radial-gradient(circle at 50% 56%, #faad2e 0, #f29109 10%, transparent 11%);
+}
+
+.coach-visual {
+  position: relative;
+  min-height: 370px;
+}
+
+.coach-body {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 42%;
+  height: 54%;
+  border-radius: 32% 32% 16% 16% / 28% 28% 12% 12%;
+  background: linear-gradient(180deg, #15355d 0%, #0c2748 100%);
+}
+
+.coach-head {
+  position: absolute;
+  top: 14%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 18%;
+  aspect-ratio: 1;
+  border-radius: 999px;
+  background: radial-gradient(circle at 45% 38%, #edc19d 0%, #ca8b61 74%, #a86f4f 100%);
+}
+
+.coach-arm {
+  position: absolute;
+  left: 28%;
+  bottom: 18%;
+  width: 16%;
+  height: 30%;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #efc09b, #ba7c55);
+  transform: rotate(28deg);
+}
+
+.coach-mat {
+  position: absolute;
+  left: 34%;
+  bottom: 16%;
+  width: 34%;
+  height: 14%;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #79d2ec, #7c5ce8);
+  box-shadow: 0 12px 22px rgba(0,0,0,.16);
+}
+
+.progress-bar {
+  height: 12px;
+  border-radius: 999px;
+  background: rgba(111, 150, 86, 0.16);
+  overflow: hidden;
+}
+
+.progress-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #62b4ff, #2f8bf0);
+}
+
+.chart-bars {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
+  height: 180px;
+}
+
+.chart-bars span {
+  display: block;
+  border-radius: 18px 18px 8px 8px;
+  background: linear-gradient(180deg, #8ac36a 0%, #5f8249 100%);
+}
+
+body.modal-open {
+  overflow: hidden;
+}
+
+.auth-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+  min-height: 620px;
+}
+
+.auth-aside {
+  position: relative;
+  overflow: hidden;
+  padding: 2.25rem;
+  background:
+    radial-gradient(circle at 8% 12%, rgba(255, 255, 255, 0.14), transparent 22%),
+    radial-gradient(circle at 90% 80%, rgba(255, 255, 255, 0.08), transparent 24%),
+    linear-gradient(160deg, #4f6b3d 0%, #37482d 42%, #1c2618 100%);
+  color: #ffffff;
+}
+
+.auth-aside::after {
+  content: '';
+  position: absolute;
+  inset: auto -8% -20% auto;
+  width: 220px;
+  aspect-ratio: 1;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0));
+}
+
+.auth-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #c2cf73 0%, #8ba654 100%);
+  box-shadow: 0 0 0 4px rgba(194, 207, 115, 0.18);
+}
+
+.auth-content {
+  padding: 2.2rem 2rem;
+  background: #ffffff;
+}
+
+.auth-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  border-radius: 999px;
+  background: #edf2e9;
+  padding: 6px;
+}
+
+.auth-tab {
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #4f6b3d;
+  cursor: pointer;
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  padding: 10px 14px;
+  transition: all 0.22s ease;
+}
+
+.auth-tab.is-active {
+  background: #1c2618;
+  color: #ffffff;
+  box-shadow: 0 8px 18px rgba(28, 38, 24, 0.22);
+}
+
+.auth-tab:focus-visible {
+  outline: 2px solid #5f8249;
+  outline-offset: 2px;
+}
+
+.auth-note {
+  margin-top: 0.2rem;
+  color: #4f6b3d;
+  font-size: 0.86rem;
+}
+
+@media (max-width: 1024px) {
+  .hero-person {
+    width: min(360px, 100%);
+  }
+
+  .coach-visual {
+    min-height: 300px;
+  }
+
+  .auth-layout {
+    grid-template-columns: 1fr;
+    min-height: initial;
+  }
+
+  .auth-aside {
+    display: none;
+  }
+
+  .auth-content {
+    padding: 1.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .chart-bars {
+    gap: 8px;
+    height: 140px;
+  }
+
+  .auth-tabs {
+    gap: 6px;
+    padding: 5px;
+  }
+
+  .auth-tab {
+    font-size: 0.84rem;
+    padding: 9px 10px;
+  }
+}

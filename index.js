@@ -1,14 +1,18 @@
+require('dotenv/config');
+
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const Database = require('better-sqlite3');
+const { PrismaBetterSQLite3 } = require('@prisma/adapter-better-sqlite3');
+const { PrismaClient } = require('@prisma/client');
 
 const PORT = Number(process.env.PORT) || 3000;
 const HOST = process.env.HOST || '127.0.0.1';
 const FRONTEND_DIR = path.join(__dirname, 'frontend');
-const DATA_DIR = path.join(__dirname, 'data');
-const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const TOKEN_SECRET = process.env.TOKEN_SECRET || 'nutriflow-dev-secret-change-me';
+const DATABASE_URL = process.env.DATABASE_URL || 'file:./prisma/dev.db';
 
 const MIME_TYPES = {
   '.css': 'text/css; charset=utf-8',
@@ -20,26 +24,54 @@ const MIME_TYPES = {
   '.txt': 'text/plain; charset=utf-8',
 };
 
-function ensureUsersFile() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+function resolveSqlitePath(databaseUrl) {
+  if (!databaseUrl.startsWith('file:')) {
+    throw new Error('DATABASE_URL invalida. Use o formato file:./caminho/do/banco.db');
   }
 
-  if (!fs.existsSync(USERS_FILE)) {
-    fs.writeFileSync(USERS_FILE, '[]', 'utf-8');
+  const filePath = databaseUrl.slice(5);
+
+  if (/^[A-Za-z]:[\\/]/.test(filePath)) {
+    return filePath;
   }
+
+  if (filePath.startsWith('/')) {
+    return filePath;
+  }
+
+  return path.resolve(__dirname, filePath);
 }
 
-function readUsers() {
-  ensureUsersFile();
-  const raw = fs.readFileSync(USERS_FILE, 'utf-8');
-  return JSON.parse(raw);
+function ensureDatabaseSchema() {
+  const databasePath = resolveSqlitePath(DATABASE_URL);
+  fs.mkdirSync(path.dirname(databasePath), { recursive: true });
+
+  const sqlite = new Database(databasePath);
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS "User" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "name" TEXT NOT NULL,
+      "email" TEXT NOT NULL,
+      "profile" TEXT NOT NULL,
+      "passwordHash" TEXT NOT NULL,
+      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS "User_email_key" ON "User"("email");
+  `);
+  sqlite.close();
 }
 
-function writeUsers(users) {
-  ensureUsersFile();
-  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf-8');
-}
+ensureDatabaseSchema();
+
+const adapter = new PrismaBetterSQLite3({
+  url: DATABASE_URL,
+});
+
+const prisma = new PrismaClient({
+  adapter,
+});
 
 function sendJson(response, statusCode, payload) {
   response.writeHead(statusCode, {
@@ -172,25 +204,23 @@ async function handleRegister(request, response) {
       return;
     }
 
-    const users = readUsers();
-    const existingUser = users.find((user) => user.email === email);
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
+    });
 
     if (existingUser) {
       sendJson(response, 409, { message: 'Ja existe uma conta com este e-mail.' });
       return;
     }
 
-    const user = {
-      id: crypto.randomUUID(),
-      name,
-      email,
-      profile,
-      passwordHash: hashPassword(password),
-      createdAt: new Date().toISOString(),
-    };
-
-    users.push(user);
-    writeUsers(users);
+    const user = await prisma.user.create({
+      data: {
+        name,
+        email,
+        profile,
+        passwordHash: hashPassword(password),
+      },
+    });
 
     sendJson(response, 201, {
       message: 'Cadastro realizado com sucesso.',
@@ -214,8 +244,9 @@ async function handleLogin(request, response) {
       return;
     }
 
-    const users = readUsers();
-    const user = users.find((item) => item.email === email);
+    const user = await prisma.user.findUnique({
+      where: { email },
+    });
 
     if (!user || !verifyPassword(password, user.passwordHash)) {
       sendJson(response, 401, { message: 'E-mail ou senha invalidos.' });
@@ -264,8 +295,14 @@ const server = http.createServer(async (request, response) => {
   sendJson(response, 404, { message: 'Rota nao encontrada.' });
 });
 
-ensureUsersFile();
-
 server.listen(PORT, HOST, () => {
   console.log(`Nutriflow iniciado em http://${HOST}:${PORT}`);
 });
+
+async function shutdown() {
+  await prisma.$disconnect();
+  process.exit(0);
+}
+
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);

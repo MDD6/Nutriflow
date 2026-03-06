@@ -4,8 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node index.js"
+    "start": "node index.js",
+    "prisma:generate": "prisma generate",
+    "prisma:studio": "prisma studio"
   },
   "repository": {
     "type": "git",
@@ -15,6 +16,15 @@
   "author": "",
   "license": "ISC",
   "type": "commonjs",
+  "dependencies": {
+    "@prisma/adapter-better-sqlite3": "^6.17.1",
+    "@prisma/client": "^6.17.1",
+    "better-sqlite3": "^12.6.2",
+    "dotenv": "^17.3.1"
+  },
+  "devDependencies": {
+    "prisma": "^6.17.1"
+  },
   "bugs": {
     "url": "https://github.com/MDD6/Nutriflow/issues"
   },

@@ -106,6 +106,24 @@ function saveSession(data) {
 
   localStorage.setItem('nutriflow.token', data.token);
   localStorage.setItem('nutriflow.user', JSON.stringify(data.user));
+  localStorage.setItem('nutriflow.lastAuthAt', new Date().toISOString());
+}
+
+function redirectToDashboard() {
+  window.location.assign('dashboard.html');
+}
+
+function isPatientProfile(profile) {
+  return String(profile || '').trim().toLowerCase() === 'paciente';
+}
+
+function handlePostAuthNavigation(data) {
+  if (isPatientProfile(data?.user?.profile)) {
+    setTimeout(redirectToDashboard, 900);
+    return;
+  }
+
+  setTimeout(closeModal, 900);
 }
 
 openButtons.forEach((button) => {
@@ -157,7 +175,7 @@ loginForm?.addEventListener('submit', async (event) => {
     saveSession(data);
     showMessage(loginMessage, `${data.message} Bem-vindo, ${data.user.name}.`);
     loginForm.reset();
-    setTimeout(closeModal, 1000);
+    handlePostAuthNavigation(data);
   } catch (error) {
     showMessage(loginMessage, error.message, true);
   }
@@ -204,7 +222,7 @@ registerForm?.addEventListener('submit', async (event) => {
     saveSession(data);
     showMessage(registerMessage, `${data.message} Conta criada para ${data.user.name}.`);
     registerForm.reset();
-    setTimeout(closeModal, 1000);
+    handlePostAuthNavigation(data);
   } catch (error) {
     showMessage(registerMessage, error.message, true);
   }

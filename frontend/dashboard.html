@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NutriFlow | Dashboard do paciente</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            nutriflow: {
+              50: '#f3f7f1',
+              100: '#e5eedf',
+              200: '#cadbbf',
+              300: '#a8c297',
+              400: '#85a96f',
+              500: '#6f9656',
+              600: '#5f8249',
+              700: '#4f6b3d',
+              800: '#425734',
+              900: '#37482d',
+              950: '#1c2618'
+            }
+          },
+          boxShadow: {
+            soft: '0 20px 60px rgba(28,38,24,.10)',
+            card: '0 18px 40px rgba(28,38,24,.08)'
+          },
+          borderRadius: {
+            xl2: '28px',
+            xl3: '34px'
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="dashboard-body text-nutriflow-950 font-sans">
+  <div class="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_top_right,rgba(21,53,93,.10),transparent_24%),radial-gradient(circle_at_bottom_left,rgba(111,150,86,.16),transparent_28%)]"></div>
+
+  <div class="relative mx-auto flex min-h-screen w-full max-w-[1600px] gap-4 px-4 py-4 md:gap-6 md:px-6 lg:px-8">
+    <aside class="dashboard-sidebar dashboard-surface sticky top-4 hidden h-[calc(100vh-2rem)] w-[290px] shrink-0 rounded-[32px] p-5 text-white xl:flex xl:flex-col">
+      <div>
+        <a href="index.html" class="flex items-center gap-3">
+          <span class="grid h-11 w-11 place-items-center rounded-full bg-white/12 shadow-lg shadow-black/10">
+            <span class="inline-block h-4 w-4 rounded-full bg-white"></span>
+          </span>
+          <div>
+            <p class="text-xl font-extrabold tracking-[-0.05em]">NutriFlow</p>
+            <p class="text-xs text-white/70">Paciente dashboard</p>
+          </div>
+        </a>
+
+        <div class="mt-8 rounded-[26px] border border-white/12 bg-white/8 p-4">
+          <p class="text-xs font-semibold uppercase tracking-[0.2em] text-white/60">Hoje</p>
+          <p class="mt-3 text-3xl font-bold tracking-[-0.06em]" data-dashboard-date-short>06 Mar</p>
+          <p class="mt-2 text-sm leading-6 text-white/72">Seu plano de hoje esta com boa aderencia. Faltam duas refeicoes e seu check-in com a nutricionista.</p>
+        </div>
+
+        <nav class="mt-8 space-y-2">
+          <a class="sidebar-link is-active" href="#visao-geral"><span class="sidebar-icon">OV</span><span><span class="block text-sm font-semibold">Visao geral</span><span class="block text-xs text-white/55">Metricas do dia</span></span></a>
+          <a class="sidebar-link" href="#refeicoes"><span class="sidebar-icon">RF</span><span><span class="block text-sm font-semibold">Refeicoes</span><span class="block text-xs text-white/55">Registro do dia</span></span></a>
+          <a class="sidebar-link" href="#historico"><span class="sidebar-icon">HI</span><span><span class="block text-sm font-semibold">Historico</span><span class="block text-xs text-white/55">Ultimos dias</span></span></a>
+          <a class="sidebar-link" href="#plano"><span class="sidebar-icon">PL</span><span><span class="block text-sm font-semibold">Plano alimentar</span><span class="block text-xs text-white/55">Sugestoes e rotina</span></span></a>
+          <a class="sidebar-link" href="#peso"><span class="sidebar-icon">KG</span><span><span class="block text-sm font-semibold">Evolucao de peso</span><span class="block text-xs text-white/55">Acompanhamento</span></span></a>
+          <a class="sidebar-link" href="#chat"><span class="sidebar-icon">CH</span><span><span class="block text-sm font-semibold">Chat nutricionista</span><span class="block text-xs text-white/55">Suporte rapido</span></span></a>
+        </nav>
+      </div>
+
+      <div class="rounded-[28px] border border-white/12 bg-white/8 p-4">
+        <div class="flex items-center gap-3">
+          <div class="grid h-12 w-12 place-items-center rounded-2xl bg-[#d7ecc8] text-sm font-bold text-nutriflow-950">NF</div>
+          <div>
+            <p class="text-sm font-semibold">Consulta da semana</p>
+            <p class="text-xs text-white/60">Sexta, 16:30 com Dra. Helena</p>
+          </div>
+        </div>
+        <div class="mt-4 rounded-2xl bg-black/10 p-3 text-sm leading-6 text-white/72">Leve seu diario alimentar atualizado e marque as refeicoes fora da rotina.</div>
+      </div>
+    </aside>
+
+    <div class="min-w-0 flex-1">
+      <header class="dashboard-surface sticky top-4 z-20 rounded-[28px] px-5 py-4 md:px-6">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.22em] text-nutriflow-600">Painel do paciente</p>
+            <h1 class="mt-2 text-3xl font-extrabold tracking-[-0.06em] md:text-4xl" data-greeting>Bom dia, Camila</h1>
+            <p class="mt-2 text-sm text-nutriflow-700" data-dashboard-date>Seu acompanhamento esta em dia hoje.</p>
+          </div>
+
+          <div class="flex flex-col gap-3 md:flex-row md:items-center">
+            <label class="dashboard-search hidden min-w-[250px] items-center gap-3 rounded-2xl border border-nutriflow-100 bg-white px-4 py-3 text-sm text-nutriflow-700 lg:flex">
+              <span class="text-xs font-semibold uppercase tracking-[0.18em] text-nutriflow-500">Busca</span>
+              <input class="w-full bg-transparent text-sm outline-none placeholder:text-nutriflow-400" type="text" placeholder="Buscar refeicao, meta ou plano" />
+            </label>
+            <button class="rounded-2xl bg-nutriflow-950 px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-nutriflow-800">Nova refeicao</button>
+            <div class="flex items-center gap-3 rounded-2xl border border-nutriflow-100 bg-white px-3 py-2 shadow-[0_12px_24px_rgba(28,38,24,.06)]">
+              <div class="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-nutriflow-500 to-nutriflow-700 text-sm font-bold text-white" data-user-initial>CR</div>
+              <div class="min-w-0">
+                <p class="truncate text-sm font-semibold text-nutriflow-950" data-user-name>Camila Rocha</p>
+                <p class="truncate text-xs text-nutriflow-600"><span data-user-profile>Paciente</span> - <span data-user-email>camila@nutriflow.com</span></p>
+              </div>
+            </div>
+            <button id="logoutButton" class="rounded-2xl border border-nutriflow-200 bg-white px-4 py-3 text-sm font-semibold text-nutriflow-900 transition hover:-translate-y-0.5 hover:shadow-card">Sair</button>
+          </div>
+        </div>
+      </header>
+
+      <div class="mt-4 overflow-x-auto xl:hidden">
+        <div class="flex min-w-max gap-3 pb-2">
+          <a href="#visao-geral" class="mobile-nav-pill is-active">Visao geral</a>
+          <a href="#refeicoes" class="mobile-nav-pill">Refeicoes</a>
+          <a href="#historico" class="mobile-nav-pill">Historico</a>
+          <a href="#plano" class="mobile-nav-pill">Plano</a>
+          <a href="#peso" class="mobile-nav-pill">Peso</a>
+          <a href="#chat" class="mobile-nav-pill">Chat</a>
+        </div>
+      </div>
+
+      <main class="mt-4 space-y-6 pb-6">
+        <section id="visao-geral" class="grid gap-6 2xl:grid-cols-[1.2fr_.8fr]">
+          <article class="dashboard-surface dashboard-card rounded-[30px] p-6 md:p-7">
+            <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div>
+                <span class="glass-pill">Dashboard de calorias</span>
+                <h2 class="mt-4 text-2xl font-bold tracking-[-0.05em] md:text-3xl">Resumo nutricional com foco em clareza, ritmo e constancia.</h2>
+                <p class="mt-3 max-w-2xl text-sm leading-7 text-nutriflow-700">Seu dia esta equilibrado entre densidade nutricional, horarios e qualidade das escolhas. O painel mostra onde acelerar e onde manter consistencia.</p>
+              </div>
+              <div class="rounded-2xl border border-nutriflow-100 bg-[#f7faf5] px-4 py-3 text-right">
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-nutriflow-500">Aderencia</p>
+                <p class="mt-2 text-2xl font-bold tracking-[-0.05em] text-nutriflow-950">86%</p>
+                <p class="text-xs text-nutriflow-600">7 dias acima da meta minima</p>
+              </div>
+            </div>
+
+            <div class="mt-8 grid gap-6 xl:grid-cols-[260px_1fr]">
+              <div class="rounded-[28px] bg-nutriflow-950 p-6 text-white">
+                <div class="metric-ring" style="--progress:82%; --ring-color:#9fd57b;">
+                  <div class="metric-ring-value">
+                    <strong>1.840</strong>
+                    <span>de 2.200 kcal</span>
+                  </div>
+                </div>
+                <div class="mt-6 grid grid-cols-2 gap-3 text-sm">
+                  <div class="rounded-2xl bg-white/8 p-3">
+                    <p class="text-white/60">Fibra</p>
+                    <p class="mt-2 text-lg font-semibold">26g</p>
+                  </div>
+                  <div class="rounded-2xl bg-white/8 p-3">
+                    <p class="text-white/60">Agua</p>
+                    <p class="mt-2 text-lg font-semibold">2.1L</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="grid gap-4">
+                <div class="grid gap-4 sm:grid-cols-3">
+                  <article class="dashboard-stat rounded-[24px] p-4">
+                    <p class="text-sm font-medium text-nutriflow-600">Proteinas</p>
+                    <p class="mt-3 text-3xl font-bold tracking-[-0.06em] text-nutriflow-950">132g</p>
+                    <div class="mini-progress mt-4"><span style="width:88%"></span></div>
+                    <p class="mt-2 text-xs text-nutriflow-600">88% da meta diaria</p>
+                  </article>
+                  <article class="dashboard-stat rounded-[24px] p-4">
+                    <p class="text-sm font-medium text-nutriflow-600">Carboidratos</p>
+                    <p class="mt-3 text-3xl font-bold tracking-[-0.06em] text-nutriflow-950">188g</p>
+                    <div class="mini-progress mt-4"><span style="width:76%"></span></div>
+                    <p class="mt-2 text-xs text-nutriflow-600">Combustivel estavel</p>
+                  </article>
+                  <article class="dashboard-stat rounded-[24px] p-4">
+                    <p class="text-sm font-medium text-nutriflow-600">Gorduras</p>
+                    <p class="mt-3 text-3xl font-bold tracking-[-0.06em] text-nutriflow-950">58g</p>
+                    <div class="mini-progress mt-4"><span style="width:64%"></span></div>
+                    <p class="mt-2 text-xs text-nutriflow-600">Boa distribuicao</p>
+                  </article>
+                </div>
+
+                <article class="rounded-[26px] border border-nutriflow-100 bg-[#f8faf7] p-5">
+                  <div class="flex items-center justify-between gap-4">
+                    <div>
+                      <p class="text-sm font-medium text-nutriflow-600">Consumo dos ultimos 7 dias</p>
+                      <p class="mt-2 text-xl font-semibold tracking-[-0.04em]">Seu consumo esta mais regular e previsivel.</p>
+                    </div>
+                    <span class="rounded-full bg-nutriflow-100 px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-nutriflow-700">+12%</span>
+                  </div>
+                  <div class="dashboard-bars mt-6">
+                    <div><span style="height:54%"></span><small>Seg</small></div>
+                    <div><span style="height:68%"></span><small>Ter</small></div>
+                    <div><span style="height:61%"></span><small>Qua</small></div>
+                    <div><span style="height:74%"></span><small>Qui</small></div>
+                    <div><span style="height:82%"></span><small>Sex</small></div>
+                    <div><span style="height:78%"></span><small>Sab</small></div>
+                    <div><span style="height:88%"></span><small>Dom</small></div>
+                  </div>
+                </article>
+              </div>
+            </div>
+          </article>
+
+          <article class="dashboard-surface dashboard-card rounded-[30px] p-6 md:p-7">
+            <div class="flex items-center justify-between gap-4">
+              <div>
+                <span class="glass-pill">Metas nutricionais</span>
+                <h2 class="mt-4 text-2xl font-bold tracking-[-0.05em]">Prioridades da semana</h2>
+              </div>
+              <span class="rounded-full bg-[#f0f6eb] px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-nutriflow-700">Atualizado hoje</span>
+            </div>
+
+            <div class="mt-6 space-y-5">
+              <div>
+                <div class="mb-2 flex items-center justify-between text-sm font-medium text-nutriflow-800"><span>Bater proteina minima</span><span>132 / 150g</span></div>
+                <div class="mini-progress"><span style="width:88%"></span></div>
+              </div>
+              <div>
+                <div class="mb-2 flex items-center justify-between text-sm font-medium text-nutriflow-800"><span>Vegetais em 3 refeicoes</span><span>2 / 3</span></div>
+                <div class="mini-progress"><span style="width:66%"></span></div>
+              </div>
+              <div>
+                <div class="mb-2 flex items-center justify-between text-sm font-medium text-nutriflow-800"><span>Agua ao longo do dia</span><span>2.1 / 2.5L</span></div>
+                <div class="mini-progress"><span style="width:84%"></span></div>
+              </div>
+              <div>
+                <div class="mb-2 flex items-center justify-between text-sm font-medium text-nutriflow-800"><span>Evitar longos jejuns</span><span>4 / 5 dias</span></div>
+                <div class="mini-progress"><span style="width:80%"></span></div>
+              </div>
+            </div>
+
+            <div class="mt-8 grid gap-4">
+              <div class="rounded-[24px] border border-[#dbe9d0] bg-[#f6fbf1] p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-600">Foco principal</p>
+                <p class="mt-3 text-lg font-semibold tracking-[-0.03em]">Melhorar regularidade no lanche da tarde para reduzir fome noturna.</p>
+              </div>
+              <div class="rounded-[24px] border border-[#d9e6f3] bg-[#f3f8fd] p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#385e88]">Observacao clinica</p>
+                <p class="mt-3 text-sm leading-7 text-[#385e88]">Boa resposta ao plano moderado em carboidratos e maior ingestao de proteina no almoco.</p>
+              </div>
+            </div>
+          </article>
+        </section>
+        <section class="grid gap-6 2xl:grid-cols-[1.05fr_.95fr]">
+          <div class="grid gap-6">
+            <article id="refeicoes" class="dashboard-surface dashboard-card rounded-[30px] p-6 md:p-7">
+              <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <span class="glass-pill">Registro de refeicoes</span>
+                  <h2 class="mt-4 text-2xl font-bold tracking-[-0.05em]">Seu dia alimentar por horario</h2>
+                </div>
+                <button id="addMealButton" class="rounded-2xl border border-nutriflow-200 bg-white px-4 py-3 text-sm font-semibold text-nutriflow-900 transition hover:-translate-y-0.5 hover:shadow-card">Adicionar lanche</button>
+              </div>
+
+              <div id="mealList" class="meal-timeline mt-8 space-y-4">
+                <article class="meal-item rounded-[24px] border border-nutriflow-100 bg-white p-4">
+                  <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <div class="flex items-start gap-4">
+                      <span class="timeline-dot"></span>
+                      <div>
+                        <p class="text-sm font-semibold uppercase tracking-[0.16em] text-nutriflow-500">07:30 - Cafe da manha</p>
+                        <h3 class="mt-2 text-lg font-semibold tracking-[-0.03em]">Iogurte grego, aveia, banana e chia</h3>
+                        <p class="mt-2 text-sm text-nutriflow-600">Alta saciedade e boa distribuicao de carboidratos no inicio do dia.</p>
+                      </div>
+                    </div>
+                    <div class="flex flex-wrap gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-nutriflow-700">
+                      <span class="rounded-full bg-nutriflow-100 px-3 py-2">420 kcal</span>
+                      <span class="rounded-full bg-[#edf7e7] px-3 py-2">28g proteina</span>
+                    </div>
+                  </div>
+                </article>
+
+                <article class="meal-item rounded-[24px] border border-nutriflow-100 bg-white p-4">
+                  <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <div class="flex items-start gap-4">
+                      <span class="timeline-dot"></span>
+                      <div>
+                        <p class="text-sm font-semibold uppercase tracking-[0.16em] text-nutriflow-500">12:40 - Almoco</p>
+                        <h3 class="mt-2 text-lg font-semibold tracking-[-0.03em]">Frango grelhado, arroz integral, feijao e legumes</h3>
+                        <p class="mt-2 text-sm text-nutriflow-600">Refeicao bem montada, com fibra e proteina suficiente para sustentar a tarde.</p>
+                      </div>
+                    </div>
+                    <div class="flex flex-wrap gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-nutriflow-700">
+                      <span class="rounded-full bg-nutriflow-100 px-3 py-2">620 kcal</span>
+                      <span class="rounded-full bg-[#edf7e7] px-3 py-2">46g proteina</span>
+                    </div>
+                  </div>
+                </article>
+
+                <article class="meal-item rounded-[24px] border border-nutriflow-100 bg-white p-4">
+                  <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <div class="flex items-start gap-4">
+                      <span class="timeline-dot"></span>
+                      <div>
+                        <p class="text-sm font-semibold uppercase tracking-[0.16em] text-nutriflow-500">16:20 - Lanche</p>
+                        <h3 class="mt-2 text-lg font-semibold tracking-[-0.03em]">Sanduiche de pao integral com cottage e tomate</h3>
+                        <p class="mt-2 text-sm text-nutriflow-600">Lanche pratico para segurar energia ate o jantar sem exagero.</p>
+                      </div>
+                    </div>
+                    <div class="flex flex-wrap gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-nutriflow-700">
+                      <span class="rounded-full bg-nutriflow-100 px-3 py-2">310 kcal</span>
+                      <span class="rounded-full bg-[#edf7e7] px-3 py-2">20g proteina</span>
+                    </div>
+                  </div>
+                </article>
+              </div>
+            </article>
+
+            <article id="historico" class="dashboard-surface dashboard-card rounded-[30px] p-6 md:p-7">
+              <div class="flex items-center justify-between gap-4">
+                <div>
+                  <span class="glass-pill">Historico alimentar</span>
+                  <h2 class="mt-4 text-2xl font-bold tracking-[-0.05em]">Ultimos registros e aderencia</h2>
+                </div>
+                <span class="rounded-full bg-[#f4f8f2] px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-700">7 dias</span>
+              </div>
+
+              <div class="mt-6 overflow-hidden rounded-[24px] border border-nutriflow-100">
+                <div class="grid grid-cols-[1.2fr_.8fr_.7fr_.7fr] bg-[#f7faf5] px-4 py-3 text-xs font-semibold uppercase tracking-[0.14em] text-nutriflow-500">
+                  <span>Data</span>
+                  <span>Plano</span>
+                  <span>Calorias</span>
+                  <span>Check-in</span>
+                </div>
+                <div class="divide-y divide-nutriflow-100 bg-white text-sm">
+                  <div class="history-row grid grid-cols-[1.2fr_.8fr_.7fr_.7fr] px-4 py-4"><span class="font-semibold text-nutriflow-950">06 Mar, Sex</span><span class="text-nutriflow-700">Excelente</span><span class="text-nutriflow-700">1.840 kcal</span><span class="font-semibold text-emerald-600">Completo</span></div>
+                  <div class="history-row grid grid-cols-[1.2fr_.8fr_.7fr_.7fr] px-4 py-4"><span class="font-semibold text-nutriflow-950">05 Mar, Qui</span><span class="text-nutriflow-700">Boa</span><span class="text-nutriflow-700">1.930 kcal</span><span class="font-semibold text-emerald-600">Completo</span></div>
+                  <div class="history-row grid grid-cols-[1.2fr_.8fr_.7fr_.7fr] px-4 py-4"><span class="font-semibold text-nutriflow-950">04 Mar, Qua</span><span class="text-nutriflow-700">Moderada</span><span class="text-nutriflow-700">2.110 kcal</span><span class="font-semibold text-amber-600">Parcial</span></div>
+                  <div class="history-row grid grid-cols-[1.2fr_.8fr_.7fr_.7fr] px-4 py-4"><span class="font-semibold text-nutriflow-950">03 Mar, Ter</span><span class="text-nutriflow-700">Excelente</span><span class="text-nutriflow-700">1.790 kcal</span><span class="font-semibold text-emerald-600">Completo</span></div>
+                </div>
+              </div>
+            </article>
+          </div>
+
+          <div class="grid gap-6">
+            <article id="plano" class="dashboard-surface dashboard-card rounded-[30px] p-6 md:p-7">
+              <div class="flex items-center justify-between gap-4">
+                <div>
+                  <span class="glass-pill">Plano alimentar</span>
+                  <h2 class="mt-4 text-2xl font-bold tracking-[-0.05em]">Roteiro nutricional do seu dia</h2>
+                </div>
+                <span class="rounded-full bg-[#f4f8f2] px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-700">Plano atual</span>
+              </div>
+
+              <div class="mt-6 space-y-4">
+                <div class="plan-row">
+                  <p class="text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Cafe da manha - 07:00 - 08:30</p>
+                  <h3 class="mt-2 text-lg font-semibold tracking-[-0.03em]">Iogurte, fruta, aveia e fonte de proteina</h3>
+                  <p class="mt-2 text-sm leading-7 text-nutriflow-700">Objetivo: comecar o dia com saciedade e manter energia ate o almoco sem picos de fome.</p>
+                </div>
+                <div class="plan-row">
+                  <p class="text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Almoco - 12:00 - 13:30</p>
+                  <h3 class="mt-2 text-lg font-semibold tracking-[-0.03em]">Proteina magra, arroz integral, leguminosa e legumes</h3>
+                  <p class="mt-2 text-sm leading-7 text-nutriflow-700">Objetivo: prato completo, fibra adequada e estabilidade para o restante do dia.</p>
+                </div>
+                <div class="plan-row">
+                  <p class="text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Lanche - 16:00 - 17:00</p>
+                  <h3 class="mt-2 text-lg font-semibold tracking-[-0.03em]">Opcao pratica com proteina</h3>
+                  <p class="mt-2 text-sm leading-7 text-nutriflow-700">Objetivo: evitar excesso no jantar e sustentar a rotina de trabalho ou treino.</p>
+                </div>
+                <div class="plan-row">
+                  <p class="text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Jantar - 19:30 - 21:00</p>
+                  <h3 class="mt-2 text-lg font-semibold tracking-[-0.03em]">Sopa proteica ou prato leve com vegetais</h3>
+                  <p class="mt-2 text-sm leading-7 text-nutriflow-700">Objetivo: fechar o dia com leveza, saciedade e boa digestao antes do sono.</p>
+                </div>
+              </div>
+            </article>
+
+            <article id="peso" class="dashboard-surface dashboard-card rounded-[30px] p-6 md:p-7">
+              <div class="flex items-center justify-between gap-4">
+                <div>
+                  <span class="glass-pill">Evolucao de peso</span>
+                  <h2 class="mt-4 text-2xl font-bold tracking-[-0.05em]">Curva das ultimas semanas</h2>
+                </div>
+                <div class="rounded-2xl border border-nutriflow-100 bg-[#f7faf5] px-4 py-3 text-right">
+                  <p class="text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Variacao</p>
+                  <p class="mt-2 text-2xl font-bold tracking-[-0.05em] text-nutriflow-950">-2.8kg</p>
+                </div>
+              </div>
+
+              <div class="mt-6 rounded-[26px] border border-nutriflow-100 bg-[#f8faf7] p-4">
+                <svg viewBox="0 0 320 180" class="w-full">
+                  <defs>
+                    <linearGradient id="weightGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                      <stop offset="0%" stop-color="#7fb561" stop-opacity="0.38"></stop>
+                      <stop offset="100%" stop-color="#7fb561" stop-opacity="0"></stop>
+                    </linearGradient>
+                  </defs>
+                  <g stroke="rgba(79,107,61,.12)" stroke-width="1">
+                    <line x1="18" y1="24" x2="302" y2="24"></line>
+                    <line x1="18" y1="72" x2="302" y2="72"></line>
+                    <line x1="18" y1="120" x2="302" y2="120"></line>
+                    <line x1="18" y1="168" x2="302" y2="168"></line>
+                  </g>
+                  <path d="M18 132 C52 128, 74 118, 98 108 C124 96, 150 104, 178 94 C204 86, 232 70, 260 62 C278 56, 292 48, 302 44 L302 168 L18 168 Z" fill="url(#weightGradient)"></path>
+                  <path d="M18 132 C52 128, 74 118, 98 108 C124 96, 150 104, 178 94 C204 86, 232 70, 260 62 C278 56, 292 48, 302 44" class="weight-chart-line"></path>
+                  <g fill="#4f6b3d">
+                    <circle cx="18" cy="132" r="4"></circle>
+                    <circle cx="98" cy="108" r="4"></circle>
+                    <circle cx="178" cy="94" r="4"></circle>
+                    <circle cx="260" cy="62" r="4"></circle>
+                    <circle cx="302" cy="44" r="4"></circle>
+                  </g>
+                </svg>
+                <div class="mt-4 grid grid-cols-5 text-xs font-medium text-nutriflow-500">
+                  <span>01 Fev</span><span>10 Fev</span><span>17 Fev</span><span>24 Fev</span><span class="text-right">06 Mar</span>
+                </div>
+              </div>
+
+              <div class="mt-6 grid gap-4 sm:grid-cols-3">
+                <div class="rounded-[22px] border border-nutriflow-100 bg-white p-4"><p class="text-sm text-nutriflow-600">Peso atual</p><p class="mt-2 text-3xl font-bold tracking-[-0.06em]">74.6kg</p></div>
+                <div class="rounded-[22px] border border-nutriflow-100 bg-white p-4"><p class="text-sm text-nutriflow-600">Meta</p><p class="mt-2 text-3xl font-bold tracking-[-0.06em]">72.0kg</p></div>
+                <div class="rounded-[22px] border border-nutriflow-100 bg-white p-4"><p class="text-sm text-nutriflow-600">Ritmo</p><p class="mt-2 text-3xl font-bold tracking-[-0.06em]">0.5kg/sem</p></div>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="grid gap-6 2xl:grid-cols-[1.1fr_.9fr]">
+          <article id="chat" class="dashboard-surface dashboard-card rounded-[30px] p-6 md:p-7">
+            <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <span class="glass-pill">Chat com nutricionista</span>
+                <h2 class="mt-4 text-2xl font-bold tracking-[-0.05em]">Canal rapido para ajustes no plano</h2>
+              </div>
+              <div class="rounded-full bg-[#eef6e8] px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-700">Resposta media: 15 min</div>
+            </div>
+
+            <div id="chatMessages" class="chat-stream mt-8 space-y-4">
+              <div class="chat-row">
+                <div class="chat-avatar">DH</div>
+                <div class="chat-bubble">
+                  <p class="text-xs font-semibold uppercase tracking-[0.14em] text-nutriflow-500">Dra. Helena - 09:14</p>
+                  <p class="mt-2 text-sm leading-7">Bom dia. Vi que sua adesao ao almoco melhorou bastante. Quero observar apenas o lanche da tarde nos proximos 3 dias.</p>
+                </div>
+              </div>
+              <div class="chat-row is-user">
+                <div class="chat-bubble is-user">
+                  <p class="text-xs font-semibold uppercase tracking-[0.14em] text-white/60">Voce - 09:19</p>
+                  <p class="mt-2 text-sm leading-7">Perfeito. Hoje consegui manter o horario e incluir mais proteina no lanche.</p>
+                </div>
+              </div>
+              <div class="chat-row">
+                <div class="chat-avatar">DH</div>
+                <div class="chat-bubble">
+                  <p class="text-xs font-semibold uppercase tracking-[0.14em] text-nutriflow-500">Dra. Helena - 09:22</p>
+                  <p class="mt-2 text-sm leading-7">Otimo. Se sentir fome a noite, adicione fruta com iogurte em vez de repetir o jantar.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-6 flex flex-wrap gap-2">
+              <button type="button" class="quick-reply" data-chat-reply="Hoje mantive todos os horarios do plano.">Horarios em dia</button>
+              <button type="button" class="quick-reply" data-chat-reply="Treinei no fim da tarde e senti mais fome no jantar.">Treino e fome</button>
+              <button type="button" class="quick-reply" data-chat-reply="Quero trocar uma opcao do lanche da tarde.">Trocar lanche</button>
+            </div>
+
+            <form id="chatForm" class="mt-6 flex flex-col gap-3 rounded-[24px] border border-nutriflow-100 bg-[#f8faf7] p-4 sm:flex-row">
+              <input id="chatInput" class="chat-input flex-1" type="text" placeholder="Escreva uma mensagem para sua nutricionista" />
+              <button class="rounded-2xl bg-nutriflow-950 px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-nutriflow-800" type="submit">Enviar</button>
+            </form>
+          </article>
+
+          <article class="dashboard-surface dashboard-card rounded-[30px] p-6 md:p-7">
+            <div class="flex items-center justify-between gap-4">
+              <div>
+                <span class="glass-pill">Resumo clinico</span>
+                <h2 class="mt-4 text-2xl font-bold tracking-[-0.05em]">Check-ins e proxima consulta</h2>
+              </div>
+              <span class="rounded-full bg-[#f4f8f2] px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-700">1 item pendente</span>
+            </div>
+
+            <div class="mt-6 space-y-4">
+              <div class="rounded-[24px] border border-nutriflow-100 bg-white p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Proxima consulta</p>
+                <p class="mt-3 text-xl font-semibold tracking-[-0.04em]">Sexta-feira, 16:30</p>
+                <p class="mt-2 text-sm leading-7 text-nutriflow-700">Consulta de revisao do plano e avaliacao do progresso de peso, saciedade e rotina de treino.</p>
+              </div>
+              <div class="rounded-[24px] border border-nutriflow-100 bg-white p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Checklist da consulta</p>
+                <ul class="mt-3 space-y-3 text-sm text-nutriflow-700">
+                  <li class="flex items-center gap-3"><span class="check-dot is-done"></span>Registrar agua por 3 dias consecutivos</li>
+                  <li class="flex items-center gap-3"><span class="check-dot is-done"></span>Enviar foto do prato principal do almoco</li>
+                  <li class="flex items-center gap-3"><span class="check-dot"></span>Atualizar medida de cintura</li>
+                </ul>
+              </div>
+              <div class="rounded-[24px] border border-[#d9e6f3] bg-[#f3f8fd] p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#385e88]">Insight da semana</p>
+                <p class="mt-3 text-sm leading-7 text-[#385e88]">Os melhores dias foram aqueles em que voce antecipou o lanche da tarde. Isso reduziu a busca por doces no fim da noite.</p>
+              </div>
+            </div>
+          </article>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script src="dashboard.js"></script>
+</body>
+</html>

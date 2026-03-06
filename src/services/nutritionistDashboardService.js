@@ -215,6 +215,63 @@ class NutritionistDashboardService {
     };
   }
 
+  async getConversation(nutritionist, patientProfileId) {
+    const normalizedPatientProfileId = String(patientProfileId || '').trim();
+
+    if (!normalizedPatientProfileId) {
+      throw new AppError('Informe o paciente para carregar a conversa.', 400);
+    }
+
+    const patientProfile = await this.nutritionistDashboardRepository.findPatientConversation(
+      nutritionist.id,
+      normalizedPatientProfileId,
+    );
+
+    if (!patientProfile) {
+      throw new AppError('Paciente nao encontrado para este nutricionista.', 404);
+    }
+
+    return this.toConversationDto(patientProfile);
+  }
+
+  async sendMessage(nutritionist, payload) {
+    const patientProfileId = String(payload.patientId || '').trim();
+    const content = String(payload.content || '').trim();
+
+    if (!patientProfileId) {
+      throw new AppError('Informe o paciente para enviar a mensagem.', 400);
+    }
+
+    if (!content) {
+      throw new AppError('Digite uma mensagem para responder ao paciente.', 400);
+    }
+
+    const patientProfile = await this.nutritionistDashboardRepository.findPatientConversation(
+      nutritionist.id,
+      patientProfileId,
+    );
+
+    if (!patientProfile) {
+      throw new AppError('Paciente nao encontrado para este nutricionista.', 404);
+    }
+
+    const chatMessage = await this.nutritionistDashboardRepository.createNutritionistMessage({
+      patientProfileId,
+      nutritionistId: nutritionist.id,
+      content,
+      sentAt: new Date(),
+    });
+
+    return {
+      message: 'Resposta enviada para o paciente.',
+      chatMessage: this.toConversationMessageDto(
+        chatMessage,
+        patientProfile.user.name,
+        nutritionist.name,
+      ),
+    };
+  }
+
   async ensureWorkspace(nutritionistId) {
     const patientCount = await this.nutritionistDashboardRepository.countManagedPatients(nutritionistId);
 
@@ -265,6 +322,10 @@ class NutritionistDashboardService {
   toPatientDto(patientProfile) {
     const latestPlan = patientProfile.mealPlans[0];
     const latestAssessment = patientProfile.assessments[0];
+    const latestMessage = patientProfile.messages[0];
+    const pendingMessages = patientProfile.messages.filter(
+      (message) => message.senderRole === 'PATIENT' && message.pending,
+    ).length;
     const nextAppointment = patientProfile.appointments.find(
       (appointment) => new Date(appointment.scheduledAt).getTime() >= Date.now(),
     );
@@ -300,6 +361,9 @@ class NutritionistDashboardService {
       nextAppointment: nextAppointment ? formatDateTime(nextAppointment.scheduledAt) : 'Sem consulta agendada',
       adherence: snapshots.slice(-4).map((snapshot) => snapshot.adherence),
       weightHistory: snapshots.slice(-5).map((snapshot) => snapshot.weight),
+      lastMessagePreview: latestMessage?.content || 'Sem mensagens recentes.',
+      lastMessageTime: latestMessage ? formatMessageTime(latestMessage.sentAt) : '',
+      pendingMessages,
     };
   }
 
@@ -341,6 +405,40 @@ class NutritionistDashboardService {
       patient: message.patientProfile.user.name,
       message: message.content,
       time: formatMessageTime(message.sentAt),
+      pending: message.pending,
+    };
+  }
+
+  toConversationDto(patientProfile) {
+    const pendingMessages = patientProfile.messages.filter(
+      (message) => message.senderRole === 'PATIENT' && message.pending,
+    ).length;
+    const latestMessage = patientProfile.messages[patientProfile.messages.length - 1] || null;
+
+    return {
+      patient: {
+        id: patientProfile.id,
+        name: patientProfile.user.name,
+        objective: patientProfile.objective,
+        status: patientProfile.status,
+        pendingMessages,
+        latestMessageTime: latestMessage ? formatMessageTime(latestMessage.sentAt) : '',
+      },
+      messages: patientProfile.messages.map((message) => this.toConversationMessageDto(
+        message,
+        patientProfile.user.name,
+        patientProfile.nutritionist.name,
+      )),
+    };
+  }
+
+  toConversationMessageDto(message, patientName, nutritionistName) {
+    return {
+      id: message.id,
+      senderRole: message.senderRole,
+      senderName: message.senderRole === 'PATIENT' ? patientName : nutritionistName,
+      timeLabel: formatMessageTime(message.sentAt),
+      content: message.content,
       pending: message.pending,
     };
   }

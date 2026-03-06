@@ -80,6 +80,11 @@ function createApp() {
       return;
     }
 
+    if (request.method === 'GET' && request.url.startsWith('/api/nutritionist/conversation')) {
+      await nutritionistDashboardController.getConversation(request, response);
+      return;
+    }
+
     if (request.method === 'POST' && request.url === '/api/nutritionist/meal-plans') {
       await nutritionistDashboardController.createMealPlan(request, response);
       return;
@@ -92,6 +97,11 @@ function createApp() {
 
     if (request.method === 'POST' && request.url === '/api/nutritionist/challenges') {
       await nutritionistDashboardController.createChallenge(request, response);
+      return;
+    }
+
+    if (request.method === 'POST' && request.url === '/api/nutritionist/messages') {
+      await nutritionistDashboardController.sendMessage(request, response);
       return;
     }
 

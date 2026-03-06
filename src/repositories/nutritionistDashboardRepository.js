@@ -532,6 +532,22 @@ class NutritionistDashboardRepository {
     });
   }
 
+  findPatientConversation(nutritionistId, patientProfileId) {
+    return this.prisma.patientProfile.findFirst({
+      where: {
+        id: patientProfileId,
+        nutritionistId,
+      },
+      include: {
+        user: true,
+        nutritionist: true,
+        messages: {
+          orderBy: { sentAt: 'asc' },
+        },
+      },
+    });
+  }
+
   findPatientProfilesByIds(nutritionistId, patientProfileIds) {
     return this.prisma.patientProfile.findMany({
       where: {
@@ -660,6 +676,40 @@ class NutritionistDashboardRepository {
           },
         },
       },
+    });
+  }
+
+  async createNutritionistMessage(data) {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.patientMessage.updateMany({
+        where: {
+          patientProfileId: data.patientProfileId,
+          nutritionistId: data.nutritionistId,
+          senderRole: 'PATIENT',
+          pending: true,
+        },
+        data: {
+          pending: false,
+        },
+      });
+
+      return tx.patientMessage.create({
+        data: {
+          patientProfileId: data.patientProfileId,
+          nutritionistId: data.nutritionistId,
+          senderRole: 'NUTRITIONIST',
+          content: data.content,
+          sentAt: data.sentAt,
+          pending: false,
+        },
+        include: {
+          patientProfile: {
+            include: {
+              user: true,
+            },
+          },
+        },
+      });
     });
   }
 }

@@ -16,4 +16,133 @@ model User {
   passwordHash String
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  patientProfile       PatientProfile?       @relation("PatientUserProfile")
+  managedPatients      PatientProfile[]      @relation("NutritionistPatients")
+  mealPlans            MealPlan[]            @relation("NutritionistMealPlans")
+  assessments          Assessment[]          @relation("NutritionistAssessments")
+  messages             PatientMessage[]      @relation("NutritionistMessages")
+  appointments         Appointment[]         @relation("NutritionistAppointments")
+  challenges           NutritionChallenge[]  @relation("NutritionistChallenges")
+}
+
+model PatientProfile {
+  id                String                 @id @default(uuid())
+  userId            String                 @unique
+  nutritionistId    String
+  age               Int
+  objective         String
+  status            String
+  restrictions      String
+  lastMeal          String
+  currentWeight     Float
+  height            Float
+  bodyFat           Float
+  progress          Int
+  currentPlanTitle  String?
+  lastAssessmentAt  DateTime?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  nutritionist      User                   @relation("NutritionistPatients", fields: [nutritionistId], references: [id], onDelete: Cascade)
+  user              User                   @relation("PatientUserProfile", fields: [userId], references: [id], onDelete: Cascade)
+  mealPlans         MealPlan[]
+  assessments       Assessment[]
+  messages          PatientMessage[]
+  appointments      Appointment[]
+  progressSnapshots ProgressSnapshot[]
+  challengeLinks    ChallengeParticipant[]
+}
+
+model MealPlan {
+  id               String         @id @default(uuid())
+  patientProfileId String
+  nutritionistId   String
+  title            String
+  startDate        DateTime
+  endDate          DateTime
+  calories         Int
+  protein          Int
+  carbs            Int
+  fats             Int
+  notes            String
+  status           String
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  patientProfile   PatientProfile @relation(fields: [patientProfileId], references: [id], onDelete: Cascade)
+  nutritionist     User           @relation("NutritionistMealPlans", fields: [nutritionistId], references: [id], onDelete: Cascade)
+}
+
+model Assessment {
+  id               String         @id @default(uuid())
+  patientProfileId String
+  nutritionistId   String
+  date             DateTime
+  weight           Float
+  height           Float
+  imc              Float
+  bodyFat          Float
+  notes            String
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  patientProfile   PatientProfile @relation(fields: [patientProfileId], references: [id], onDelete: Cascade)
+  nutritionist     User           @relation("NutritionistAssessments", fields: [nutritionistId], references: [id], onDelete: Cascade)
+}
+
+model PatientMessage {
+  id               String         @id @default(uuid())
+  patientProfileId String
+  nutritionistId   String
+  content          String
+  sentAt           DateTime
+  pending          Boolean        @default(true)
+  createdAt        DateTime       @default(now())
+  patientProfile   PatientProfile @relation(fields: [patientProfileId], references: [id], onDelete: Cascade)
+  nutritionist     User           @relation("NutritionistMessages", fields: [nutritionistId], references: [id], onDelete: Cascade)
+}
+
+model Appointment {
+  id               String         @id @default(uuid())
+  patientProfileId String
+  nutritionistId   String
+  scheduledAt      DateTime
+  type             String
+  status           String
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  patientProfile   PatientProfile @relation(fields: [patientProfileId], references: [id], onDelete: Cascade)
+  nutritionist     User           @relation("NutritionistAppointments", fields: [nutritionistId], references: [id], onDelete: Cascade)
+}
+
+model NutritionChallenge {
+  id           String                 @id @default(uuid())
+  nutritionistId String
+  title        String
+  target       String
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+  nutritionist User                   @relation("NutritionistChallenges", fields: [nutritionistId], references: [id], onDelete: Cascade)
+  participants ChallengeParticipant[]
+}
+
+model ChallengeParticipant {
+  id                  String               @id @default(uuid())
+  challengeId         String
+  patientProfileId    String
+  progress            Int                  @default(0)
+  createdAt           DateTime             @default(now())
+  challenge           NutritionChallenge   @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  patientProfile      PatientProfile       @relation(fields: [patientProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([challengeId, patientProfileId])
+}
+
+model ProgressSnapshot {
+  id               String         @id @default(uuid())
+  patientProfileId String
+  label            String
+  weight           Float
+  adherence        Int
+  progress         Int
+  recordedAt       DateTime
+  createdAt        DateTime       @default(now())
+  patientProfile   PatientProfile @relation(fields: [patientProfileId], references: [id], onDelete: Cascade)
 }

@@ -23,6 +23,42 @@ class TokenService {
 
     return `${payload}.${signature}`;
   }
+
+  verify(token) {
+    const [payload, signature] = String(token || '').split('.');
+
+    if (!payload || !signature) {
+      return null;
+    }
+
+    const expectedSignature = crypto
+      .createHmac('sha256', this.secret)
+      .update(payload)
+      .digest('base64url');
+
+    const signatureBuffer = Buffer.from(signature);
+    const expectedBuffer = Buffer.from(expectedSignature);
+
+    if (signatureBuffer.length !== expectedBuffer.length) {
+      return null;
+    }
+
+    if (!crypto.timingSafeEqual(signatureBuffer, expectedBuffer)) {
+      return null;
+    }
+
+    try {
+      const decoded = JSON.parse(Buffer.from(payload, 'base64url').toString('utf-8'));
+
+      if (!decoded.exp || decoded.exp < Date.now()) {
+        return null;
+      }
+
+      return decoded;
+    } catch (error) {
+      return null;
+    }
+  }
 }
 
 module.exports = {

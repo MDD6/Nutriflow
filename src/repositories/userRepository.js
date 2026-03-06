@@ -9,6 +9,12 @@ class UserRepository {
     });
   }
 
+  findById(id) {
+    return this.prisma.user.findUnique({
+      where: { id },
+    });
+  }
+
   create(data) {
     return this.prisma.user.create({
       data,

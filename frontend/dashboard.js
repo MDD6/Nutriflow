@@ -12,7 +12,11 @@ const state = {
   isAddingMeal: false,
   isSendingMessage: false,
   isLinkingNutritionist: false,
+  lastChatSignature: '',
 };
+
+let patientChatSyncIntervalId = null;
+let patientChatSyncInFlight = false;
 
 const chatMessages = document.getElementById('chatMessages');
 const chatForm = document.getElementById('chatForm');
@@ -43,6 +47,7 @@ function persistCurrentUser(user) {
 }
 
 function clearSessionAndRedirect() {
+  stopPatientRealtimeChat();
   localStorage.removeItem('nutriflow.token');
   localStorage.removeItem('nutriflow.user');
   localStorage.removeItem('nutriflow.lastAuthAt');
@@ -50,7 +55,8 @@ function clearSessionAndRedirect() {
 }
 
 function isPatientProfile(profile) {
-  return String(profile || '').trim().toLowerCase() === 'paciente';
+  const normalized = String(profile || '').trim().toLowerCase();
+  return normalized === 'paciente' || normalized === 'patient';
 }
 
 function ensurePatientAccess() {
@@ -128,6 +134,19 @@ function pluralize(count, singular, plural) {
   return `${count} ${count === 1 ? singular : plural}`;
 }
 
+function getChatSignature(chat) {
+  const messages = Array.isArray(chat?.messages) ? chat.messages : [];
+  const latestMessage = messages[messages.length - 1] || null;
+
+  return JSON.stringify({
+    count: messages.length,
+    latestId: latestMessage?.id || '',
+    latestRole: latestMessage?.senderRole || '',
+    latestTime: latestMessage?.timeLabel || '',
+    responseTimeLabel: chat?.responseTimeLabel || '',
+  });
+}
+
 function showToast(message) {
   if (!toast || !message) {
     return;
@@ -182,6 +201,10 @@ async function getPatientDashboard() {
   return apiRequest('/api/patient/dashboard');
 }
 
+async function getPatientChat() {
+  return apiRequest('/api/patient/chat');
+}
+
 async function createMealEntry(payload = {}) {
   return apiRequest('/api/patient/meals', {
     method: 'POST',
@@ -205,6 +228,7 @@ async function linkNutritionist(payload) {
 
 function applyDashboardState(payload) {
   state.dashboard = payload || null;
+  state.lastChatSignature = getChatSignature(payload?.chat);
 
   if (!payload?.patient) {
     return;
@@ -888,6 +912,70 @@ async function refreshDashboard() {
   const payload = await getPatientDashboard();
   applyDashboardState(payload);
   renderDashboard();
+  syncPatientRealtimeAvailability();
+}
+
+async function syncPatientRealtimeChat(options = {}) {
+  if (patientChatSyncInFlight || !getSessionToken() || document.hidden || isSetupRequired()) {
+    return;
+  }
+
+  patientChatSyncInFlight = true;
+
+  try {
+    const payload = await getPatientChat();
+    const nextChat = payload?.chat || {
+      responseTimeLabel: 'Sem historico',
+      quickReplies: [],
+      messages: [],
+    };
+    const nextSignature = getChatSignature(nextChat);
+
+    if (options.forceRender || nextSignature !== state.lastChatSignature) {
+      state.dashboard = {
+        ...(state.dashboard || {}),
+        setupRequired: payload?.setupRequired === true,
+        chat: nextChat,
+      };
+      state.lastChatSignature = nextSignature;
+      renderHighlights();
+      renderChat();
+    }
+  } catch (error) {
+    if (error.message !== 'Sessao invalida.') {
+      // O polling deve ser silencioso em falhas transitórias.
+    }
+  } finally {
+    patientChatSyncInFlight = false;
+  }
+}
+
+function stopPatientRealtimeChat() {
+  if (!patientChatSyncIntervalId) {
+    return;
+  }
+
+  window.clearInterval(patientChatSyncIntervalId);
+  patientChatSyncIntervalId = null;
+}
+
+function startPatientRealtimeChat() {
+  if (patientChatSyncIntervalId || !getSessionToken() || isSetupRequired()) {
+    return;
+  }
+
+  patientChatSyncIntervalId = window.setInterval(() => {
+    void syncPatientRealtimeChat();
+  }, 3500);
+}
+
+function syncPatientRealtimeAvailability() {
+  if (!getSessionToken() || isSetupRequired()) {
+    stopPatientRealtimeChat();
+    return;
+  }
+
+  startPatientRealtimeChat();
 }
 
 function setMealButtonsLoading(isLoading) {
@@ -1046,6 +1134,15 @@ function bindEvents() {
   quickAddMealButton?.addEventListener('click', handleAddMeal);
   chatForm?.addEventListener('submit', handleChatSubmit);
   patientConnectionForm?.addEventListener('submit', handleNutritionistLink);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      void syncPatientRealtimeChat({ forceRender: true });
+    }
+  });
+  window.addEventListener('focus', () => {
+    void syncPatientRealtimeChat({ forceRender: true });
+  });
+  window.addEventListener('beforeunload', stopPatientRealtimeChat);
   bindNavigationState();
 }
 

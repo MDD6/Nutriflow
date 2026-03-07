@@ -10,6 +10,12 @@ class PatientDashboardController {
     response.status(200).json(result);
   }
 
+  async getChat(request, response) {
+    const patient = await this.sessionService.requirePatient(request);
+    const result = await this.patientDashboardService.getChat(patient);
+    response.status(200).json(result);
+  }
+
   async createMealEntry(request, response) {
     const patient = await this.sessionService.requirePatient(request);
     const result = await this.patientDashboardService.createMealEntry(patient, request.body || {});

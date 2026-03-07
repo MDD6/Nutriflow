@@ -232,6 +232,22 @@ class PatientDashboardService {
     return this.toDashboardDto(patientProfile);
   }
 
+  async getChat(patientUser) {
+    const patientProfile = await this.patientDashboardRepository.findByUserId(patientUser.id);
+
+    if (!patientProfile) {
+      return {
+        setupRequired: true,
+        chat: this.toChatDto(null),
+      };
+    }
+
+    return {
+      setupRequired: false,
+      chat: this.toChatDto(patientProfile),
+    };
+  }
+
   async linkNutritionist(patientUser, payload) {
     const nutritionistEmail = normalizeEmail(payload.nutritionistEmail);
 
@@ -367,10 +383,41 @@ class PatientDashboardService {
         email: patientUser.email,
         profile: patientUser.profile,
       },
+      chat: this.toChatDto(null),
       connection: {
         linked: false,
         message: 'Conecte sua conta a um nutricionista para liberar plano alimentar, chat e acompanhamento.',
       },
+    };
+  }
+
+  toChatDto(patientProfile) {
+    if (!patientProfile) {
+      return {
+        responseTimeLabel: 'Sem historico',
+        quickReplies: [
+          'Hoje mantive todos os horarios do plano.',
+          'Treinei no fim da tarde e senti mais fome no jantar.',
+          'Quero trocar uma opcao do lanche da tarde.',
+        ],
+        messages: [],
+      };
+    }
+
+    return {
+      responseTimeLabel: patientProfile.messages.length
+        ? (patientProfile.messages.some((message) => message.pending) ? 'Aguardando retorno' : 'Conversa em dia')
+        : 'Sem historico',
+      quickReplies: [
+        'Hoje mantive todos os horarios do plano.',
+        'Treinei no fim da tarde e senti mais fome no jantar.',
+        'Quero trocar uma opcao do lanche da tarde.',
+      ],
+      messages: patientProfile.messages.map((message) => this.toChatMessageDto(
+        message,
+        patientProfile.user.name,
+        patientProfile.nutritionist.name,
+      )),
     };
   }
 
@@ -510,21 +557,7 @@ class PatientDashboardService {
         targetLabel: patientProfile.currentWeight ? `${getTargetWeight(patientProfile.currentWeight, patientProfile.objective).toFixed(1)}kg` : '--',
         paceLabel: patientProfile.currentWeight ? getPaceLabel(patientProfile.objective) : '--',
       },
-      chat: {
-        responseTimeLabel: patientProfile.messages.length
-          ? (patientProfile.messages.some((message) => message.pending) ? 'Aguardando retorno' : 'Conversa em dia')
-          : 'Sem historico',
-        quickReplies: [
-          'Hoje mantive todos os horarios do plano.',
-          'Treinei no fim da tarde e senti mais fome no jantar.',
-          'Quero trocar uma opcao do lanche da tarde.',
-        ],
-        messages: patientProfile.messages.map((message) => this.toChatMessageDto(
-          message,
-          patientProfile.user.name,
-          patientProfile.nutritionist.name,
-        )),
-      },
+      chat: this.toChatDto(patientProfile),
       clinical: {
         nextAppointment: nextAppointment
           ? {

@@ -22,7 +22,14 @@ const state = {
   isLoadingConversation: false,
   isSendingConversation: false,
   isLinkingPatient: false,
+  lastConversationSignature: '',
+  lastWorkspaceSignature: '',
 };
+
+let nutritionistConversationSyncIntervalId = null;
+let nutritionistConversationSyncInFlight = false;
+let nutritionistWorkspaceSyncIntervalId = null;
+let nutritionistWorkspaceSyncInFlight = false;
 
 const patientNameFilter = document.getElementById('patientNameFilter');
 const patientObjectiveFilter = document.getElementById('patientObjectiveFilter');
@@ -71,6 +78,7 @@ function persistCurrentUser(user) {
 }
 
 function clearSessionAndRedirect() {
+  stopNutritionistRealtimeSync();
   localStorage.removeItem('nutriflow.token');
   localStorage.removeItem('nutriflow.user');
   localStorage.removeItem('nutriflow.lastAuthAt');
@@ -78,7 +86,8 @@ function clearSessionAndRedirect() {
 }
 
 function isNutritionistProfile(profile) {
-  return String(profile || '').trim().toLowerCase() === 'nutricionista';
+  const normalized = String(profile || '').trim().toLowerCase();
+  return normalized === 'nutricionista' || normalized === 'nutritionist';
 }
 
 function ensureNutritionistAccess() {
@@ -110,6 +119,39 @@ function escapeHtml(value) {
 
 function pluralize(count, singular, plural) {
   return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function getConversationSignature(payload) {
+  const messages = Array.isArray(payload?.messages) ? payload.messages : [];
+  const latestMessage = messages[messages.length - 1] || null;
+
+  return JSON.stringify({
+    patientId: payload?.patient?.id || '',
+    pendingMessages: payload?.patient?.pendingMessages || 0,
+    latestId: latestMessage?.id || '',
+    latestRole: latestMessage?.senderRole || '',
+    latestTime: latestMessage?.timeLabel || '',
+    count: messages.length,
+  });
+}
+
+function getWorkspaceSignature(payload) {
+  const messages = Array.isArray(payload?.messages) ? payload.messages : [];
+  const patients = Array.isArray(payload?.patients) ? payload.patients : [];
+  const latestMessage = messages[0] || null;
+
+  return JSON.stringify({
+    pendingMessages: payload?.summary?.pendingMessages || 0,
+    activePatients: payload?.summary?.activePatients || 0,
+    latestMessageId: latestMessage?.id || '',
+    latestMessagePending: latestMessage?.pending || false,
+    patients: patients.map((patient) => ({
+      id: patient.id,
+      pendingMessages: patient.pendingMessages || 0,
+      lastMessageTime: patient.lastMessageTime || '',
+      status: patient.status || '',
+    })),
+  });
 }
 
 function getGreeting() {
@@ -286,6 +328,7 @@ function applyDashboardState(payload, preferredPatientId = state.selectedPatient
   state.mealPlans = Array.isArray(payload?.mealPlans) ? payload.mealPlans : [];
   state.assessments = Array.isArray(payload?.assessments) ? payload.assessments : [];
   state.reports = payload?.reports || null;
+  state.lastWorkspaceSignature = getWorkspaceSignature(payload);
 
   const hasSelectedPatient = state.patients.some((patient) => patient.id === preferredPatientId);
   state.selectedPatientId = hasSelectedPatient ? preferredPatientId : state.patients[0]?.id || null;
@@ -297,6 +340,7 @@ function applyDashboardState(payload, preferredPatientId = state.selectedPatient
 function applyConversationState(payload, patientId = state.selectedPatientId) {
   state.conversation = payload || null;
   state.conversationPatientId = patientId || payload?.patient?.id || null;
+  state.lastConversationSignature = getConversationSignature(payload);
 }
 
 async function refreshDashboard(preferredPatientId = state.selectedPatientId) {
@@ -316,6 +360,8 @@ async function refreshDashboard(preferredPatientId = state.selectedPatientId) {
   if (patientProfileModal && !patientProfileModal.classList.contains('hidden')) {
     renderPatientProfileModal(getSelectedPatient());
   }
+
+  syncNutritionistRealtimeAvailability();
 }
 
 function getSelectedPatient() {
@@ -910,6 +956,135 @@ async function loadConversation(patientId = state.selectedPatientId) {
   }
 }
 
+async function syncNutritionistConversation(options = {}) {
+  if (
+    nutritionistConversationSyncInFlight
+    || !getSessionToken()
+    || document.hidden
+    || !state.selectedPatientId
+    || state.isLoadingConversation
+    || state.isSendingConversation
+  ) {
+    return;
+  }
+
+  nutritionistConversationSyncInFlight = true;
+
+  try {
+    const payload = await getConversation(state.selectedPatientId);
+    const nextSignature = getConversationSignature(payload);
+
+    if (options.forceRender || nextSignature !== state.lastConversationSignature) {
+      applyConversationState(payload, state.selectedPatientId);
+
+      const patientIndex = state.patients.findIndex((patient) => patient.id === state.selectedPatientId);
+      if (patientIndex >= 0) {
+        const latestMessage = payload?.messages?.[payload.messages.length - 1] || null;
+        state.patients[patientIndex] = {
+          ...state.patients[patientIndex],
+          pendingMessages: payload?.patient?.pendingMessages || 0,
+          lastMessageTime: payload?.patient?.latestMessageTime || '',
+          lastMessagePreview: latestMessage?.content || state.patients[patientIndex].lastMessagePreview,
+        };
+      }
+
+      renderConversation();
+
+      if (patientProfileModal && !patientProfileModal.classList.contains('hidden')) {
+        renderPatientProfileModal(getSelectedPatient());
+      }
+    }
+  } catch (error) {
+    if (error.message !== 'Sessao invalida.') {
+      // Falhas transitórias do polling não devem interromper a edição atual.
+    }
+  } finally {
+    nutritionistConversationSyncInFlight = false;
+  }
+}
+
+async function syncNutritionistWorkspace(options = {}) {
+  if (
+    nutritionistWorkspaceSyncInFlight
+    || !getSessionToken()
+    || document.hidden
+    || state.isLinkingPatient
+  ) {
+    return;
+  }
+
+  nutritionistWorkspaceSyncInFlight = true;
+
+  try {
+    const currentSelectedPatientId = state.selectedPatientId;
+    const payload = await getPatients();
+    const nextSignature = getWorkspaceSignature(payload);
+
+    if (options.forceRender || nextSignature !== state.lastWorkspaceSignature) {
+      applyDashboardState(payload, currentSelectedPatientId);
+      renderSummaryCards();
+      renderWorkspaceBanner();
+      renderPatientsList();
+      renderSelectedPatient();
+      renderMessages();
+      renderEvolution();
+
+      if (patientProfileModal && !patientProfileModal.classList.contains('hidden')) {
+        renderPatientProfileModal(getSelectedPatient());
+      }
+
+      if (state.selectedPatientId !== currentSelectedPatientId) {
+        await loadConversation(state.selectedPatientId);
+      }
+    }
+  } catch (error) {
+    if (error.message !== 'Sessao invalida.') {
+      // Mantem o dashboard operando mesmo com falhas ocasionais de sincronismo.
+    }
+  } finally {
+    nutritionistWorkspaceSyncInFlight = false;
+  }
+}
+
+function stopNutritionistRealtimeSync() {
+  if (nutritionistConversationSyncIntervalId) {
+    window.clearInterval(nutritionistConversationSyncIntervalId);
+    nutritionistConversationSyncIntervalId = null;
+  }
+
+  if (nutritionistWorkspaceSyncIntervalId) {
+    window.clearInterval(nutritionistWorkspaceSyncIntervalId);
+    nutritionistWorkspaceSyncIntervalId = null;
+  }
+}
+
+function startNutritionistRealtimeSync() {
+  if (!getSessionToken()) {
+    return;
+  }
+
+  if (!nutritionistConversationSyncIntervalId) {
+    nutritionistConversationSyncIntervalId = window.setInterval(() => {
+      void syncNutritionistConversation();
+    }, 3000);
+  }
+
+  if (!nutritionistWorkspaceSyncIntervalId) {
+    nutritionistWorkspaceSyncIntervalId = window.setInterval(() => {
+      void syncNutritionistWorkspace();
+    }, 7000);
+  }
+}
+
+function syncNutritionistRealtimeAvailability() {
+  if (!getSessionToken()) {
+    stopNutritionistRealtimeSync();
+    return;
+  }
+
+  startNutritionistRealtimeSync();
+}
+
 async function handlePatientSelection(patientId, focusConversation = false) {
   state.selectedPatientId = patientId;
   await syncSelectedPatientView();
@@ -1303,6 +1478,17 @@ function bindActions() {
 
   assessmentWeight?.addEventListener('input', syncImc);
   assessmentHeight?.addEventListener('input', syncImc);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      void syncNutritionistWorkspace({ forceRender: true });
+      void syncNutritionistConversation({ forceRender: true });
+    }
+  });
+  window.addEventListener('focus', () => {
+    void syncNutritionistWorkspace({ forceRender: true });
+    void syncNutritionistConversation({ forceRender: true });
+  });
+  window.addEventListener('beforeunload', stopNutritionistRealtimeSync);
 }
 
 function resolveParticipantIds(participantsRaw) {

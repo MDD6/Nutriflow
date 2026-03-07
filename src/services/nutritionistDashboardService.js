@@ -410,6 +410,7 @@ class NutritionistDashboardService {
       id: patientProfile.id,
       userId: patientProfile.userId,
       name: patientProfile.user.name,
+      email: patientProfile.user.email,
       age: patientProfile.age,
       objective: patientProfile.objective,
       status: patientProfile.status,

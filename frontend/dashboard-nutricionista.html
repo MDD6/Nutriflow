@@ -460,6 +460,152 @@
       </form>
     </div>
   </div>
+  <div id="patientProfileModal" class="nf-modal-overlay hidden">
+    <div class="nf-modal-card">
+      <div class="flex flex-col gap-4 border-b border-nutriflow-100 pb-5 lg:flex-row lg:items-start lg:justify-between">
+        <div class="flex items-start gap-4">
+          <div id="patientProfileInitials" class="grid h-16 w-16 place-items-center rounded-[22px] bg-gradient-to-br from-nutriflow-500 to-nutriflow-700 text-lg font-bold text-white">--</div>
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Perfil do paciente</p>
+            <h3 id="patientProfileName" class="mt-2 text-3xl font-bold tracking-[-0.05em] text-nutriflow-950">Nenhum paciente selecionado</h3>
+            <p id="patientProfileMeta" class="mt-2 text-sm leading-7 text-nutriflow-700">Selecione um paciente para visualizar o perfil clinico detalhado.</p>
+          </div>
+        </div>
+        <div class="flex flex-wrap items-center justify-end gap-3">
+          <span id="patientProfileStatus" class="rounded-full bg-[#eef6e8] px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-nutriflow-700">Sem dados</span>
+          <button id="profileOpenChatButton" class="rounded-2xl border border-nutriflow-200 bg-white px-4 py-3 text-sm font-semibold text-nutriflow-900 transition hover:-translate-y-0.5 hover:shadow-card" type="button">Abrir conversa</button>
+          <button id="profileOpenMealPlanButton" class="rounded-2xl border border-nutriflow-200 bg-white px-4 py-3 text-sm font-semibold text-nutriflow-900 transition hover:-translate-y-0.5 hover:shadow-card" type="button">Novo plano</button>
+          <button id="profileOpenAssessmentButton" class="rounded-2xl bg-nutriflow-950 px-4 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-nutriflow-800" type="button">Nova avaliacao</button>
+          <button class="nf-modal-close" type="button" data-close-modal="patient-profile">x</button>
+        </div>
+      </div>
+
+      <div class="mt-6 grid gap-4 lg:grid-cols-4">
+        <article class="nutritionist-panel-card">
+          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">E-mail</p>
+          <p id="patientProfileEmail" class="mt-3 text-sm font-semibold text-nutriflow-950">--</p>
+        </article>
+        <article class="nutritionist-panel-card">
+          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Idade</p>
+          <p id="patientProfileAge" class="mt-3 text-2xl font-bold tracking-[-0.04em] text-nutriflow-950">--</p>
+        </article>
+        <article class="nutritionist-panel-card">
+          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Objetivo</p>
+          <p id="patientProfileObjective" class="mt-3 text-sm font-semibold text-nutriflow-950">--</p>
+        </article>
+        <article class="nutritionist-panel-card">
+          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Progresso</p>
+          <p id="patientProfileProgress" class="mt-3 text-2xl font-bold tracking-[-0.04em] text-nutriflow-950">0%</p>
+          <div class="mini-progress mt-3"><span id="patientProfileProgressBar" style="width:0%"></span></div>
+        </article>
+      </div>
+
+      <div class="mt-4 grid gap-4 xl:grid-cols-[1.1fr_.9fr]">
+        <div class="grid gap-4">
+          <article class="rounded-[28px] bg-gradient-to-br from-nutriflow-950 to-nutriflow-800 p-5 text-white">
+            <div class="grid gap-4 md:grid-cols-3">
+              <div class="rounded-2xl bg-white/10 p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-white/60">Peso atual</p>
+                <p id="patientProfileWeight" class="mt-3 text-3xl font-bold tracking-[-0.05em]">--</p>
+              </div>
+              <div class="rounded-2xl bg-white/10 p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-white/60">Altura</p>
+                <p id="patientProfileHeight" class="mt-3 text-3xl font-bold tracking-[-0.05em]">--</p>
+              </div>
+              <div class="rounded-2xl bg-white/10 p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-white/60">% gordura</p>
+                <p id="patientProfileBodyFat" class="mt-3 text-3xl font-bold tracking-[-0.05em]">--</p>
+              </div>
+            </div>
+            <div class="mt-5 grid gap-4 md:grid-cols-2">
+              <div class="rounded-2xl bg-white/8 p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-white/60">Restricoes</p>
+                <p id="patientProfileRestrictions" class="mt-3 text-sm leading-7 text-white/80">Sem informacoes registradas.</p>
+              </div>
+              <div class="rounded-2xl bg-white/8 p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-white/60">Ultima refeicao</p>
+                <p id="patientProfileLastMeal" class="mt-3 text-sm leading-7 text-white/80">Nenhuma refeicao registrada.</p>
+              </div>
+            </div>
+          </article>
+
+          <div class="grid gap-4 lg:grid-cols-2">
+            <article class="nutritionist-panel-card">
+              <div class="flex items-start justify-between gap-4">
+                <div>
+                  <p class="text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Plano alimentar atual</p>
+                  <h4 id="patientProfilePlanTitle" class="mt-2 text-lg font-semibold tracking-[-0.03em] text-nutriflow-950">Sem plano alimentar</h4>
+                </div>
+                <span id="patientProfilePlanStatus" class="status-pill">Sem status</span>
+              </div>
+              <p id="patientProfilePlanMeta" class="mt-3 text-sm leading-7 text-nutriflow-700">Nenhum plano ativo vinculado.</p>
+              <p id="patientProfilePlanNotes" class="mt-3 text-sm leading-7 text-nutriflow-600">As observacoes do plano aparecem aqui quando houver prescricao cadastrada.</p>
+            </article>
+            <article class="nutritionist-panel-card">
+              <p class="text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Proximo acompanhamento</p>
+              <h4 id="patientProfileAppointmentTitle" class="mt-2 text-lg font-semibold tracking-[-0.03em] text-nutriflow-950">Sem consulta agendada</h4>
+              <p id="patientProfileAppointmentMeta" class="mt-3 text-sm leading-7 text-nutriflow-700">Quando houver agenda vinculada, o detalhe aparece aqui.</p>
+            </article>
+          </div>
+
+          <div class="grid gap-4 lg:grid-cols-2">
+            <article class="nutritionist-panel-card">
+              <div class="flex items-center justify-between gap-3">
+                <div>
+                  <p class="text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Historico de peso</p>
+                  <p class="mt-2 text-sm text-nutriflow-600">Ultimos registros consolidados</p>
+                </div>
+              </div>
+              <div id="patientProfileWeightHistory" class="mt-5 grid gap-3 sm:grid-cols-2"></div>
+            </article>
+            <article class="nutritionist-panel-card">
+              <div class="flex items-center justify-between gap-3">
+                <div>
+                  <p class="text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Adesao recente</p>
+                  <p class="mt-2 text-sm text-nutriflow-600">Ultimos ciclos de acompanhamento</p>
+                </div>
+              </div>
+              <div id="patientProfileAdherenceHistory" class="nutritionist-bars mt-5"></div>
+            </article>
+          </div>
+        </div>
+
+        <div class="grid gap-4">
+          <article class="nutritionist-panel-card">
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Ultima avaliacao</p>
+                <h4 id="patientProfileAssessmentTitle" class="mt-2 text-lg font-semibold tracking-[-0.03em] text-nutriflow-950">Nenhuma avaliacao registrada</h4>
+              </div>
+              <span id="patientProfileAssessmentBadge" class="status-pill">Sem dados</span>
+            </div>
+            <p id="patientProfileAssessmentMeta" class="mt-3 text-sm leading-7 text-nutriflow-700">Quando houver avaliacao fisica, o resumo aparece aqui.</p>
+          </article>
+
+          <article class="nutritionist-panel-card">
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Avaliacoes recentes</p>
+                <p class="mt-2 text-sm text-nutriflow-600">Historico clinico da carteira</p>
+              </div>
+            </div>
+            <div id="patientProfileAssessmentsList" class="mt-4 space-y-3"></div>
+          </article>
+
+          <article class="nutritionist-panel-card">
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Mensagens recentes</p>
+                <p class="mt-2 text-sm text-nutriflow-600">Contexto rapido da conversa com o paciente</p>
+              </div>
+              <span id="patientProfilePendingMessages" class="status-pill">0 pendencias</span>
+            </div>
+            <div id="patientProfileMessagesList" class="mt-4 space-y-3"></div>
+          </article>
+        </div>
+      </div>
+    </div>
+  </div>
   <div id="nutritionistToast" class="nf-toast hidden"></div>
 
   <script src="ui.js"></script>

@@ -32,6 +32,7 @@ const patientsList = document.getElementById('patientsList');
 const emptyPatientsState = document.getElementById('emptyPatientsState');
 const mealPlanModal = document.getElementById('mealPlanModal');
 const assessmentModal = document.getElementById('assessmentModal');
+const patientProfileModal = document.getElementById('patientProfileModal');
 const mealPlanForm = document.getElementById('mealPlanForm');
 const assessmentForm = document.getElementById('assessmentForm');
 const mealPlanPatient = document.getElementById('mealPlanPatient');
@@ -51,6 +52,10 @@ const conversationInput = document.getElementById('conversationInput');
 const conversationSubmitButton = document.getElementById('conversationSubmitButton');
 const conversationStream = document.getElementById('conversationStream');
 const toast = document.getElementById('nutritionistToast');
+const selectedPatientViewButton = document.getElementById('selectedPatientViewButton');
+const profileOpenChatButton = document.getElementById('profileOpenChatButton');
+const profileOpenMealPlanButton = document.getElementById('profileOpenMealPlanButton');
+const profileOpenAssessmentButton = document.getElementById('profileOpenAssessmentButton');
 
 function getSessionToken() {
   return localStorage.getItem('nutriflow.token');
@@ -127,6 +132,36 @@ function formatSidebarDate() {
     day: '2-digit',
     month: 'short',
   }).format(new Date());
+}
+
+function formatMetric(value, suffix = '', digits = 1) {
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return '--';
+  }
+
+  return `${parsed.toFixed(digits)}${suffix}`;
+}
+
+function getPatientMealPlans(patientId) {
+  return state.mealPlans.filter((plan) => plan.patientId === patientId);
+}
+
+function getPatientAssessments(patientId) {
+  return state.assessments.filter((assessment) => assessment.patientId === patientId);
+}
+
+function getPatientAppointments(patientId) {
+  return state.appointments.filter((appointment) => appointment.patientId === patientId);
+}
+
+function getCurrentPatientConversation(patientId) {
+  if (state.conversationPatientId !== patientId || !state.conversation) {
+    return null;
+  }
+
+  return state.conversation;
 }
 
 async function apiRequest(url, options = {}) {
@@ -277,6 +312,10 @@ async function refreshDashboard(preferredPatientId = state.selectedPatientId) {
   renderAppointments();
   renderReports();
   renderChallenges();
+
+  if (patientProfileModal && !patientProfileModal.classList.contains('hidden')) {
+    renderPatientProfileModal(getSelectedPatient());
+  }
 }
 
 function getSelectedPatient() {
@@ -412,7 +451,7 @@ function renderPatientsList() {
         <span class="text-sm text-nutriflow-700">${patient.objective}</span>
         <span class="text-sm text-nutriflow-700">${patient.lastAssessment}</span>
         <span><span class="status-pill ${getStatusClass(patient.status)}">${patient.status}</span></span>
-        <div class="text-right"><button class="patient-action" data-select-patient="${patient.id}">Ver perfil</button></div>
+        <div class="text-right"><button class="patient-action" data-open-patient-profile="${patient.id}">Ver perfil</button></div>
       </div>
       <div class="space-y-4 px-4 py-4 md:hidden">
         <div class="flex items-center gap-3">
@@ -426,15 +465,24 @@ function renderPatientsList() {
           <span>Ultima avaliacao: ${patient.lastAssessment}</span>
           <span class="status-pill ${getStatusClass(patient.status)}">${patient.status}</span>
         </div>
-        <button class="patient-action w-full justify-center" data-select-patient="${patient.id}">Ver perfil</button>
+        <button class="patient-action w-full justify-center" data-open-patient-profile="${patient.id}">Ver perfil</button>
       </div>
     `;
+
+    row.addEventListener('click', (event) => {
+      if (event.target.closest('[data-open-patient-profile]')) {
+        return;
+      }
+
+      void handlePatientSelection(patient.id);
+    });
+
     patientsList.appendChild(row);
   });
 
-  patientsList.querySelectorAll('[data-select-patient]').forEach((button) => {
+  patientsList.querySelectorAll('[data-open-patient-profile]').forEach((button) => {
     button.addEventListener('click', () => {
-      void handlePatientSelection(button.dataset.selectPatient);
+      void openPatientProfile(button.dataset.openPatientProfile);
     });
   });
 }
@@ -456,6 +504,10 @@ function renderSelectedPatient() {
     document.getElementById('selectedPatientProgressBar').style.width = '0%';
     document.getElementById('selectedPatientLastAssessment').textContent = 'Nenhuma avaliacao registrada.';
     document.getElementById('selectedChartPatient').textContent = 'Sem paciente';
+    if (selectedPatientViewButton) {
+      selectedPatientViewButton.disabled = true;
+      selectedPatientViewButton.classList.add('opacity-50', 'cursor-not-allowed');
+    }
     return;
   }
 
@@ -473,6 +525,252 @@ function renderSelectedPatient() {
   document.getElementById('selectedPatientProgressBar').style.width = `${patient.progress}%`;
   document.getElementById('selectedPatientLastAssessment').textContent = `Ultima avaliacao em ${patient.lastAssessment}`;
   document.getElementById('selectedChartPatient').textContent = patient.name;
+  if (selectedPatientViewButton) {
+    selectedPatientViewButton.disabled = false;
+    selectedPatientViewButton.classList.remove('opacity-50', 'cursor-not-allowed');
+  }
+}
+
+function renderPatientProfileModal(patient) {
+  const profileStatus = document.getElementById('patientProfileStatus');
+  const profilePendingMessages = document.getElementById('patientProfilePendingMessages');
+  const profilePlanStatus = document.getElementById('patientProfilePlanStatus');
+  const profileAssessmentBadge = document.getElementById('patientProfileAssessmentBadge');
+  const messagesList = document.getElementById('patientProfileMessagesList');
+  const assessmentsList = document.getElementById('patientProfileAssessmentsList');
+  const weightHistoryContainer = document.getElementById('patientProfileWeightHistory');
+  const adherenceHistoryContainer = document.getElementById('patientProfileAdherenceHistory');
+
+  if (!patient) {
+    document.getElementById('patientProfileInitials').textContent = '--';
+    document.getElementById('patientProfileName').textContent = 'Nenhum paciente selecionado';
+    document.getElementById('patientProfileMeta').textContent = 'Selecione um paciente para visualizar o perfil clinico detalhado.';
+    document.getElementById('patientProfileEmail').textContent = '--';
+    document.getElementById('patientProfileAge').textContent = '--';
+    document.getElementById('patientProfileObjective').textContent = '--';
+    document.getElementById('patientProfileProgress').textContent = '0%';
+    document.getElementById('patientProfileProgressBar').style.width = '0%';
+    document.getElementById('patientProfileWeight').textContent = '--';
+    document.getElementById('patientProfileHeight').textContent = '--';
+    document.getElementById('patientProfileBodyFat').textContent = '--';
+    document.getElementById('patientProfileRestrictions').textContent = 'Sem informacoes registradas.';
+    document.getElementById('patientProfileLastMeal').textContent = 'Nenhuma refeicao registrada.';
+    document.getElementById('patientProfilePlanTitle').textContent = 'Sem plano alimentar';
+    document.getElementById('patientProfilePlanMeta').textContent = 'Nenhum plano ativo vinculado.';
+    document.getElementById('patientProfilePlanNotes').textContent = 'As observacoes do plano aparecem aqui quando houver prescricao cadastrada.';
+    document.getElementById('patientProfileAppointmentTitle').textContent = 'Sem consulta agendada';
+    document.getElementById('patientProfileAppointmentMeta').textContent = 'Quando houver agenda vinculada, o detalhe aparece aqui.';
+    document.getElementById('patientProfileAssessmentTitle').textContent = 'Nenhuma avaliacao registrada';
+    document.getElementById('patientProfileAssessmentMeta').textContent = 'Quando houver avaliacao fisica, o resumo aparece aqui.';
+
+    if (profileStatus) {
+      profileStatus.textContent = 'Sem dados';
+      profileStatus.className = 'rounded-full bg-[#eef6e8] px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-nutriflow-700';
+    }
+
+    if (profilePendingMessages) {
+      profilePendingMessages.textContent = '0 pendencias';
+      profilePendingMessages.className = 'status-pill';
+    }
+
+    if (profilePlanStatus) {
+      profilePlanStatus.textContent = 'Sem status';
+      profilePlanStatus.className = 'status-pill';
+    }
+
+    if (profileAssessmentBadge) {
+      profileAssessmentBadge.textContent = 'Sem dados';
+      profileAssessmentBadge.className = 'status-pill';
+    }
+
+    if (messagesList) {
+      messagesList.innerHTML = '<p class="text-sm text-nutriflow-600">Nenhuma conversa disponivel para este perfil.</p>';
+    }
+
+    if (assessmentsList) {
+      assessmentsList.innerHTML = '<p class="text-sm text-nutriflow-600">Nenhuma avaliacao recente para exibir.</p>';
+    }
+
+    if (weightHistoryContainer) {
+      weightHistoryContainer.innerHTML = '<p class="text-sm text-nutriflow-600">Sem historico de peso registrado.</p>';
+    }
+
+    if (adherenceHistoryContainer) {
+      adherenceHistoryContainer.innerHTML = '<p class="text-sm text-nutriflow-600">Sem dados de adesao registrados.</p>';
+    }
+
+    [profileOpenChatButton, profileOpenMealPlanButton, profileOpenAssessmentButton].forEach((button) => {
+      if (button) {
+        button.disabled = true;
+        button.classList.add('opacity-50', 'cursor-not-allowed');
+      }
+    });
+    return;
+  }
+
+  const patientMealPlans = getPatientMealPlans(patient.id);
+  const patientAssessments = getPatientAssessments(patient.id);
+  const patientAppointments = getPatientAppointments(patient.id);
+  const latestPlan = patientMealPlans[0] || null;
+  const latestAssessment = patientAssessments[0] || null;
+  const nextAppointment = patientAppointments[0] || null;
+  const conversation = getCurrentPatientConversation(patient.id);
+  const recentMessages = conversation?.messages?.slice(-4) || [];
+  const pendingMessages = conversation?.patient?.pendingMessages ?? patient.pendingMessages ?? 0;
+
+  document.getElementById('patientProfileInitials').textContent = getInitials(patient.name);
+  document.getElementById('patientProfileName').textContent = patient.name;
+  document.getElementById('patientProfileMeta').textContent = `${patient.email || 'Sem e-mail'} - ${patient.age || '--'} anos - ${patient.objective || 'Sem objetivo definido'}`;
+  document.getElementById('patientProfileEmail').textContent = patient.email || 'Sem e-mail cadastrado';
+  document.getElementById('patientProfileAge').textContent = patient.age ? `${patient.age} anos` : '--';
+  document.getElementById('patientProfileObjective').textContent = patient.objective || 'Sem objetivo definido';
+  document.getElementById('patientProfileProgress').textContent = `${patient.progress || 0}%`;
+  document.getElementById('patientProfileProgressBar').style.width = `${patient.progress || 0}%`;
+  document.getElementById('patientProfileWeight').textContent = formatMetric(patient.weight, 'kg');
+  document.getElementById('patientProfileHeight').textContent = formatMetric(patient.height, 'm', 2);
+  document.getElementById('patientProfileBodyFat').textContent = formatMetric(patient.bodyFat, '%');
+  document.getElementById('patientProfileRestrictions').textContent = patient.restrictions || 'Sem restricoes informadas.';
+  document.getElementById('patientProfileLastMeal').textContent = patient.lastMeal || 'Nenhuma refeicao registrada.';
+
+  if (profileStatus) {
+    profileStatus.textContent = patient.status || 'Sem status';
+    profileStatus.className = `status-pill ${getStatusClass(patient.status)}`.trim();
+  }
+
+  if (profilePendingMessages) {
+    profilePendingMessages.textContent = pendingMessages > 0
+      ? pluralize(pendingMessages, 'pendencia', 'pendencias')
+      : 'Inbox em dia';
+    profilePendingMessages.className = pendingMessages > 0
+      ? 'status-pill is-review'
+      : 'status-pill is-active';
+  }
+
+  document.getElementById('patientProfilePlanTitle').textContent = latestPlan?.title || patient.currentPlan || 'Sem plano alimentar';
+  document.getElementById('patientProfilePlanMeta').textContent = latestPlan
+    ? `${latestPlan.calories} kcal - P ${latestPlan.protein || '-'}g - C ${latestPlan.carbs || '-'}g - G ${latestPlan.fats || '-'}g`
+    : 'Nenhum plano ativo vinculado.';
+  document.getElementById('patientProfilePlanNotes').textContent = latestPlan?.notes || 'As observacoes do plano aparecem aqui quando houver prescricao cadastrada.';
+
+  if (profilePlanStatus) {
+    profilePlanStatus.textContent = latestPlan?.status || 'Sem status';
+    profilePlanStatus.className = latestPlan
+      ? `status-pill ${getStatusClass(latestPlan.status)}`.trim()
+      : 'status-pill';
+  }
+
+  document.getElementById('patientProfileAppointmentTitle').textContent = nextAppointment?.date || patient.nextAppointment || 'Sem consulta agendada';
+  document.getElementById('patientProfileAppointmentMeta').textContent = nextAppointment
+    ? `${nextAppointment.type} - status ${nextAppointment.status}`
+    : 'Quando houver agenda vinculada, o detalhe aparece aqui.';
+
+  document.getElementById('patientProfileAssessmentTitle').textContent = latestAssessment
+    ? `${latestAssessment.weight.toFixed(1)}kg - IMC ${latestAssessment.imc.toFixed(1)}`
+    : 'Nenhuma avaliacao registrada';
+  document.getElementById('patientProfileAssessmentMeta').textContent = latestAssessment
+    ? `${latestAssessment.date} - ${latestAssessment.notes}`
+    : 'Quando houver avaliacao fisica, o resumo aparece aqui.';
+
+  if (profileAssessmentBadge) {
+    profileAssessmentBadge.textContent = latestAssessment
+      ? `${latestAssessment.bodyFat.toFixed(1)}% gordura`
+      : 'Sem dados';
+    profileAssessmentBadge.className = latestAssessment ? 'status-pill is-review' : 'status-pill';
+  }
+
+  if (assessmentsList) {
+    assessmentsList.innerHTML = patientAssessments.length
+      ? patientAssessments.slice(0, 3).map((assessment) => `
+          <div class="rounded-[20px] border border-nutriflow-100 bg-[#f8faf7] p-4">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <p class="text-sm font-semibold text-nutriflow-950">${assessment.weight.toFixed(1)}kg - IMC ${assessment.imc.toFixed(1)}</p>
+                <p class="mt-2 text-xs uppercase tracking-[0.14em] text-nutriflow-500">${assessment.date}</p>
+              </div>
+              <span class="status-pill is-review">${assessment.bodyFat.toFixed(1)}%</span>
+            </div>
+            <p class="mt-3 text-sm leading-7 text-nutriflow-700">${escapeHtml(assessment.notes)}</p>
+          </div>
+        `).join('')
+      : '<p class="text-sm text-nutriflow-600">Nenhuma avaliacao recente para exibir.</p>';
+  }
+
+  if (messagesList) {
+    if (recentMessages.length) {
+      messagesList.innerHTML = recentMessages.map((message) => {
+        const isNutritionistMessage = message.senderRole === 'NUTRITIONIST';
+
+        return `
+          <div class="rounded-[20px] border border-nutriflow-100 ${isNutritionistMessage ? 'bg-[#f8faf7]' : 'bg-[#f3f7fb]'} p-4">
+            <div class="flex items-center justify-between gap-3">
+              <p class="text-xs font-semibold uppercase tracking-[0.14em] ${isNutritionistMessage ? 'text-nutriflow-600' : 'text-[#385e88]'}">${escapeHtml(message.senderName)}</p>
+              <span class="text-xs text-nutriflow-500">${escapeHtml(message.timeLabel || 'agora')}</span>
+            </div>
+            <p class="mt-3 text-sm leading-7 text-nutriflow-800">${escapeHtml(message.content)}</p>
+          </div>
+        `;
+      }).join('');
+    } else {
+      messagesList.innerHTML = `
+        <div class="rounded-[20px] border border-nutriflow-100 bg-[#f8faf7] p-4">
+          <p class="text-sm font-semibold text-nutriflow-950">${escapeHtml(patient.lastMessagePreview || 'Sem mensagens recentes.')}</p>
+          <p class="mt-2 text-xs text-nutriflow-500">${escapeHtml(patient.lastMessageTime || 'Sem horario disponivel')}</p>
+        </div>
+      `;
+    }
+  }
+
+  if (weightHistoryContainer) {
+    weightHistoryContainer.innerHTML = patient.weightHistory?.length
+      ? patient.weightHistory.map((weight, index) => `
+          <div class="rounded-[20px] border border-nutriflow-100 bg-[#f8faf7] p-4">
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-nutriflow-500">Registro ${index + 1}</p>
+            <p class="mt-3 text-2xl font-bold tracking-[-0.04em] text-nutriflow-950">${formatMetric(weight, 'kg')}</p>
+          </div>
+        `).join('')
+      : '<p class="text-sm text-nutriflow-600">Sem historico de peso registrado.</p>';
+  }
+
+  if (adherenceHistoryContainer) {
+    adherenceHistoryContainer.innerHTML = patient.adherence?.length
+      ? patient.adherence.map((value, index) => `
+          <div class="nutritionist-bar-column">
+            <span style="height:${Math.max(18, value)}%"></span>
+            <small>S${index + 1}</small>
+            <strong>${value}%</strong>
+          </div>
+        `).join('')
+      : '<p class="text-sm text-nutriflow-600">Sem dados de adesao registrados.</p>';
+  }
+
+  [profileOpenChatButton, profileOpenMealPlanButton, profileOpenAssessmentButton].forEach((button) => {
+    if (button) {
+      button.disabled = false;
+      button.classList.remove('opacity-50', 'cursor-not-allowed');
+    }
+  });
+}
+
+async function openPatientProfile(patientId = state.selectedPatientId) {
+  if (!patientId) {
+    showToast('Selecione um paciente antes de abrir o perfil.');
+    return;
+  }
+
+  try {
+    if (state.selectedPatientId !== patientId) {
+      await handlePatientSelection(patientId);
+    } else if (!state.conversation || state.conversationPatientId !== patientId) {
+      await loadConversation(patientId);
+    }
+  } catch (error) {
+    showToast(error.message || 'Nao foi possivel carregar todo o contexto do perfil agora.');
+  }
+
+  renderPatientProfileModal(getSelectedPatient());
+  patientProfileModal?.classList.remove('hidden');
+  patientProfileModal?.classList.add('flex');
+  document.body.classList.add('modal-open');
 }
 
 function setConversationFormState(disabled) {
@@ -914,7 +1212,16 @@ function closeModal(type) {
     assessmentModal.classList.remove('flex');
   }
 
-  if (mealPlanModal.classList.contains('hidden') && assessmentModal.classList.contains('hidden')) {
+  if (type === 'patient-profile') {
+    patientProfileModal?.classList.add('hidden');
+    patientProfileModal?.classList.remove('flex');
+  }
+
+  if (
+    mealPlanModal.classList.contains('hidden')
+    && assessmentModal.classList.contains('hidden')
+    && patientProfileModal?.classList.contains('hidden')
+  ) {
     document.body.classList.remove('modal-open');
   }
 }
@@ -943,10 +1250,15 @@ function bindModalEvents() {
     if (event.target === assessmentModal) closeModal('assessment');
   });
 
+  patientProfileModal?.addEventListener('click', (event) => {
+    if (event.target === patientProfileModal) closeModal('patient-profile');
+  });
+
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
       closeModal('meal-plan');
       closeModal('assessment');
+      closeModal('patient-profile');
     }
   });
 }
@@ -970,8 +1282,23 @@ function bindActions() {
   });
 
   document.getElementById('selectedPatientViewButton')?.addEventListener('click', () => {
-    const patient = getSelectedPatient();
-    if (patient) showToast(`Perfil completo de ${patient.name} preparado para futura rota detalhada.`);
+    void openPatientProfile();
+  });
+
+  profileOpenChatButton?.addEventListener('click', () => {
+    closeModal('patient-profile');
+    document.getElementById('mensagens')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    conversationInput?.focus();
+  });
+
+  profileOpenMealPlanButton?.addEventListener('click', () => {
+    closeModal('patient-profile');
+    openModal('meal-plan');
+  });
+
+  profileOpenAssessmentButton?.addEventListener('click', () => {
+    closeModal('patient-profile');
+    openModal('assessment');
   });
 
   assessmentWeight?.addEventListener('input', syncImc);

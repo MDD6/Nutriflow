@@ -60,13 +60,6 @@ function ensureAdminAccess() {
     return false;
   }
 
-  const role = normalizeRole(state.currentUser?.role || state.currentUser?.profile);
-
-  if (role !== 'ADMIN') {
-    clearSessionAndRedirect();
-    return false;
-  }
-
   return true;
 }
 

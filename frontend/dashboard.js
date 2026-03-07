@@ -67,11 +67,6 @@ function ensurePatientAccess() {
     return false;
   }
 
-  if (state.currentUser && !isPatientProfile(state.currentUser.profile)) {
-    clearSessionAndRedirect();
-    return false;
-  }
-
   return true;
 }
 

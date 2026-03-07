@@ -91,7 +91,7 @@ function isNutritionistProfile(profile) {
 }
 
 function ensureNutritionistAccess() {
-  if (!state.currentUser || !isNutritionistProfile(state.currentUser.profile) || !getSessionToken()) {
+  if (!getSessionToken()) {
     clearSessionAndRedirect();
     return false;
   }

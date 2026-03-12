@@ -1,19 +1,16 @@
 // Configuração principal da aplicação
 
 const express = require('express');
+const path = require('path');
 const app = express();
 
 // Middlewares
 app.use(express.json());
 app.use(express.static('public'));
 
-// Rota raiz - Home
+// Rota raiz - Home (servir página inicial)
 app.get('/', (req, res) => {
-  res.json({
-    message: 'Bem-vindo ao NutriFlow!',
-    version: '1.0.0',
-    description: 'Plataforma digital de acompanhamento nutricional'
-  });
+  res.sendFile(path.join(__dirname, '../public/home/index.html'));
 });
 
 // Health check

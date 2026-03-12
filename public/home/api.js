@@ -1,76 +1,99 @@
-***(function initNutriFlowUi() {
-  function setupSectionNavigation(options = {}) {
-    const {
-      linkSelector,
-      activeClass = 'is-active',
-      rootMargin = '-26% 0px -58% 0px',
-    } = options;
+(function bootstrapNutriFlowApi(globalScope) {
+  const DEFAULT_LOCAL_API_ORIGIN = 'http://127.0.0.1:3000';
 
-    if (!linkSelector) {
-      return;
+  function normalizeOrigin(origin) {
+    return String(origin || '').trim().replace(/\/+$/, '');
+  }
+
+  function isLocalHost(hostname) {
+    return hostname === 'localhost' || hostname === '127.0.0.1';
+  }
+
+  function getConfiguredOrigin() {
+    const globalOrigin = normalizeOrigin(globalScope.NUTRIFLOW_API_ORIGIN);
+
+    if (globalOrigin) {
+      return globalOrigin;
     }
 
-    const links = [...document.querySelectorAll(linkSelector)]
-      .filter((link) => {
-        const href = link.getAttribute('href') || '';
-        return href.startsWith('#') && href.length > 1;
-      });
-
-    if (!links.length) {
-      return;
-    }
-
-    const sections = links
-      .map((link) => document.getElementById(link.getAttribute('href').slice(1)))
-      .filter(Boolean);
-
-    function setActive(sectionId) {
-      links.forEach((link) => {
-        const href = link.getAttribute('href') || '';
-        link.classList.toggle(activeClass, href === `#${sectionId}`);
-      });
-    }
-
-    links.forEach((link) => {
-      link.addEventListener('click', () => {
-        const href = link.getAttribute('href') || '';
-        if (href.startsWith('#')) {
-          setActive(href.slice(1));
-        }
-      });
-    });
-
-    if (!sections.length || typeof IntersectionObserver !== 'function') {
-      return;
-    }
-
-    const observer = new IntersectionObserver((entries) => {
-      const visibleEntry = entries
-        .filter((entry) => entry.isIntersecting)
-        .sort((left, right) => right.intersectionRatio - left.intersectionRatio)[0];
-
-      if (visibleEntry?.target?.id) {
-        setActive(visibleEntry.target.id);
-      }
-    }, {
-      threshold: [0.2, 0.35, 0.55],
-      rootMargin,
-    });
-
-    sections.forEach((section) => observer.observe(section));
-
-    const initialHash = window.location.hash.slice(1);
-    if (initialHash) {
-      setActive(initialHash);
-      return;
-    }
-
-    if (sections[0]?.id) {
-      setActive(sections[0].id);
+    try {
+      return normalizeOrigin(globalScope.localStorage?.getItem('nutriflow.apiOrigin'));
+    } catch (error) {
+      return '';
     }
   }
 
-  window.NutriFlowUi = {
-    setupSectionNavigation,
+  function getCandidateOrigins() {
+    const configuredOrigin = getConfiguredOrigin();
+    const locationProtocol = globalScope.location?.protocol || '';
+    const locationHostname = globalScope.location?.hostname || '';
+    const locationPort = globalScope.location?.port || '';
+    const origins = [];
+
+    if (configuredOrigin) {
+      origins.push(configuredOrigin);
+    }
+
+    if (locationProtocol === 'file:') {
+      origins.push(DEFAULT_LOCAL_API_ORIGIN);
+      return [...new Set(origins)];
+    }
+
+    if (isLocalHost(locationHostname) && locationPort !== '3000') {
+      origins.push(DEFAULT_LOCAL_API_ORIGIN);
+      origins.push('');
+      return [...new Set(origins)];
+    }
+
+    origins.push('');
+
+    return [...new Set(origins)];
+  }
+
+  function resolveUrl(path, origin = '') {
+    if (!origin) {
+      return path;
+    }
+
+    return new URL(path, `${origin}/`).toString();
+  }
+
+  async function request(path, options = {}) {
+    const candidateOrigins = getCandidateOrigins();
+    let lastError = null;
+    let lastResponse = null;
+
+    for (const origin of candidateOrigins) {
+      const requestUrl = resolveUrl(path, origin);
+
+      try {
+        const response = await globalScope.fetch(requestUrl, options);
+
+        if (response.status === 404 && origin !== candidateOrigins[candidateOrigins.length - 1]) {
+          lastResponse = response;
+          continue;
+        }
+
+        return response;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    if (lastResponse) {
+      return lastResponse;
+    }
+
+    if (lastError) {
+      throw lastError;
+    }
+
+    throw new Error('Nao foi possivel conectar com a API do NutriFlow.');
+  }
+
+  globalScope.NutriFlowApi = {
+    request,
+    resolveUrl,
+    getCandidateOrigins,
   };
-})();
+})(window);

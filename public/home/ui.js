@@ -1,4 +1,4 @@
-***(function initNutriFlowUi() {
+(function initNutriFlowUi() {
   function setupSectionNavigation(options = {}) {
     const {
       linkSelector,

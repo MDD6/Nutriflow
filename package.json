@@ -1,0 +1,21 @@
+{
+  "name": "nutriflow-1",
+  "version": "1.0.0",
+  "description": "NutriFlow é uma plataforma digital de acompanhamento nutricional que conecta pacientes a nutricionistas",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MDD6/Nutriflow.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/MDD6/Nutriflow/issues"
+  },
+  "homepage": "https://github.com/MDD6/Nutriflow#readme"
+}

@@ -2,6 +2,28 @@ const { AppError } = require('../errors/appError');
 const { isNutritionistRole } = require('../constants/roles');
 
 const SHORT_MONTHS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+const ALLOWED_MEAL_TYPES = new Set([
+  'Cafe da manha',
+  'Lanche da manha',
+  'Almoco',
+  'Lanche da tarde',
+  'Jantar',
+  'Ceia',
+]);
+
+const MEAL_NUMERIC_LIMITS = {
+  calories: { label: 'Calorias', min: 0, max: 2500, defaultValue: 0 },
+  protein: { label: 'Proteina', min: 0, max: 250, defaultValue: 0 },
+  carbs: { label: 'Carboidrato', min: 0, max: 350, defaultValue: 0 },
+  fats: { label: 'Gordura', min: 0, max: 180, defaultValue: 0 },
+  fiber: { label: 'Fibra', min: 0, max: 80, defaultValue: 0 },
+  waterMl: { label: 'Agua (ml)', min: 0, max: 2000, defaultValue: 0 },
+};
+
+const WEEKLY_WEIGHT_LIMITS = {
+  min: 20,
+  max: 350,
+};
 
 function normalizeEmail(value) {
   return String(value || '').trim().toLowerCase();
@@ -11,9 +33,86 @@ function normalizeText(value) {
   return String(value || '').trim();
 }
 
-function toNumber(value, fallback = 0) {
+function parseBoundedInteger(value, options) {
+  const {
+    label,
+    min,
+    max,
+    defaultValue = 0,
+  } = options;
+  const fallbackValue = value === undefined || value === null || String(value).trim() === ''
+    ? defaultValue
+    : value;
+  const parsed = Number(fallbackValue);
+
+  if (!Number.isFinite(parsed)) {
+    throw new AppError(`${label} precisa ser um numero valido.`, 400);
+  }
+
+  const rounded = Math.round(parsed);
+
+  if (rounded < min || rounded > max) {
+    throw new AppError(`${label} deve ficar entre ${min} e ${max}.`, 400);
+  }
+
+  return rounded;
+}
+
+function parseMealType(value) {
+  const mealType = normalizeText(value);
+
+  if (!mealType) {
+    throw new AppError('Selecione o tipo da refeicao.', 400);
+  }
+
+  if (!ALLOWED_MEAL_TYPES.has(mealType)) {
+    throw new AppError('Tipo de refeicao invalido.', 400);
+  }
+
+  return mealType;
+}
+
+function parseMealTitle(value) {
+  const title = normalizeText(value);
+
+  if (!title || title.length < 3 || title.length > 80) {
+    throw new AppError('Informe um titulo de refeicao com 3 a 80 caracteres.', 400);
+  }
+
+  return title;
+}
+
+function parseMealDescription(value, mealType) {
+  const description = normalizeText(value);
+
+  if (description.length > 280) {
+    throw new AppError('A descricao da refeicao deve ter ate 280 caracteres.', 400);
+  }
+
+  if (description) {
+    return description;
+  }
+
+  return `Registro de ${mealType.toLowerCase()} feito no aplicativo.`;
+}
+
+function parseWeeklyWeight(value) {
   const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : fallback;
+
+  if (!Number.isFinite(parsed)) {
+    throw new AppError('Informe um peso valido em kg.', 400);
+  }
+
+  const rounded = Number(parsed.toFixed(1));
+
+  if (rounded < WEEKLY_WEIGHT_LIMITS.min || rounded > WEEKLY_WEIGHT_LIMITS.max) {
+    throw new AppError(
+      `O peso precisa ficar entre ${WEEKLY_WEIGHT_LIMITS.min}kg e ${WEEKLY_WEIGHT_LIMITS.max}kg.`,
+      400,
+    );
+  }
+
+  return rounded;
 }
 
 function parsePatientAge(value) {
@@ -113,6 +212,25 @@ function dateKey(date) {
 
 function sameDay(left, right) {
   return dateKey(left) === dateKey(right);
+}
+
+function getWeekRange(date) {
+  const baseDate = new Date(date);
+  baseDate.setHours(0, 0, 0, 0);
+
+  const currentDay = baseDate.getDay();
+  const daysToMonday = currentDay === 0 ? -6 : 1 - currentDay;
+  const weekStart = new Date(baseDate);
+  weekStart.setDate(baseDate.getDate() + daysToMonday);
+  weekStart.setHours(0, 0, 0, 0);
+
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 7);
+
+  return {
+    weekStart,
+    weekEnd,
+  };
 }
 
 function sumMeals(meals) {
@@ -318,9 +436,9 @@ class PatientDashboardService {
 
   async createMealEntry(patientUser, payload) {
     const patientProfile = await this.requirePatientProfile(patientUser.id);
-    const mealType = normalizeText(payload.mealType) || 'Lanche';
-    const title = normalizeText(payload.title) || 'Lanche extra';
-    const description = normalizeText(payload.description) || 'Opcao rapida para registrar mais uma refeicao do dia.';
+    const mealType = parseMealType(payload.mealType);
+    const title = parseMealTitle(payload.title);
+    const description = parseMealDescription(payload.description, mealType);
     const loggedAt = this.parseDateOrNow(payload.loggedAt);
 
     const mealEntry = await this.patientDashboardRepository.createMealEntry({
@@ -328,18 +446,50 @@ class PatientDashboardService {
       mealType,
       title,
       description,
-      calories: Math.max(0, Math.round(toNumber(payload.calories, 230))),
-      protein: Math.max(0, Math.round(toNumber(payload.protein, 25))),
-      carbs: Math.max(0, Math.round(toNumber(payload.carbs, 18))),
-      fats: Math.max(0, Math.round(toNumber(payload.fats, 7))),
-      fiber: Math.max(0, Math.round(toNumber(payload.fiber, 4))),
-      waterMl: Math.max(0, Math.round(toNumber(payload.waterMl, 250))),
+      calories: parseBoundedInteger(payload.calories, MEAL_NUMERIC_LIMITS.calories),
+      protein: parseBoundedInteger(payload.protein, MEAL_NUMERIC_LIMITS.protein),
+      carbs: parseBoundedInteger(payload.carbs, MEAL_NUMERIC_LIMITS.carbs),
+      fats: parseBoundedInteger(payload.fats, MEAL_NUMERIC_LIMITS.fats),
+      fiber: parseBoundedInteger(payload.fiber, MEAL_NUMERIC_LIMITS.fiber),
+      waterMl: parseBoundedInteger(payload.waterMl, MEAL_NUMERIC_LIMITS.waterMl),
       loggedAt,
     });
 
     return {
       message: 'Refeicao registrada com sucesso.',
       meal: this.toMealEntryDto(mealEntry),
+    };
+  }
+
+  async createWeeklyWeightEntry(patientUser, payload) {
+    const patientProfile = await this.requirePatientProfile(patientUser.id);
+    const weight = parseWeeklyWeight(payload.weight);
+    const recordedAt = this.parseWeightDateOrNow(payload.recordedAt);
+    const { weekStart, weekEnd } = getWeekRange(recordedAt);
+    const latestSnapshot = patientProfile.progressSnapshots[patientProfile.progressSnapshots.length - 1] || null;
+    const adherence = latestSnapshot?.adherence ?? patientProfile.progress;
+    const progress = latestSnapshot?.progress ?? patientProfile.progress;
+
+    const result = await this.patientDashboardRepository.upsertWeeklyWeightEntry({
+      patientProfileId: patientProfile.id,
+      weight,
+      recordedAt,
+      weekStart,
+      weekEnd,
+      adherence,
+      progress,
+    });
+
+    return {
+      message: result.action === 'updated'
+        ? 'Peso semanal atualizado com sucesso.'
+        : 'Peso semanal registrado com sucesso.',
+      weightEntry: {
+        id: result.snapshot.id,
+        label: result.snapshot.label,
+        weight: result.snapshot.weight,
+        dateLabel: formatShortDate(result.snapshot.recordedAt),
+      },
     };
   }
 
@@ -712,6 +862,46 @@ class PatientDashboardService {
 
     if (Number.isNaN(date.getTime())) {
       throw new AppError('Data invalida para o registro da refeicao.', 400);
+    }
+
+    const now = Date.now();
+    const maxFutureMs = 5 * 60 * 1000;
+    const maxPastMs = 120 * 24 * 60 * 60 * 1000;
+
+    if (date.getTime() > now + maxFutureMs) {
+      throw new AppError('Nao e permitido registrar refeicoes no futuro.', 400);
+    }
+
+    if (date.getTime() < now - maxPastMs) {
+      throw new AppError('Data de refeicao muito antiga para este registro.', 400);
+    }
+
+    return date;
+  }
+
+  parseWeightDateOrNow(value) {
+    const normalized = normalizeText(value);
+
+    if (!normalized) {
+      return new Date();
+    }
+
+    const date = new Date(normalized);
+
+    if (Number.isNaN(date.getTime())) {
+      throw new AppError('Data invalida para o registro de peso.', 400);
+    }
+
+    const now = Date.now();
+    const maxFutureMs = 5 * 60 * 1000;
+    const maxPastMs = 365 * 24 * 60 * 60 * 1000;
+
+    if (date.getTime() > now + maxFutureMs) {
+      throw new AppError('Nao e permitido registrar peso em uma data futura.', 400);
+    }
+
+    if (date.getTime() < now - maxPastMs) {
+      throw new AppError('Data de registro muito antiga. Use uma data dentro do ultimo ano.', 400);
     }
 
     return date;

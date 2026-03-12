@@ -65,6 +65,68 @@ class PatientDashboardRepository {
     });
   }
 
+  async upsertWeeklyWeightEntry(data) {
+    return this.prisma.$transaction(async (tx) => {
+      const existingSnapshot = await tx.progressSnapshot.findFirst({
+        where: {
+          patientProfileId: data.patientProfileId,
+          recordedAt: {
+            gte: data.weekStart,
+            lt: data.weekEnd,
+          },
+        },
+        orderBy: {
+          recordedAt: 'desc',
+        },
+      });
+
+      let snapshot = null;
+      let action = 'created';
+
+      if (existingSnapshot) {
+        snapshot = await tx.progressSnapshot.update({
+          where: { id: existingSnapshot.id },
+          data: {
+            weight: data.weight,
+            adherence: data.adherence,
+            progress: data.progress,
+            recordedAt: data.recordedAt,
+          },
+        });
+        action = 'updated';
+      } else {
+        const snapshotsCount = await tx.progressSnapshot.count({
+          where: {
+            patientProfileId: data.patientProfileId,
+          },
+        });
+
+        snapshot = await tx.progressSnapshot.create({
+          data: {
+            patientProfileId: data.patientProfileId,
+            label: `S${snapshotsCount + 1}`,
+            weight: data.weight,
+            adherence: data.adherence,
+            progress: data.progress,
+            recordedAt: data.recordedAt,
+          },
+        });
+      }
+
+      await tx.patientProfile.update({
+        where: { id: data.patientProfileId },
+        data: {
+          currentWeight: data.weight,
+        },
+      });
+
+      return {
+        action,
+        snapshot,
+      };
+    });
+  }
+
   createPatientMessage(data) {
     return this.prisma.patientMessage.create({
       data: {

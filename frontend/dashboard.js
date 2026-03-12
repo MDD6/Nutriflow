@@ -10,6 +10,7 @@ const state = {
   currentUser: safeParse(localStorage.getItem('nutriflow.user')),
   dashboard: null,
   isAddingMeal: false,
+  isSavingWeeklyWeight: false,
   isSendingMessage: false,
   isLinkingNutritionist: false,
   lastChatSignature: '',
@@ -32,6 +33,86 @@ const patientConnectionAge = document.getElementById('patientConnectionAge');
 const patientConnectionObjective = document.getElementById('patientConnectionObjective');
 const patientConnectionRestrictions = document.getElementById('patientConnectionRestrictions');
 const patientConnectionSubmitButton = document.getElementById('patientConnectionSubmitButton');
+const mealEntryModal = document.getElementById('mealEntryModal');
+const mealEntryForm = document.getElementById('mealEntryForm');
+const mealTypeInput = document.getElementById('mealTypeInput');
+const mealLoggedAtInput = document.getElementById('mealLoggedAtInput');
+const mealTitleInput = document.getElementById('mealTitleInput');
+const mealDescriptionInput = document.getElementById('mealDescriptionInput');
+const mealCaloriesInput = document.getElementById('mealCaloriesInput');
+const mealProteinInput = document.getElementById('mealProteinInput');
+const mealCarbsInput = document.getElementById('mealCarbsInput');
+const mealFatsInput = document.getElementById('mealFatsInput');
+const mealFiberInput = document.getElementById('mealFiberInput');
+const mealWaterInput = document.getElementById('mealWaterInput');
+const mealSubmitButton = document.getElementById('mealSubmitButton');
+const mealFormError = document.getElementById('mealFormError');
+const addWeeklyWeightButton = document.getElementById('addWeeklyWeightButton');
+const weightEntryModal = document.getElementById('weightEntryModal');
+const weightEntryForm = document.getElementById('weightEntryForm');
+const weightRecordedAtInput = document.getElementById('weightRecordedAtInput');
+const weightValueInput = document.getElementById('weightValueInput');
+const weightSubmitButton = document.getElementById('weightSubmitButton');
+const weightFormError = document.getElementById('weightFormError');
+
+const ALLOWED_MEAL_TYPES = new Set([
+  'Cafe da manha',
+  'Lanche da manha',
+  'Almoco',
+  'Lanche da tarde',
+  'Jantar',
+  'Ceia',
+]);
+
+const MEAL_TEMPLATE_PRESETS = {
+  'lanche-rapido': {
+    mealType: 'Lanche da tarde',
+    title: 'Iogurte natural com fruta',
+    description: 'Lanche rapido para manter energia e saciedade ate a proxima refeicao.',
+    calories: 220,
+    protein: 12,
+    carbs: 28,
+    fats: 6,
+    fiber: 4,
+    waterMl: 250,
+  },
+  'refeicao-completa': {
+    mealType: 'Almoco',
+    title: 'Prato completo com proteina, carbo e salada',
+    description: 'Refeicao principal equilibrada para sustentar a rotina da tarde.',
+    calories: 640,
+    protein: 38,
+    carbs: 72,
+    fats: 18,
+    fiber: 10,
+    waterMl: 400,
+  },
+  'pos-treino': {
+    mealType: 'Lanche da tarde',
+    title: 'Shake pos-treino com banana',
+    description: 'Reposicao rapida de energia e proteina apos treino.',
+    calories: 340,
+    protein: 30,
+    carbs: 35,
+    fats: 8,
+    fiber: 3,
+    waterMl: 350,
+  },
+};
+
+const MEAL_NUMERIC_RULES = [
+  { key: 'calories', label: 'Calorias', min: 0, max: 2500 },
+  { key: 'protein', label: 'Proteina', min: 0, max: 250 },
+  { key: 'carbs', label: 'Carboidrato', min: 0, max: 350 },
+  { key: 'fats', label: 'Gordura', min: 0, max: 180 },
+  { key: 'fiber', label: 'Fibra', min: 0, max: 80 },
+  { key: 'waterMl', label: 'Agua (ml)', min: 0, max: 2000 },
+];
+
+const WEEKLY_WEIGHT_LIMITS = {
+  min: 20,
+  max: 350,
+};
 
 function getSessionToken() {
   return localStorage.getItem('nutriflow.token');
@@ -114,6 +195,379 @@ function formatShortDate() {
 
 function formatNumber(value) {
   return Number(value || 0).toLocaleString('pt-BR');
+}
+
+function toDateTimeLocalValue(date) {
+  const baseDate = date instanceof Date ? date : new Date(date || Date.now());
+  const timezoneOffset = baseDate.getTimezoneOffset() * 60000;
+  return new Date(baseDate.getTime() - timezoneOffset).toISOString().slice(0, 16);
+}
+
+function toDateValue(date) {
+  const baseDate = date instanceof Date ? date : new Date(date || Date.now());
+  const timezoneOffset = baseDate.getTimezoneOffset() * 60000;
+  return new Date(baseDate.getTime() - timezoneOffset).toISOString().slice(0, 10);
+}
+
+function parseDateInputToIso(dateValue) {
+  const normalized = String(dateValue || '').trim();
+
+  if (!normalized) {
+    return '';
+  }
+
+  const [year, month, day] = normalized.split('-').map((part) => Number(part));
+
+  if (![year, month, day].every((part) => Number.isInteger(part))) {
+    return '';
+  }
+
+  return new Date(year, month - 1, day, 12, 0, 0, 0).toISOString();
+}
+
+function parseWeightLabelToNumber(label) {
+  const normalized = String(label || '').trim().replace(',', '.');
+  const parsed = Number(normalized.replace(/[^0-9.+-]/g, ''));
+
+  return Number.isFinite(parsed) ? Number(parsed.toFixed(1)) : 0;
+}
+
+function toRoundedNumber(value, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.round(parsed) : fallback;
+}
+
+function setMealFormError(message = '') {
+  if (!mealFormError) {
+    return;
+  }
+
+  if (!message) {
+    mealFormError.textContent = '';
+    mealFormError.classList.add('hidden');
+    return;
+  }
+
+  mealFormError.textContent = message;
+  mealFormError.classList.remove('hidden');
+}
+
+function resetMealEntryForm() {
+  mealEntryForm?.reset();
+
+  if (mealTypeInput) {
+    mealTypeInput.value = 'Lanche da tarde';
+  }
+
+  if (mealLoggedAtInput) {
+    mealLoggedAtInput.value = toDateTimeLocalValue(new Date());
+  }
+
+  [mealCaloriesInput, mealProteinInput, mealCarbsInput, mealFatsInput, mealFiberInput, mealWaterInput]
+    .forEach((input) => {
+      if (input) {
+        input.value = '0';
+      }
+    });
+
+  setMealFormError('');
+}
+
+function applyMealTemplate(templateKey) {
+  const template = MEAL_TEMPLATE_PRESETS[templateKey];
+
+  if (!template) {
+    return;
+  }
+
+  if (mealTypeInput) {
+    mealTypeInput.value = template.mealType;
+  }
+
+  if (mealTitleInput) {
+    mealTitleInput.value = template.title;
+  }
+
+  if (mealDescriptionInput) {
+    mealDescriptionInput.value = template.description;
+  }
+
+  if (mealCaloriesInput) {
+    mealCaloriesInput.value = String(template.calories);
+  }
+
+  if (mealProteinInput) {
+    mealProteinInput.value = String(template.protein);
+  }
+
+  if (mealCarbsInput) {
+    mealCarbsInput.value = String(template.carbs);
+  }
+
+  if (mealFatsInput) {
+    mealFatsInput.value = String(template.fats);
+  }
+
+  if (mealFiberInput) {
+    mealFiberInput.value = String(template.fiber);
+  }
+
+  if (mealWaterInput) {
+    mealWaterInput.value = String(template.waterMl);
+  }
+
+  if (mealLoggedAtInput && !mealLoggedAtInput.value) {
+    mealLoggedAtInput.value = toDateTimeLocalValue(new Date());
+  }
+
+  setMealFormError('');
+}
+
+function openMealEntryModal(options = {}) {
+  if (!mealEntryModal) {
+    return;
+  }
+
+  if (isSetupRequired()) {
+    showToast('Conecte sua conta a um nutricionista antes de registrar refeicoes.');
+    return;
+  }
+
+  resetMealEntryForm();
+
+  if (options.templateKey) {
+    applyMealTemplate(options.templateKey);
+  }
+
+  mealEntryModal.classList.remove('hidden');
+  mealEntryModal.classList.add('flex');
+  document.body.classList.add('modal-open');
+
+  window.requestAnimationFrame(() => {
+    mealTitleInput?.focus();
+  });
+}
+
+function closeMealEntryModal(options = {}) {
+  if (!mealEntryModal) {
+    return;
+  }
+
+  mealEntryModal.classList.add('hidden');
+  mealEntryModal.classList.remove('flex');
+
+  if (!document.querySelector('.nf-modal-overlay:not(.hidden)')) {
+    document.body.classList.remove('modal-open');
+  }
+
+  setMealFormError('');
+
+  if (options.resetForm) {
+    resetMealEntryForm();
+  }
+}
+
+function getMealPayloadFromForm() {
+  const loggedAtRaw = String(mealLoggedAtInput?.value || '').trim();
+  const loggedAtDate = loggedAtRaw ? new Date(loggedAtRaw) : null;
+  const loggedAt = loggedAtDate && !Number.isNaN(loggedAtDate.getTime())
+    ? loggedAtDate.toISOString()
+    : '';
+
+  return {
+    mealType: String(mealTypeInput?.value || '').trim(),
+    title: String(mealTitleInput?.value || '').trim(),
+    description: String(mealDescriptionInput?.value || '').trim(),
+    loggedAt,
+    calories: toRoundedNumber(mealCaloriesInput?.value, 0),
+    protein: toRoundedNumber(mealProteinInput?.value, 0),
+    carbs: toRoundedNumber(mealCarbsInput?.value, 0),
+    fats: toRoundedNumber(mealFatsInput?.value, 0),
+    fiber: toRoundedNumber(mealFiberInput?.value, 0),
+    waterMl: toRoundedNumber(mealWaterInput?.value, 0),
+  };
+}
+
+function validateMealPayload(payload) {
+  if (!ALLOWED_MEAL_TYPES.has(payload.mealType)) {
+    return 'Selecione um tipo de refeicao valido.';
+  }
+
+  if (!payload.title || payload.title.length < 3 || payload.title.length > 80) {
+    return 'Informe um titulo com 3 a 80 caracteres.';
+  }
+
+  if (payload.description.length > 280) {
+    return 'A descricao da refeicao deve ter ate 280 caracteres.';
+  }
+
+  if (!payload.loggedAt) {
+    return 'Informe o horario em que a refeicao foi feita.';
+  }
+
+  const loggedAtDate = new Date(payload.loggedAt);
+  if (Number.isNaN(loggedAtDate.getTime())) {
+    return 'Horario invalido para o registro da refeicao.';
+  }
+
+  const now = Date.now();
+  if (loggedAtDate.getTime() > now + (5 * 60 * 1000)) {
+    return 'Nao e permitido registrar refeicoes no futuro.';
+  }
+
+  for (const rule of MEAL_NUMERIC_RULES) {
+    const value = payload[rule.key];
+
+    if (!Number.isInteger(value)) {
+      return `${rule.label} deve ser um numero inteiro.`;
+    }
+
+    if (value < rule.min || value > rule.max) {
+      return `${rule.label} deve ficar entre ${rule.min} e ${rule.max}.`;
+    }
+  }
+
+  return '';
+}
+
+function setMealFormLoading(isLoading) {
+  if (!mealEntryForm) {
+    return;
+  }
+
+  mealEntryForm.querySelectorAll('input, select, textarea, button').forEach((element) => {
+    element.disabled = isLoading;
+  });
+
+  if (mealSubmitButton) {
+    mealSubmitButton.textContent = isLoading ? 'Salvando...' : 'Salvar refeicao';
+  }
+}
+
+function setWeightFormError(message = '') {
+  if (!weightFormError) {
+    return;
+  }
+
+  if (!message) {
+    weightFormError.textContent = '';
+    weightFormError.classList.add('hidden');
+    return;
+  }
+
+  weightFormError.textContent = message;
+  weightFormError.classList.remove('hidden');
+}
+
+function resetWeightEntryForm() {
+  weightEntryForm?.reset();
+
+  if (weightRecordedAtInput) {
+    weightRecordedAtInput.value = toDateValue(new Date());
+  }
+
+  if (weightValueInput) {
+    const currentWeightLabel = state.dashboard?.weight?.currentLabel || '';
+    const currentWeight = parseWeightLabelToNumber(currentWeightLabel);
+    weightValueInput.value = currentWeight > 0 ? currentWeight.toFixed(1) : '';
+  }
+
+  setWeightFormError('');
+}
+
+function openWeightEntryModal() {
+  if (!weightEntryModal) {
+    return;
+  }
+
+  if (isSetupRequired()) {
+    showToast('Conecte sua conta a um nutricionista antes de registrar peso.');
+    return;
+  }
+
+  resetWeightEntryForm();
+
+  weightEntryModal.classList.remove('hidden');
+  weightEntryModal.classList.add('flex');
+  document.body.classList.add('modal-open');
+
+  window.requestAnimationFrame(() => {
+    weightValueInput?.focus();
+  });
+}
+
+function closeWeightEntryModal(options = {}) {
+  if (!weightEntryModal) {
+    return;
+  }
+
+  weightEntryModal.classList.add('hidden');
+  weightEntryModal.classList.remove('flex');
+
+  if (!document.querySelector('.nf-modal-overlay:not(.hidden)')) {
+    document.body.classList.remove('modal-open');
+  }
+
+  setWeightFormError('');
+
+  if (options.resetForm) {
+    resetWeightEntryForm();
+  }
+}
+
+function getWeeklyWeightPayloadFromForm() {
+  const weight = Number(weightValueInput?.value);
+  const recordedAt = parseDateInputToIso(weightRecordedAtInput?.value);
+
+  return {
+    weight: Number.isFinite(weight) ? Number(weight.toFixed(1)) : NaN,
+    recordedAt,
+  };
+}
+
+function validateWeeklyWeightPayload(payload) {
+  if (!Number.isFinite(payload.weight)) {
+    return 'Informe um peso valido em kg.';
+  }
+
+  if (payload.weight < WEEKLY_WEIGHT_LIMITS.min || payload.weight > WEEKLY_WEIGHT_LIMITS.max) {
+    return `O peso precisa ficar entre ${WEEKLY_WEIGHT_LIMITS.min}kg e ${WEEKLY_WEIGHT_LIMITS.max}kg.`;
+  }
+
+  if (!payload.recordedAt) {
+    return 'Informe a data da pesagem semanal.';
+  }
+
+  const recordedDate = new Date(payload.recordedAt);
+  if (Number.isNaN(recordedDate.getTime())) {
+    return 'Data invalida para o registro de peso.';
+  }
+
+  const now = Date.now();
+  if (recordedDate.getTime() > now + (5 * 60 * 1000)) {
+    return 'Nao e permitido registrar peso em uma data futura.';
+  }
+
+  return '';
+}
+
+function setWeightFormLoading(isLoading) {
+  if (!weightEntryForm) {
+    return;
+  }
+
+  weightEntryForm.querySelectorAll('input, button').forEach((element) => {
+    element.disabled = isLoading;
+  });
+
+  if (weightSubmitButton) {
+    weightSubmitButton.textContent = isLoading ? 'Salvando...' : 'Salvar peso';
+  }
+
+  if (addWeeklyWeightButton) {
+    addWeeklyWeightButton.disabled = isLoading || isSetupRequired();
+    addWeeklyWeightButton.textContent = isLoading ? 'Salvando peso...' : 'Adicionar peso semanal';
+  }
 }
 
 function escapeHtml(value) {
@@ -207,6 +661,13 @@ async function createMealEntry(payload = {}) {
   });
 }
 
+async function createWeeklyWeightEntry(payload = {}) {
+  return apiRequest('/api/patient/weights', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
 async function sendPatientMessage(payload) {
   return apiRequest('/api/patient/messages', {
     method: 'POST',
@@ -278,23 +739,12 @@ function setTextContent(selectorOrElement, value) {
 function renderHeader() {
   const patient = getPatientData();
   const nutritionist = getNutritionistData();
-  const hasPatientIdentity = Boolean(patient.name || patient.email);
   const patientName = patient.name || 'Conta do paciente';
-  const patientEmail = patient.email || '--';
   const patientInitials = getInitials(patient.name) || '--';
-  const nutritionistName = nutritionist.name || 'Nutricionista nao conectado';
-  const nutritionistInitials = getInitials(nutritionist.name) || '--';
+  const nutritionistName = nutritionist.name || 'Sem Nutricionista';
 
   document.querySelectorAll('[data-user-name]').forEach((element) => {
     element.textContent = patientName;
-  });
-
-  document.querySelectorAll('[data-user-profile]').forEach((element) => {
-    element.textContent = patient.profile || 'Paciente';
-  });
-
-  document.querySelectorAll('[data-user-email]').forEach((element) => {
-    element.textContent = patientEmail;
   });
 
   document.querySelectorAll('[data-user-initial]').forEach((element) => {
@@ -305,16 +755,10 @@ function renderHeader() {
     element.textContent = nutritionistName;
   });
 
-  document.querySelectorAll('[data-linked-nutritionist-initial]').forEach((element) => {
-    element.textContent = nutritionistInitials;
-  });
-
-  setTextContent('[data-greeting]', hasPatientIdentity ? `${getGreeting()}, ${getFirstName(patient.name)}` : 'Dashboard do paciente');
-  setTextContent('[data-dashboard-date]', `${formatLongDate()} - acompanhe metas, refeicoes e progresso em um unico lugar.`);
-  setTextContent('[data-dashboard-date-short]', formatShortDate());
+  setTextContent('[data-greeting]', `${getGreeting()}, ${getFirstName(patient.name)}`);
 
   if (chatInput) {
-    chatInput.placeholder = `Escreva uma mensagem para ${nutritionist.name || 'sua nutricionista'}`;
+    chatInput.placeholder = `Escreva para ${nutritionist.name || 'sua nutricionista'}...`;
   }
 }
 
@@ -322,53 +766,16 @@ function renderHighlights() {
   const patient = getPatientData();
   const nutritionist = patient.nutritionist;
   const clinical = state.dashboard?.clinical;
-  const chat = state.dashboard?.chat;
-  const pendingChecklist = (clinical?.checklist || []).filter((item) => !item.done).length;
 
-  setTextContent(
-    document.getElementById('patientHighlightNutritionistValue'),
-    nutritionist?.name || 'Sem vinculo',
-  );
-  setTextContent(
-    document.getElementById('patientHighlightNutritionistMeta'),
-    nutritionist?.email || 'Conecte seu profissional para liberar dashboard, plano e chat.',
-  );
-  setTextContent(
-    document.getElementById('patientHighlightObjectiveValue'),
-    patient.objective || 'A definir',
-  );
-  setTextContent(
-    document.getElementById('patientHighlightObjectiveMeta'),
-    patient.objective
-      ? 'Seu objetivo atual guia plano alimentar, metas e acompanhamento.'
-      : 'Defina seu objetivo nutricional ao concluir o vinculo inicial.',
-  );
-  setTextContent(
-    document.getElementById('patientHighlightConsultationValue'),
-    clinical?.nextAppointment?.dateLabel || 'Sem agenda',
-  );
-  setTextContent(
-    document.getElementById('patientHighlightConsultationMeta'),
-    clinical?.nextAppointment?.description || 'Assim que uma consulta for marcada, este card mostra o proximo passo.',
-  );
-  setTextContent(
-    document.getElementById('patientHighlightChatValue'),
-    isSetupRequired() ? 'Bloqueado' : (chat?.responseTimeLabel || 'Disponivel'),
-  );
-  setTextContent(
-    document.getElementById('patientHighlightChatMeta'),
-    isSetupRequired()
-      ? 'Conecte sua conta para liberar o canal com o nutricionista.'
-      : pendingChecklist > 0
-        ? `${pendingChecklist} ponto(s) do acompanhamento ainda pedem sua atencao.`
-        : 'Use o chat para ajustes rapidos de plano, fome, treino e rotina.',
-  );
+  setTextContent('#sidebarNutriName', nutritionist?.name || 'Sem vínculo');
+  setTextContent('#sidebarObjective', patient.objective || 'A definir');
+  setTextContent('#sidebarAppointment', clinical?.nextAppointment?.dateLabel || 'Sem agenda');
 }
 
 function setInteractionsEnabled(isEnabled) {
-  [addMealButton, quickAddMealButton].forEach((button) => {
+  [addMealButton, quickAddMealButton, addWeeklyWeightButton].forEach((button) => {
     if (button) {
-      button.disabled = !isEnabled || state.isAddingMeal;
+      button.disabled = !isEnabled || state.isAddingMeal || state.isSavingWeeklyWeight;
     }
   });
 
@@ -382,101 +789,9 @@ function setInteractionsEnabled(isEnabled) {
   }
 }
 
-function renderConnectionPanel() {
-  const patient = getPatientData();
-  const nutritionist = patient.nutritionist || null;
-  const isDisconnected = isSetupRequired();
-  const statusElement = document.getElementById('patientConnectionStatus');
-  const linkedNameElement = document.getElementById('patientLinkedNutritionistName');
+function renderConnectionPanel() { return; }
 
-  setTextContent(
-    document.getElementById('patientConnectionTitle'),
-    isDisconnected ? 'Conecte sua conta ao nutricionista' : 'Seu vinculo com o nutricionista',
-  );
-  setTextContent(
-    document.getElementById('patientConnectionDescription'),
-    isDisconnected
-      ? 'Informe o e-mail do profissional e complete seus dados basicos para liberar dashboard, chat e plano alimentar.'
-      : 'Seu acompanhamento esta conectado. Se precisar reconfirmar o vinculo, use o mesmo e-mail do profissional abaixo.',
-  );
-
-  if (statusElement) {
-    statusElement.textContent = isDisconnected ? 'Aguardando vinculo' : 'Conta conectada';
-    statusElement.className = isDisconnected
-      ? 'rounded-full bg-[#fdf6e7] px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-[#916a12]'
-      : 'rounded-full bg-[#eef6e8] px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-nutriflow-700';
-  }
-
-  setTextContent(
-    linkedNameElement,
-    nutritionist ? `Nutricionista: ${nutritionist.name}` : 'Nenhum nutricionista conectado',
-  );
-
-  if (patientNutritionistEmail && !patientNutritionistEmail.value && nutritionist?.email) {
-    patientNutritionistEmail.value = nutritionist.email;
-  }
-
-  if (patientConnectionObjective && !patientConnectionObjective.value && patient.objective) {
-    patientConnectionObjective.value = patient.objective;
-  }
-
-  setInteractionsEnabled(!isDisconnected);
-
-  if (patientConnectionSubmitButton) {
-    patientConnectionSubmitButton.disabled = state.isLinkingNutritionist;
-    patientConnectionSubmitButton.textContent = state.isLinkingNutritionist
-      ? 'Conectando...'
-      : (isDisconnected ? 'Conectar ao nutricionista' : 'Atualizar vinculo');
-  }
-}
-
-function renderSidebar() {
-  const overview = state.dashboard?.overview;
-  const clinical = state.dashboard?.clinical;
-  const nutritionist = getNutritionistData();
-  const mealCount = state.dashboard?.meals?.length || 0;
-  const dailyMealTarget = getDailyMealTarget();
-  const remainingMeals = Math.max(0, dailyMealTarget - mealCount);
-  const adherencePercent = overview?.adherencePercent || 0;
-  const nutritionistName = nutritionist.name || 'seu nutricionista';
-
-  const statusLabel = adherencePercent >= 85
-    ? 'boa aderencia'
-    : adherencePercent >= 60
-      ? 'aderencia estavel'
-      : 'espaco para melhorar a consistencia';
-  const remainingText = dailyMealTarget <= 0
-    ? 'Assim que seu plano alimentar estiver configurado, a meta de refeicoes aparece aqui'
-    : remainingMeals > 0
-    ? `Faltam ${pluralize(remainingMeals, 'refeicao', 'refeicoes')}`
-    : 'Suas refeicoes principais de hoje ja foram registradas';
-
-  setTextContent(
-    document.getElementById('sidebarStatusText'),
-    `Seu plano de hoje esta com ${statusLabel}. ${remainingText} e seu check-in com ${nutritionistName}.`,
-  );
-
-  if (clinical?.nextAppointment) {
-    setTextContent(
-      document.getElementById('sidebarAppointmentMeta'),
-      `${clinical.nextAppointment.dateLabel} com ${nutritionistName}`,
-    );
-    setTextContent(
-      document.getElementById('sidebarAppointmentNote'),
-      clinical.nextAppointment.description,
-    );
-    return;
-  }
-
-  setTextContent(
-    document.getElementById('sidebarAppointmentMeta'),
-    `Sem consulta agendada com ${nutritionistName}`,
-  );
-  setTextContent(
-    document.getElementById('sidebarAppointmentNote'),
-    'Assim que um acompanhamento for marcado, os detalhes vao aparecer aqui.',
-  );
-}
+function renderSidebar() { return; }
 
 function renderWeeklyBars(items) {
   const container = document.getElementById('weeklyCaloriesChart');
@@ -719,30 +1034,31 @@ function renderPlan() {
 
 function renderWeightChart(labels, values) {
   const svg = document.getElementById('weightChart');
+  const labelsContainer = document.getElementById('weightChartLabels');
 
-  if (!svg) {
-    return;
-  }
+  if (!svg) return;
 
   if (!values?.length) {
-    svg.innerHTML = '<text x="160" y="90" text-anchor="middle" fill="#7a8d70" font-size="13">Sem historico de peso suficiente</text>';
+    svg.innerHTML = '<text x="160" y="90" text-anchor="middle" fill="#7a8d70" font-size="13">Sem histórico de peso suficiente</text>';
     return;
   }
 
-  const maxValue = Math.max(...values) + 0.6;
-  const minValue = Math.min(...values) - 0.6;
+  const maxValue = Math.max(...values) + 1;
+  const minValue = Math.min(...values) - 1;
   const chartWidth = 280;
   const chartHeight = 112;
   const startX = 20;
   const endX = 300;
   const baseY = 150;
   const stepX = values.length > 1 ? chartWidth / (values.length - 1) : 0;
+  
   const points = values.map((value, index) => {
     const x = startX + (stepX * index);
     const progress = (value - minValue) / (maxValue - minValue || 1);
     const y = baseY - (progress * chartHeight);
     return { x, y, value };
   });
+
   const line = points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ');
   const area = `${line} L ${endX} ${baseY} L ${startX} ${baseY} Z`;
 
@@ -760,14 +1076,15 @@ function renderWeightChart(labels, values) {
       <line x1="12" y1="146" x2="308" y2="146"></line>
     </g>
     <path d="${area}" fill="url(#patientWeightGradient)"></path>
-    <path d="${line}" class="weight-chart-line"></path>
-    ${points.map((point) => `<circle cx="${point.x}" cy="${point.y}" r="4" fill="#4f6b3d"></circle>`).join('')}
+    <path d="${line}" class="weight-chart-line" fill="none" stroke="#4f6b3d" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
+    ${points.map(p => `
+      <circle cx="${p.x}" cy="${p.y}" r="5" fill="#4f6b3d"></circle>
+      <text x="${p.x}" y="${p.y - 12}" text-anchor="middle" font-size="11" fill="#1c2618" font-weight="800">${p.value}kg</text>
+    `).join('')}
   `;
 
-  const labelsContainer = document.getElementById('weightChartLabels');
-
   if (labelsContainer) {
-    labelsContainer.innerHTML = labels.map((label) => `<span>${escapeHtml(label)}</span>`).join('');
+    labelsContainer.innerHTML = labels.map(label => `<span>${escapeHtml(label)}</span>`).join('');
   }
 }
 
@@ -974,7 +1291,7 @@ function syncPatientRealtimeAvailability() {
 }
 
 function setMealButtonsLoading(isLoading) {
-  const label = isLoading ? 'Registrando...' : 'Adicionar lanche';
+  const label = isLoading ? 'Registrando...' : 'Nova refeicao';
   const quickLabel = isLoading ? 'Registrando...' : 'Nova refeicao';
 
   [addMealButton, quickAddMealButton].forEach((button) => {
@@ -990,11 +1307,29 @@ function setMealButtonsLoading(isLoading) {
   if (quickAddMealButton) {
     quickAddMealButton.textContent = quickLabel;
   }
+
+  setMealFormLoading(isLoading);
 }
 
-async function handleAddMeal() {
+function handleAddMeal(options = {}) {
   if (isSetupRequired()) {
     showToast('Conecte sua conta a um nutricionista antes de registrar refeicoes.');
+    return;
+  }
+
+  if (state.isAddingMeal || !mealEntryModal) {
+    return;
+  }
+
+  openMealEntryModal(options);
+}
+
+async function handleMealFormSubmit(event) {
+  event.preventDefault();
+
+  if (isSetupRequired()) {
+    showToast('Conecte sua conta a um nutricionista antes de registrar refeicoes.');
+    closeMealEntryModal({ resetForm: true });
     return;
   }
 
@@ -1002,18 +1337,79 @@ async function handleAddMeal() {
     return;
   }
 
+  const payload = getMealPayloadFromForm();
+  const validationMessage = validateMealPayload(payload);
+
+  if (validationMessage) {
+    setMealFormError(validationMessage);
+    return;
+  }
+
   state.isAddingMeal = true;
   setMealButtonsLoading(true);
+  setMealFormError('');
 
   try {
-    const result = await createMealEntry();
+    const result = await createMealEntry(payload);
     await refreshDashboard();
+    closeMealEntryModal({ resetForm: true });
     showToast(result.message || 'Refeicao registrada com sucesso.');
   } catch (error) {
-    showToast(error.message || 'Nao foi possivel registrar a refeicao.');
+    setMealFormError(error.message || 'Nao foi possivel registrar a refeicao.');
   } finally {
     state.isAddingMeal = false;
     setMealButtonsLoading(false);
+  }
+}
+
+function handleAddWeeklyWeight() {
+  if (isSetupRequired()) {
+    showToast('Conecte sua conta a um nutricionista antes de registrar peso.');
+    return;
+  }
+
+  if (state.isSavingWeeklyWeight || !weightEntryModal) {
+    return;
+  }
+
+  openWeightEntryModal();
+}
+
+async function handleWeightFormSubmit(event) {
+  event.preventDefault();
+
+  if (isSetupRequired()) {
+    showToast('Conecte sua conta a um nutricionista antes de registrar peso.');
+    closeWeightEntryModal({ resetForm: true });
+    return;
+  }
+
+  if (state.isSavingWeeklyWeight) {
+    return;
+  }
+
+  const payload = getWeeklyWeightPayloadFromForm();
+  const validationMessage = validateWeeklyWeightPayload(payload);
+
+  if (validationMessage) {
+    setWeightFormError(validationMessage);
+    return;
+  }
+
+  state.isSavingWeeklyWeight = true;
+  setWeightFormLoading(true);
+  setWeightFormError('');
+
+  try {
+    const result = await createWeeklyWeightEntry(payload);
+    await refreshDashboard();
+    closeWeightEntryModal({ resetForm: true });
+    showToast(result.message || 'Peso semanal registrado com sucesso.');
+  } catch (error) {
+    setWeightFormError(error.message || 'Nao foi possivel salvar seu peso semanal.');
+  } finally {
+    state.isSavingWeeklyWeight = false;
+    setWeightFormLoading(false);
   }
 }
 
@@ -1123,12 +1519,81 @@ function bindNavigationState() {
   });
 }
 
+function bindMealModalEvents() {
+  mealEntryForm?.addEventListener('submit', handleMealFormSubmit);
+
+  mealEntryForm?.addEventListener('input', () => {
+    if (!state.isAddingMeal) {
+      setMealFormError('');
+    }
+  });
+
+  document.querySelectorAll('[data-close-meal-modal]').forEach((button) => {
+    button.addEventListener('click', () => {
+      if (!state.isAddingMeal) {
+        closeMealEntryModal({ resetForm: false });
+      }
+    });
+  });
+
+  document.querySelectorAll('[data-meal-template]').forEach((button) => {
+    button.addEventListener('click', () => {
+      applyMealTemplate(button.dataset.mealTemplate);
+    });
+  });
+
+  mealEntryModal?.addEventListener('click', (event) => {
+    if (event.target === mealEntryModal && !state.isAddingMeal) {
+      closeMealEntryModal({ resetForm: false });
+    }
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && mealEntryModal && !mealEntryModal.classList.contains('hidden') && !state.isAddingMeal) {
+      closeMealEntryModal({ resetForm: false });
+    }
+  });
+}
+
+function bindWeightModalEvents() {
+  weightEntryForm?.addEventListener('submit', handleWeightFormSubmit);
+
+  weightEntryForm?.addEventListener('input', () => {
+    if (!state.isSavingWeeklyWeight) {
+      setWeightFormError('');
+    }
+  });
+
+  document.querySelectorAll('[data-close-weight-modal]').forEach((button) => {
+    button.addEventListener('click', () => {
+      if (!state.isSavingWeeklyWeight) {
+        closeWeightEntryModal({ resetForm: false });
+      }
+    });
+  });
+
+  weightEntryModal?.addEventListener('click', (event) => {
+    if (event.target === weightEntryModal && !state.isSavingWeeklyWeight) {
+      closeWeightEntryModal({ resetForm: false });
+    }
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && weightEntryModal && !weightEntryModal.classList.contains('hidden') && !state.isSavingWeeklyWeight) {
+      closeWeightEntryModal({ resetForm: false });
+    }
+  });
+}
+
 function bindEvents() {
   logoutButton?.addEventListener('click', clearSessionAndRedirect);
-  addMealButton?.addEventListener('click', handleAddMeal);
-  quickAddMealButton?.addEventListener('click', handleAddMeal);
+  addMealButton?.addEventListener('click', () => handleAddMeal());
+  quickAddMealButton?.addEventListener('click', () => handleAddMeal({ templateKey: 'lanche-rapido' }));
+  addWeeklyWeightButton?.addEventListener('click', handleAddWeeklyWeight);
   chatForm?.addEventListener('submit', handleChatSubmit);
   patientConnectionForm?.addEventListener('submit', handleNutritionistLink);
+  bindMealModalEvents();
+  bindWeightModalEvents();
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) {
       void syncPatientRealtimeChat({ forceRender: true });
@@ -1155,6 +1620,70 @@ async function init() {
   } catch (error) {
     showToast(error.message || 'Nao foi possivel carregar o dashboard do paciente.');
   }
+}
+
+// --- FUNÇÕES DO CHAT FLUTUANTE ---
+function toggleChat() {
+  const chat = document.getElementById('floatingChat');
+  if (chat.classList.contains('chat-hidden')) {
+    chat.classList.remove('chat-hidden');
+    chat.classList.add('chat-visible');
+    // Rola para o final quando abre
+    const msgs = document.getElementById('chatMessages');
+    if(msgs) msgs.scrollTop = msgs.scrollHeight;
+  } else {
+    chat.classList.add('chat-hidden');
+    chat.classList.remove('chat-visible');
+  }
+}
+
+// --- FUNÇÕES DO PERFIL DO PACIENTE ---
+function openPatientSettingsModal() {
+  const patient = getPatientData();
+  document.getElementById('profileNameInput').value = patient.name || '';
+  document.getElementById('profileAgeInput').value = patient.age || '';
+  document.getElementById('profileWeightInput').value = patient.weight || '';
+  document.getElementById('profileHeightInput').value = patient.height || '';
+  document.getElementById('profileObjectiveInput').value = patient.objective || '';
+  document.getElementById('profileRestrictionsInput').value = patient.restrictions || '';
+
+  const modal = document.getElementById('patientSettingsModal');
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+  document.body.classList.add('modal-open');
+}
+
+function closePatientSettingsModal() {
+  const modal = document.getElementById('patientSettingsModal');
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+  document.body.classList.remove('modal-open');
+}
+
+function handlePatientSettingsSubmit(e) {
+  e.preventDefault();
+  const btn = document.getElementById('profileSubmitBtn');
+  btn.textContent = 'Salvando...';
+
+  // Simula o salvamento e atualiza os dados na tela visualmente
+  setTimeout(() => {
+    const updatedData = {
+      ...state.currentUser,
+      name: document.getElementById('profileNameInput').value,
+      age: document.getElementById('profileAgeInput').value,
+      weight: document.getElementById('profileWeightInput').value,
+      height: document.getElementById('profileHeightInput').value,
+      objective: document.getElementById('profileObjectiveInput').value,
+      restrictions: document.getElementById('profileRestrictionsInput').value,
+    };
+    
+    persistCurrentUser(updatedData);
+    renderHeader();
+    renderHighlights(); // Atualiza na barra lateral
+    showToast('Perfil atualizado com sucesso!');
+    closePatientSettingsModal();
+    btn.textContent = 'Salvar Perfil';
+  }, 500);
 }
 
 init();

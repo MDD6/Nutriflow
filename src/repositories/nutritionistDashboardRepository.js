@@ -437,82 +437,23 @@ class NutritionistDashboardRepository {
         managedPatients: {
           include: {
             user: true,
-            mealPlans: {
-              orderBy: { createdAt: 'desc' },
-            },
-            assessments: {
-              orderBy: { date: 'desc' },
-            },
-            messages: {
-              orderBy: { sentAt: 'desc' },
-            },
-            appointments: {
-              orderBy: { scheduledAt: 'asc' },
-            },
-            progressSnapshots: {
-              orderBy: { recordedAt: 'asc' },
-            },
+            mealPlans: { orderBy: { createdAt: 'desc' } },
+            assessments: { orderBy: { date: 'desc' } },
+            messages: { orderBy: { sentAt: 'desc' } },
+            appointments: { orderBy: { scheduledAt: 'asc' } },
+            progressSnapshots: { orderBy: { recordedAt: 'asc' } },
+            // AQUI ESTÁ A NOVIDADE: Buscando as refeições reais do paciente!
+            mealEntries: { orderBy: { loggedAt: 'desc' }, take: 15 },
             challengeLinks: {
-              include: {
-                challenge: true,
-              },
+              include: { challenge: true },
             },
           },
         },
-        mealPlans: {
-          include: {
-            patientProfile: {
-              include: {
-                user: true,
-              },
-            },
-          },
-          orderBy: { createdAt: 'desc' },
-        },
-        assessments: {
-          include: {
-            patientProfile: {
-              include: {
-                user: true,
-              },
-            },
-          },
-          orderBy: { date: 'desc' },
-        },
-        messages: {
-          include: {
-            patientProfile: {
-              include: {
-                user: true,
-              },
-            },
-          },
-          orderBy: { sentAt: 'desc' },
-        },
-        appointments: {
-          include: {
-            patientProfile: {
-              include: {
-                user: true,
-              },
-            },
-          },
-          orderBy: { scheduledAt: 'asc' },
-        },
-        challenges: {
-          include: {
-            participants: {
-              include: {
-                patientProfile: {
-                  include: {
-                    user: true,
-                  },
-                },
-              },
-            },
-          },
-          orderBy: { createdAt: 'desc' },
-        },
+        mealPlans: { include: { patientProfile: { include: { user: true } } }, orderBy: { createdAt: 'desc' } },
+        assessments: { include: { patientProfile: { include: { user: true } } }, orderBy: { date: 'desc' } },
+        messages: { include: { patientProfile: { include: { user: true } } }, orderBy: { sentAt: 'desc' } },
+        appointments: { include: { patientProfile: { include: { user: true } } }, orderBy: { scheduledAt: 'asc' } },
+        challenges: { include: { participants: { include: { patientProfile: { include: { user: true } } } } }, orderBy: { createdAt: 'desc' } },
       },
     });
   }
@@ -712,6 +653,39 @@ class NutritionistDashboardRepository {
       });
     });
   }
+  // --- COLE ISSO DENTRO DA CLASSE, NO FINAL ---
+  createAppointment(data) {
+    return this.prisma.appointment.create({
+      data: {
+        patientProfileId: data.patientProfileId,
+        nutritionistId: data.nutritionistId,
+        scheduledAt: data.scheduledAt,
+        type: data.type,
+        status: data.status,
+      }
+    });
+  }
+
+  addChallengeParticipant(challengeId, patientProfileId) {
+    return this.prisma.challengeParticipant.create({
+      data: { challengeId, patientProfileId, progress: 0 }
+    });
+  }
+
+  async deleteResourceById(resourceType, id) {
+    // Permite excluir qualquer um baseado na rota
+    switch (resourceType) {
+      case 'meal-plans': return this.prisma.mealPlan.delete({ where: { id } });
+      case 'assessments': return this.prisma.assessment.delete({ where: { id } });
+      case 'appointments': return this.prisma.appointment.delete({ where: { id } });
+      case 'challenges': 
+        // Exclui participantes primeiro por causa da chave estrangeira
+        await this.prisma.challengeParticipant.deleteMany({ where: { challengeId: id } });
+        return this.prisma.nutritionChallenge.delete({ where: { id } });
+      default: throw new Error('Recurso inválido para exclusão.');
+    }
+  }
+  // --------------------------------------------
 }
 
 module.exports = {

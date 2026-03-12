@@ -22,6 +22,12 @@ class PatientDashboardController {
     response.status(201).json(result);
   }
 
+  async createWeeklyWeightEntry(request, response) {
+    const patient = await this.sessionService.requirePatient(request);
+    const result = await this.patientDashboardService.createWeeklyWeightEntry(patient, request.body || {});
+    response.status(201).json(result);
+  }
+
   async linkNutritionist(request, response) {
     const patient = await this.sessionService.requirePatient(request);
     const result = await this.patientDashboardService.linkNutritionist(patient, request.body || {});

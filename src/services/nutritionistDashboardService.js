@@ -352,6 +352,42 @@ class NutritionistDashboardService {
     };
   }
 
+  // --- COLE ISSO DENTRO DA CLASSE, ANTES DO toDashboardDto ---
+
+  async createAppointment(nutritionist, payload) {
+    const patientProfileId = String(payload.patientId || '').trim();
+    const type = String(payload.type || 'Consulta').trim();
+    const scheduledAt = new Date(payload.date);
+
+    if (!patientProfileId || Number.isNaN(scheduledAt.getTime())) {
+      throw new AppError('Informe o paciente e uma data válida para a consulta.', 400);
+    }
+
+    const appointment = await this.nutritionistDashboardRepository.createAppointment({
+      nutritionistId: nutritionist.id,
+      patientProfileId,
+      scheduledAt,
+      type,
+      status: 'Confirmado',
+    });
+
+    return { message: 'Consulta agendada com sucesso.', appointment };
+  }
+
+  async deleteResource(nutritionist, resourceType, id) {
+    await this.nutritionistDashboardRepository.deleteResourceById(resourceType, id);
+    return { message: 'Item excluído com sucesso.' };
+  }
+
+  async addChallengeParticipant(nutritionist, challengeId, payload) {
+    const patientProfileId = String(payload.patientId || '').trim();
+    if (!patientProfileId) throw new AppError('Selecione um paciente.', 400);
+    
+    await this.nutritionistDashboardRepository.addChallengeParticipant(challengeId, patientProfileId);
+    return { message: 'Paciente adicionado ao desafio.' };
+  }
+  // -------------------------------------------------------------
+
   toDashboardDto(workspace) {
     const patientMessages = workspace.messages.filter((message) => message.senderRole === 'PATIENT');
     const patients = [...workspace.managedPatients]

@@ -4,6 +4,8 @@
   "description": "NutriFlow é uma plataforma digital de acompanhamento nutricional que conecta pacientes a nutricionistas",
   "main": "index.js",
   "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -17,5 +19,9 @@
   "bugs": {
     "url": "https://github.com/MDD6/Nutriflow/issues"
   },
-  "homepage": "https://github.com/MDD6/Nutriflow#readme"
+  "homepage": "https://github.com/MDD6/Nutriflow#readme",
+  "dependencies": {
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1"
+  }
 }

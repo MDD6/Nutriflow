@@ -1,125 +1,81 @@
-const http = require('http');
+// Configuração principal da aplicação
+
 const express = require('express');
-const { config } = require('./config');
-const { createPrismaClient } = require('./infra/database');
-const { AdminRepository } = require('./repositories/adminRepository');
-const { UserRepository } = require('./repositories/userRepository');
-const { NutritionistDashboardRepository } = require('./repositories/nutritionistDashboardRepository');
-const { PatientDashboardRepository } = require('./repositories/patientDashboardRepository');
-const { PasswordService } = require('./services/passwordService');
-const { TokenService } = require('./services/tokenService');
-const { AuthService } = require('./services/authService');
-const { SessionService } = require('./services/sessionService');
-const { AdminService } = require('./services/adminService');
-const { NutritionistDashboardService } = require('./services/nutritionistDashboardService');
-const { PatientDashboardService } = require('./services/patientDashboardService');
-const { AuthController } = require('./controllers/authController');
-const { AdminController } = require('./controllers/adminController');
-const { NutritionistDashboardController } = require('./controllers/nutritionistDashboardController');
-const { PatientDashboardController } = require('./controllers/patientDashboardController');
-const { createAuthRoutes } = require('./routes/authRoutes');
-const { createAdminRoutes } = require('./routes/adminRoutes');
-const { createNutritionistRoutes } = require('./routes/nutritionistRoutes');
-const { createPatientRoutes } = require('./routes/patientRoutes');
-const { errorHandler } = require('./middlewares/errorHandler');
+const path = require('path');
+const app = express();
 
-function createDependencies() {
-  const prisma = createPrismaClient(config.databaseUrl);
-  const adminRepository = new AdminRepository(prisma);
-  const userRepository = new UserRepository(prisma);
-  const nutritionistDashboardRepository = new NutritionistDashboardRepository(prisma);
-  const patientDashboardRepository = new PatientDashboardRepository(prisma);
-  const passwordService = new PasswordService();
-  const tokenService = new TokenService(config.tokenSecret);
-  const authService = new AuthService(userRepository, passwordService, tokenService);
-  const sessionService = new SessionService(tokenService, userRepository);
-  const adminService = new AdminService(adminRepository);
-  const nutritionistDashboardService = new NutritionistDashboardService(
-    nutritionistDashboardRepository,
-    userRepository,
-  );
-  const patientDashboardService = new PatientDashboardService(patientDashboardRepository, userRepository);
-  const authController = new AuthController(authService);
-  const adminController = new AdminController(sessionService, adminService);
-  const nutritionistDashboardController = new NutritionistDashboardController(
-    sessionService,
-    nutritionistDashboardService,
-  );
-  const patientDashboardController = new PatientDashboardController(
-    sessionService,
-    patientDashboardService,
-  );
-
-  return {
-    prisma,
-    authController,
-    adminController,
-    nutritionistDashboardController,
-    patientDashboardController,
-  };
-}
-
-function createApp() {
-  const {
-    prisma,
-    authController,
-    adminController,
-    nutritionistDashboardController,
-    patientDashboardController,
-  } = createDependencies();
-
-  const expressApp = express();
-
-  expressApp.use((request, response, next) => {
-    response.setHeader('Access-Control-Allow-Origin', '*');
-    response.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    response.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
-
-    if (request.method === 'OPTIONS') {
-      response.sendStatus(204);
-      return;
+// Middlewares
+app.use(express.json());
+app.use(express.static(path.join(__dirname, '../public'), { 
+  setHeaders: (res, filePath) => {
+    // Permitir acesso aos arquivos estáticos
+    if (filePath.endsWith('.css')) {
+      res.setHeader('Content-Type', 'text/css');
+    } else if (filePath.endsWith('.js')) {
+      res.setHeader('Content-Type', 'application/javascript');
     }
-
-    next();
-  });
-
-  expressApp.use(express.json({ limit: '1mb' }));
-
-  expressApp.use('/api/auth', createAuthRoutes(authController));
-  expressApp.use('/api/patient', createPatientRoutes(patientDashboardController));
-  expressApp.use('/api/nutritionist', createNutritionistRoutes(nutritionistDashboardController));
-  expressApp.use('/api/admin', createAdminRoutes(adminController));
-  expressApp.use(express.static(config.frontendDir));
-
-  expressApp.use('/api', (request, response) => {
-    response.status(404).json({
-      message: 'Rota nao encontrada.',
-    });
-  });
-
-  expressApp.use(errorHandler);
-
-  const server = http.createServer(expressApp);
-
-  async function shutdown() {
-    await prisma.$disconnect();
-    process.exit(0);
   }
+}));
 
-  function start() {
-    server.listen(config.port, config.host, () => {
-      console.log(`Nutriflow iniciado em http://${config.host}:${config.port}`);
+// Rota raiz - Home (servir página inicial)
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/home/index.html'));
+});
+
+// API Routes
+app.post('/api/auth/login', (req, res) => {
+  const { email, password } = req.body;
+  
+  // Validação básica
+  if (!email || !password) {
+    return res.status(400).json({ message: 'Email e senha são obrigatórios' });
+  }
+  
+  // Simulação de autenticação (substituir com banco de dados)
+  if (email === 'test@nutriflow.com' && password === 'password123') {
+    return res.json({ 
+      token: 'token_' + Date.now(),
+      user: { id: 1, email, name: 'Usuário Teste' }
     });
   }
+  
+  res.status(401).json({ message: 'Email ou senha incorretos' });
+});
 
-  process.on('SIGINT', shutdown);
-  process.on('SIGTERM', shutdown);
+app.post('/api/auth/register', (req, res) => {
+  const { name, email, password, profile } = req.body;
+  
+  if (!name || !email || !password || !profile) {
+    return res.status(400).json({ message: 'Dados incompletos' });
+  }
+  
+  // Simulação de registro (substituir com banco de dados)
+  res.json({ 
+    token: 'token_' + Date.now(),
+    user: { id: Date.now(), name, email, profile }
+  });
+});
 
-  return {
-    start,
-  };
-}
+app.post('/api/contact', (req, res) => {
+  const { name, email, message } = req.body;
+  
+  if (!name || !email || !message) {
+    return res.status(400).json({ message: 'Dados incompletos' });
+  }
+  
+  // Simulação de contato
+  console.log('📧 Novo contato:', { name, email, message });
+  res.json({ message: 'Mensagem recebida com sucesso' });
+});
 
-module.exports = {
-  createApp,
-};
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ status: 'OK', environment: process.env.NODE_ENV || 'development' });
+});
+
+// Tratamento de erros 404
+app.use((req, res) => {
+  res.status(404).json({ error: 'Rota não encontrada' });
+});
+
+module.exports = app;

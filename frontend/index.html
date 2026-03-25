@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NutriFlow — Nutrição inteligente para sua rotina</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            nutriflow: {
+              50: '#f3f7f1',
+              100: '#e5eedf',
+              200: '#cadbbf',
+              300: '#a8c297',
+              400: '#85a96f',
+              500: '#6f9656',
+              600: '#5f8249',
+              700: '#4f6b3d',
+              800: '#425734',
+              900: '#37482d',
+              950: '#1c2618'
+            }
+          },
+          boxShadow: {
+            soft: '0 20px 60px rgba(28,38,24,.10)',
+            card: '0 18px 40px rgba(28,38,24,.08)'
+          },
+          borderRadius: {
+            xl2: '28px',
+            xl3: '34px'
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="bg-[#edf2e9] text-nutriflow-950 font-sans">
+  <div class="landing-shell mx-auto my-6 w-[min(100%-24px,1400px)] overflow-hidden rounded-[36px] border border-white/70 bg-white/70 shadow-soft backdrop-blur-md md:my-8 md:w-[min(100%-48px,1400px)]">
+    <header class="flex flex-wrap items-center justify-between gap-4 bg-white/80 px-5 py-5 md:px-8">
+      <a href="#" class="flex items-center gap-3">
+        <span class="grid h-10 w-10 place-items-center rounded-full bg-gradient-to-br from-nutriflow-500 to-nutriflow-700 shadow-lg shadow-nutriflow-900/20">
+          <span class="inline-block h-4 w-4 rounded-full bg-white"></span>
+        </span>
+        <div>
+          <p class="text-lg font-extrabold tracking-[-0.04em] md:text-2xl">NutriFlow</p>
+          <p class="text-xs text-nutriflow-700">Saúde, metas e nutrição em fluxo</p>
+        </div>
+      </a>
+
+      <nav class="hidden items-center gap-2 lg:flex">
+        <a class="landing-nav-link rounded-full px-4 py-2 text-sm font-medium text-nutriflow-800 transition hover:bg-nutriflow-100" href="#sobre">Sobre</a>
+        <a class="landing-nav-link rounded-full px-4 py-2 text-sm font-medium text-nutriflow-800 transition hover:bg-nutriflow-100" href="#beneficios">Benefícios</a>
+        <a class="landing-nav-link rounded-full px-4 py-2 text-sm font-medium text-nutriflow-800 transition hover:bg-nutriflow-100" href="#recursos">Recursos</a>
+        <a class="landing-nav-link rounded-full px-4 py-2 text-sm font-medium text-nutriflow-800 transition hover:bg-nutriflow-100" href="#dashboard">Dashboard</a>
+        <a class="landing-nav-link rounded-full px-4 py-2 text-sm font-medium text-nutriflow-800 transition hover:bg-nutriflow-100" href="#contato">Contato</a>
+      </nav>
+
+      <div class="flex items-center gap-3">
+        <button data-open-auth="login" class="rounded-full border border-nutriflow-200 bg-white px-5 py-3 text-sm font-semibold text-nutriflow-900 transition hover:-translate-y-0.5 hover:shadow-card">Entrar</button>
+        <button data-open-auth="register" class="rounded-full bg-nutriflow-950 px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-nutriflow-800">Criar conta</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="landing-hero mx-3 mt-3 overflow-hidden rounded-[32px] bg-gradient-to-br from-nutriflow-500 via-nutriflow-500 to-nutriflow-700 px-6 pb-8 pt-8 text-white md:mx-6 md:px-10 md:pb-10 md:pt-10 lg:grid lg:min-h-[760px] lg:grid-cols-[1.05fr_.95fr] lg:items-center lg:px-12 xl:px-16">
+        <div class="relative z-10 max-w-3xl pb-8 lg:pb-20">
+          <span class="inline-flex rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white/90 backdrop-blur">Plataforma completa de nutrição</span>
+          <h1 class="mt-6 max-w-4xl text-5xl font-extrabold leading-[0.95] tracking-[-0.08em] md:text-7xl xl:text-[88px]">
+            Alimentação inteligente para resultados reais.
+          </h1>
+          <p class="mt-6 max-w-2xl text-base leading-8 text-white/85 md:text-lg">
+            O NutriFlow conecta rotina alimentar, metas, evolução física e acompanhamento profissional em uma experiência moderna, clara e envolvente para pacientes e nutricionistas.
+          </p>
+          <div class="mt-8 flex flex-wrap gap-4">
+            <button data-open-auth="register" class="rounded-full bg-white px-6 py-4 text-sm font-bold text-nutriflow-950 shadow-lg shadow-black/10 transition hover:-translate-y-0.5">Criar minha conta</button>
+            <button data-open-auth="login" class="rounded-full border border-white/20 bg-white/10 px-6 py-4 text-sm font-bold text-white backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/15">Acessar login</button>
+          </div>
+
+          <div class="trust-strip mt-8">
+            <div class="trust-pill">
+              <span class="trust-pill-dot"></span>
+              <span><strong>86%</strong> aderencia media em jornadas ativas</span>
+            </div>
+            <div class="trust-pill">
+              <span class="trust-pill-dot"></span>
+              <span><strong>1 painel</strong> para paciente, nutricionista e clinica</span>
+            </div>
+            <div class="trust-pill">
+              <span class="trust-pill-dot"></span>
+              <span><strong>Pronto para API</strong> com Node.js e Prisma</span>
+            </div>
+          </div>
+
+          <div class="mt-10 flex flex-wrap items-end justify-between gap-8">
+            <div>
+              <p class="text-sm text-white/75">Acompanhamento com clareza, metas e constância.</p>
+              <div class="mt-3 flex items-center">
+                <span class="avatar-dot bg-[linear-gradient(135deg,#f2dfcf,#c68764)]"></span>
+                <span class="avatar-dot -ml-2 bg-[linear-gradient(135deg,#e2f2d6,#78a35d)]"></span>
+                <span class="avatar-dot -ml-2 bg-[linear-gradient(135deg,#e6dbf5,#8c73c0)]"></span>
+                <span class="ml-4 text-sm font-medium text-white/90">+2.000 usuários acompanhando sua evolução</span>
+              </div>
+            </div>
+            <div class="flex gap-4 text-sm text-white/80">
+              <span>Planos alimentares</span>
+              <span>Metas</span>
+              <span>Dashboard</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="relative mt-10 flex min-h-[520px] items-end justify-center lg:mt-0">
+          <div class="hero-glow"></div>
+          <div class="hero-stage">
+            <div class="hero-metric-card is-top">
+              <p>Planos em execucao</p>
+              <strong>248</strong>
+              <span>Pacientes acompanhando rotinas alimentares com progresso semanal visivel.</span>
+            </div>
+            <div class="hero-metric-card is-dark is-bottom">
+              <p>Fluxo do produto</p>
+              <strong>Paciente + Nutri</strong>
+              <span>Cadastro, vinculo, dashboard e acompanhamento em um unico sistema.</span>
+            </div>
+            <div class="hero-person">
+              <div class="hero-ponytail"></div>
+              <div class="hero-arm hero-arm-left"></div>
+              <div class="hero-arm hero-arm-right"></div>
+              <div class="hero-body"></div>
+              <div class="hero-head">
+                <div class="hero-hair"></div>
+              </div>
+              <div class="hero-salad"></div>
+              <div class="hero-bowl"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="sobre" class="px-5 pb-4 pt-10 md:px-8 lg:px-12 lg:pt-14">
+        <div class="grid gap-6 lg:grid-cols-[220px_1fr] lg:items-start">
+          <div>
+            <span class="inline-flex rounded-full border border-nutriflow-200 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-nutriflow-700">Sobre o NutriFlow</span>
+          </div>
+          <div>
+            <h2 class="max-w-4xl text-3xl font-bold leading-tight tracking-[-0.06em] md:text-5xl">No NutriFlow, nutrição, organização e acompanhamento trabalham juntos para transformar hábitos.</h2>
+            <p class="mt-4 max-w-4xl text-base leading-8 text-nutriflow-700 md:text-lg">Uma landing page inspirada em visual premium, com foco em posicionamento profissional, apresentação clara do produto e experiência forte para converter pacientes, nutricionistas e clínicas.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="beneficios" class="px-5 pb-8 pt-4 md:px-8 lg:px-12">
+        <div class="role-grid mb-10 lg:grid-cols-3">
+          <article class="role-card">
+            <span class="role-label">Paciente</span>
+            <h3 class="mt-5 text-2xl font-bold tracking-[-0.05em] text-nutriflow-950">Um painel claro para registrar refeicoes, acompanhar metas e conversar com o nutricionista.</h3>
+            <p class="mt-3 text-sm leading-7 text-nutriflow-700">A jornada do paciente fica mais simples, com menos friccao para seguir plano, entender progresso e manter constancia.</p>
+          </article>
+          <article class="role-card">
+            <span class="role-label">Nutricionista</span>
+            <h3 class="mt-5 text-2xl font-bold tracking-[-0.05em] text-nutriflow-950">Gestao de carteira, planos, avaliacoes e mensagens em um workspace unico.</h3>
+            <p class="mt-3 text-sm leading-7 text-nutriflow-700">O profissional visualiza pacientes, identifica riscos e atua em cima da adesao sem perder contexto clinico.</p>
+          </article>
+          <article class="role-card">
+            <span class="role-label">Administrador</span>
+            <h3 class="mt-5 text-2xl font-bold tracking-[-0.05em] text-nutriflow-950">Controle central da plataforma para usuarios, alimentos e metricas operacionais.</h3>
+            <p class="mt-3 text-sm leading-7 text-nutriflow-700">A camada administrativa consolida governanca, moderacao de contas e manutencao da base nutricional em um unico painel.</p>
+          </article>
+        </div>
+
+        <div class="grid gap-5 lg:grid-cols-[1.05fr_1fr_.9fr]">
+          <article class="overflow-hidden rounded-[28px] bg-[#082449] p-7 text-white shadow-card">
+            <div class="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 text-sm font-bold tracking-[0.18em]">NF</div>
+            <h3 class="text-3xl font-semibold leading-tight tracking-[-0.05em]">Rotina alimentar organizada com foco em constância e evolução.</h3>
+            <p class="mt-4 text-base leading-8 text-white/75">Registre refeições, acompanhe horários, entenda seus macros e visualize seu progresso com uma interface elegante e intuitiva.</p>
+            <div class="mt-8 flex items-center gap-3 text-sm text-white/90">
+              <span class="relative block h-7 w-12 rounded-full bg-white/15 after:absolute after:left-1 after:top-1 after:h-5 after:w-5 after:rounded-full after:bg-cyan-400 after:content-['']"></span>
+              Modo foco ativo
+            </div>
+          </article>
+
+          <article class="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-sky-400 to-blue-600 shadow-card">
+            <div class="coach-visual">
+              <div class="coach-body"></div>
+              <div class="coach-head"></div>
+              <div class="coach-arm"></div>
+              <div class="coach-mat"></div>
+            </div>
+            <div class="absolute left-6 top-6 rounded-full border border-white/30 bg-white/20 px-4 py-2 text-sm font-medium text-white backdrop-blur">Planos e acompanhamento</div>
+          </article>
+
+          <article class="rounded-[28px] bg-[#f7f8f3] p-7 shadow-card">
+            <h3 class="text-6xl font-semibold tracking-[-0.07em] text-nutriflow-950">100+</h3>
+            <p class="mt-2 text-xl font-semibold text-nutriflow-900">Nutricionistas e profissionais</p>
+            <p class="mt-3 text-sm leading-7 text-nutriflow-700">Estrutura pensada para atendimento individual, clínicas, acompanhamento por metas e gestão de pacientes.</p>
+            <div class="mt-8 space-y-4">
+              <div>
+                <div class="mb-2 flex items-center justify-between text-sm text-nutriflow-800"><span>Adesão ao plano</span><span>89%</span></div>
+                <div class="progress-bar"><span style="width:89%"></span></div>
+              </div>
+              <div>
+                <div class="mb-2 flex items-center justify-between text-sm text-nutriflow-800"><span>Rotina alimentar</span><span>76%</span></div>
+                <div class="progress-bar"><span style="width:76%"></span></div>
+              </div>
+              <div>
+                <div class="mb-2 flex items-center justify-between text-sm text-nutriflow-800"><span>Metas concluídas</span><span>68%</span></div>
+                <div class="progress-bar"><span style="width:68%"></span></div>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <div class="mt-10 grid grid-cols-2 gap-6 border-t border-nutriflow-200 pt-8 md:grid-cols-4">
+          <div>
+            <p class="text-4xl font-bold tracking-[-0.06em] text-nutriflow-950">12k+</p>
+            <p class="mt-2 text-sm leading-7 text-nutriflow-700">registros alimentares processados</p>
+          </div>
+          <div>
+            <p class="text-4xl font-bold tracking-[-0.06em] text-nutriflow-950">89%</p>
+            <p class="mt-2 text-sm leading-7 text-nutriflow-700">retenção de acompanhamento</p>
+          </div>
+          <div>
+            <p class="text-4xl font-bold tracking-[-0.06em] text-nutriflow-950">1.2k+</p>
+            <p class="mt-2 text-sm leading-7 text-nutriflow-700">usuários ativos em jornadas nutricionais</p>
+          </div>
+          <div>
+            <p class="text-4xl font-bold tracking-[-0.06em] text-nutriflow-950">125+</p>
+            <p class="mt-2 text-sm leading-7 text-nutriflow-700">planos alimentares personalizados</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="recursos" class="px-5 pb-8 pt-8 md:px-8 lg:px-12 lg:pt-14">
+        <div class="grid gap-8 lg:grid-cols-[.85fr_1.15fr] lg:items-start">
+          <div>
+            <span class="inline-flex rounded-full border border-nutriflow-200 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-nutriflow-700">Recursos</span>
+            <h2 class="mt-5 text-3xl font-bold leading-tight tracking-[-0.06em] md:text-5xl">Uma experiência completa para quem quer acompanhamento com visual moderno e usabilidade real.</h2>
+            <p class="mt-4 max-w-xl text-base leading-8 text-nutriflow-700">Do primeiro contato ao login, o NutriFlow apresenta valor, autoridade e praticidade em uma página pensada para produto digital de verdade.</p>
+            <a href="#contato" class="mt-8 inline-flex rounded-full bg-nutriflow-950 px-6 py-4 text-sm font-semibold text-white transition hover:-translate-y-0.5">Explorar mais</a>
+          </div>
+
+          <div class="grid gap-5 md:grid-cols-2">
+            <article class="overflow-hidden rounded-[28px] bg-white shadow-card">
+              <div class="h-64 bg-[radial-gradient(circle_at_30%_30%,rgba(255,255,255,.25),transparent_18%),linear-gradient(135deg,#d19366,#a85e34)] p-5">
+                <span class="rounded-full border border-white/30 bg-white/20 px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-white backdrop-blur">Plano alimentar</span>
+              </div>
+              <div class="p-6">
+                <h3 class="text-xl font-semibold tracking-[-0.04em] text-nutriflow-950">Programas desenhados para cada rotina.</h3>
+                <p class="mt-3 text-sm leading-7 text-nutriflow-700">Prescrição nutricional, metas, observações e acompanhamento contínuo em uma mesma jornada.</p>
+              </div>
+            </article>
+
+            <article class="overflow-hidden rounded-[28px] bg-white shadow-card">
+              <div class="h-48 bg-[radial-gradient(circle_at_70%_20%,rgba(255,255,255,.2),transparent_18%),linear-gradient(135deg,#c2cf73,#6f9656)] p-5">
+                <span class="rounded-full border border-white/30 bg-white/20 px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-white backdrop-blur">Registros</span>
+              </div>
+              <div class="p-6">
+                <h3 class="text-xl font-semibold tracking-[-0.04em] text-nutriflow-950">Registro alimentar por horário e refeição.</h3>
+                <p class="mt-3 text-sm leading-7 text-nutriflow-700">Visual leve e prático para lançar refeições e acompanhar calorias, proteína, carboidratos e gorduras.</p>
+              </div>
+            </article>
+
+            <article class="rounded-[28px] bg-white p-6 shadow-card">
+              <div class="mb-4 flex items-center gap-4">
+                <div class="grid h-14 w-14 place-items-center rounded-2xl bg-nutriflow-100 text-2xl">🥗</div>
+                <div>
+                  <h3 class="text-lg font-semibold text-nutriflow-950">Dashboard nutricional</h3>
+                  <p class="text-sm text-nutriflow-700">Dados claros e fáceis de interpretar.</p>
+                </div>
+              </div>
+              <p class="text-sm leading-7 text-nutriflow-700">Gráficos, indicadores e resumo diário para visualizar aderência, metas e progresso.</p>
+            </article>
+
+            <article class="rounded-[28px] bg-nutriflow-500 p-6 text-white shadow-card">
+              <h3 class="text-2xl font-semibold tracking-[-0.05em]">Login e acesso rápido</h3>
+              <p class="mt-3 text-sm leading-7 text-white/85">A landing já conversa com a entrada no sistema, reforçando fluxo profissional desde o primeiro clique.</p>
+              <button data-open-auth="login" class="mt-6 rounded-full bg-white px-5 py-3 text-sm font-semibold text-nutriflow-950 transition hover:-translate-y-0.5">Abrir login</button>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section id="dashboard" class="px-5 pb-10 pt-8 md:px-8 lg:px-12 lg:pt-10">
+        <div class="rounded-[30px] bg-white p-6 shadow-card md:p-8">
+          <div class="grid gap-8 lg:grid-cols-[.9fr_1.1fr] lg:items-center">
+            <div>
+              <span class="inline-flex rounded-full border border-nutriflow-200 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-nutriflow-700">Dashboard</span>
+              <h2 class="mt-5 text-3xl font-bold leading-tight tracking-[-0.06em] md:text-5xl">Visual premium, métricas úteis e experiência pronta para produto.</h2>
+              <p class="mt-4 max-w-xl text-base leading-8 text-nutriflow-700">A interface pode apresentar resumo diário, evolução semanal, adesão ao plano, metas e histórico alimentar com visual refinado e excelente hierarquia.</p>
+            </div>
+
+            <div class="grid gap-4 sm:grid-cols-2">
+              <div class="rounded-[24px] border border-nutriflow-100 bg-[#f8faf5] p-5">
+                <p class="text-sm font-medium text-nutriflow-700">Calorias hoje</p>
+                <p class="mt-3 text-4xl font-bold tracking-[-0.06em]">1.842</p>
+                <p class="mt-2 text-sm text-nutriflow-700">Meta diária: 2.000 kcal</p>
+              </div>
+              <div class="rounded-[24px] border border-nutriflow-100 bg-[#f8faf5] p-5">
+                <p class="text-sm font-medium text-nutriflow-700">Proteínas</p>
+                <p class="mt-3 text-4xl font-bold tracking-[-0.06em]">128g</p>
+                <p class="mt-2 text-sm text-nutriflow-700">Acompanhamento automático</p>
+              </div>
+              <div class="rounded-[24px] border border-nutriflow-100 bg-[#f8faf5] p-5 sm:col-span-2">
+                <div class="flex items-center justify-between gap-4">
+                  <div>
+                    <p class="text-sm font-medium text-nutriflow-700">Evolução semanal</p>
+                    <p class="mt-2 text-2xl font-semibold tracking-[-0.05em] text-nutriflow-950">Consistência alimentar em crescimento</p>
+                  </div>
+                  <span class="rounded-full bg-nutriflow-100 px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-nutriflow-700">+14%</span>
+                </div>
+                <div class="chart-bars mt-6">
+                  <span style="height:42%"></span>
+                  <span style="height:68%"></span>
+                  <span style="height:54%"></span>
+                  <span style="height:76%"></span>
+                  <span style="height:66%"></span>
+                  <span style="height:82%"></span>
+                  <span style="height:94%"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="contato" class="px-5 pb-12 pt-6 md:px-8 lg:px-12">
+        <div class="grid gap-8 rounded-[30px] bg-[#213126] px-6 py-8 text-white shadow-card md:px-8 lg:grid-cols-[1fr_.95fr] lg:items-center lg:px-10">
+          <div>
+            <span class="inline-flex rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-white/90">Pronto para lançar</span>
+            <h2 class="mt-5 text-3xl font-bold leading-tight tracking-[-0.06em] md:text-5xl">Crie uma presença forte para o NutriFlow com visual premium e foco em conversão.</h2>
+            <p class="mt-4 max-w-2xl text-base leading-8 text-white/75">Landing page inspirada na referência, com linguagem refinada, estrutura moderna, destaque visual e entrada para login do sistema.</p>
+            <div class="contact-stat-grid md:grid-cols-3">
+              <div class="contact-stat">
+                <strong>+12k</strong>
+                <span>registros alimentares mapeados na narrativa do produto</span>
+              </div>
+              <div class="contact-stat">
+                <strong>3 perfis</strong>
+                <span>estrutura de conta preparada para paciente, nutricionista e clinica</span>
+              </div>
+              <div class="contact-stat">
+                <strong>Prisma</strong>
+                <span>base pronta para evoluir de front premium para operacao real</span>
+              </div>
+            </div>
+          </div>
+
+          <form class="rounded-[26px] bg-white p-6 text-nutriflow-950" id="contactForm">
+            <div class="grid gap-4 md:grid-cols-2">
+              <label class="block">
+                <span class="mb-2 block text-sm font-medium">Nome</span>
+                <input class="w-full rounded-2xl border border-nutriflow-200 px-4 py-3 outline-none transition focus:border-nutriflow-500" type="text" placeholder="Seu nome" />
+              </label>
+              <label class="block">
+                <span class="mb-2 block text-sm font-medium">E-mail</span>
+                <input class="w-full rounded-2xl border border-nutriflow-200 px-4 py-3 outline-none transition focus:border-nutriflow-500" type="email" placeholder="voce@email.com" />
+              </label>
+            </div>
+            <label class="mt-4 block">
+              <span class="mb-2 block text-sm font-medium">Mensagem</span>
+              <textarea class="min-h-[130px] w-full rounded-2xl border border-nutriflow-200 px-4 py-3 outline-none transition focus:border-nutriflow-500" placeholder="Conte o que você deseja para o projeto"></textarea>
+            </label>
+            <button class="mt-5 rounded-full bg-nutriflow-950 px-6 py-4 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-nutriflow-800" type="submit">Solicitar apresentação</button>
+            <p id="contactMessage" class="mt-4 hidden text-sm font-medium text-nutriflow-700"></p>
+          </form>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="loginModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-[#0b130c]/60 px-4 backdrop-blur-sm">
+    <div class="relative w-full max-w-4xl overflow-hidden rounded-[30px] bg-white shadow-soft">
+      <button id="closeLogin" class="absolute right-4 top-4 z-20 grid h-10 w-10 place-items-center rounded-full bg-white/75 text-lg font-bold text-nutriflow-900 transition hover:bg-white">×</button>
+
+      <div class="auth-layout">
+        <aside class="auth-aside">
+          <span class="inline-flex rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-white/90">Conta NutriFlow</span>
+          <h3 class="mt-5 text-3xl font-bold leading-tight tracking-[-0.05em]">Seu plano alimentar no controle, em qualquer rotina.</h3>
+          <p class="mt-4 text-sm leading-7 text-white/80">Acesse suas metas, registros e evolução em um fluxo simples. Novo por aqui? Crie seu cadastro em menos de 1 minuto.</p>
+
+          <ul class="mt-8 space-y-3 text-sm text-white/90">
+            <li class="flex items-center gap-3"><span class="auth-dot"></span>Painel com metas e progresso diário</li>
+            <li class="flex items-center gap-3"><span class="auth-dot"></span>Registro de refeições com acompanhamento</li>
+            <li class="flex items-center gap-3"><span class="auth-dot"></span>Conexão com profissional de nutrição</li>
+          </ul>
+
+          <div class="auth-preview-grid">
+            <div class="auth-preview-card">
+              <strong>Paciente</strong>
+              <span>Metas, refeicoes, historico, plano e chat no mesmo fluxo.</span>
+            </div>
+            <div class="auth-preview-card">
+              <strong>Nutricionista</strong>
+              <span>Carteira de pacientes, agenda, mensagens e planos ativos.</span>
+            </div>
+            <div class="auth-preview-card">
+              <strong>Produto real</strong>
+              <span>Interface pronta para conectar com backend Node.js e Prisma.</span>
+            </div>
+          </div>
+        </aside>
+
+        <section class="auth-content">
+          <div>
+            <p id="authHeading" class="text-2xl font-extrabold tracking-[-0.05em] text-nutriflow-950">Acesse sua area NutriFlow</p>
+            <p id="authSubheading" class="mt-2 text-sm text-nutriflow-700">Faça login para acompanhar metas, refeições e evolução.</p>
+          </div>
+
+          <div class="auth-tabs mt-6" role="tablist" aria-label="Alternar autenticacao">
+            <button type="button" class="auth-tab is-active" data-auth-view="login" role="tab" aria-selected="true">Entrar</button>
+            <button type="button" class="auth-tab" data-auth-view="register" role="tab" aria-selected="false">Criar conta</button>
+          </div>
+
+          <form id="loginForm" data-auth-panel="login" class="mt-6 space-y-4">
+            <label class="block">
+              <span class="mb-2 block text-sm font-medium">E-mail</span>
+              <input id="email" class="w-full rounded-2xl border border-nutriflow-200 px-4 py-3 outline-none transition focus:border-nutriflow-500" type="email" placeholder="paciente@nutriflow.com" required />
+            </label>
+
+            <label class="block">
+              <span class="mb-2 block text-sm font-medium">Senha</span>
+              <input id="password" class="w-full rounded-2xl border border-nutriflow-200 px-4 py-3 outline-none transition focus:border-nutriflow-500" type="password" placeholder="Digite sua senha" required />
+            </label>
+
+            <div class="flex items-center justify-between gap-4 text-sm">
+              <label class="flex items-center gap-2 text-nutriflow-700">
+                <input class="rounded border-nutriflow-300" type="checkbox" />
+                Lembrar acesso
+              </label>
+              <a href="#" class="font-medium text-nutriflow-700 hover:text-nutriflow-900">Esqueci minha senha</a>
+            </div>
+
+            <button type="submit" class="w-full rounded-full bg-nutriflow-950 px-5 py-4 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-nutriflow-800">Entrar</button>
+            <p id="loginMessage" class="hidden rounded-2xl bg-nutriflow-100 px-4 py-3 text-sm font-medium text-nutriflow-800"></p>
+            <p class="auth-note">Ainda não tem conta? <button type="button" data-switch-auth="register" class="font-semibold text-nutriflow-900 underline underline-offset-2">Criar conta agora</button></p>
+          </form>
+
+          <form id="registerForm" data-auth-panel="register" class="mt-6 hidden space-y-4">
+            <label class="block">
+              <span class="mb-2 block text-sm font-medium">Nome completo</span>
+              <input id="registerName" class="w-full rounded-2xl border border-nutriflow-200 px-4 py-3 outline-none transition focus:border-nutriflow-500" type="text" placeholder="Seu nome" required />
+            </label>
+
+            <label class="block">
+              <span class="mb-2 block text-sm font-medium">E-mail</span>
+              <input id="registerEmail" class="w-full rounded-2xl border border-nutriflow-200 px-4 py-3 outline-none transition focus:border-nutriflow-500" type="email" placeholder="voce@email.com" required />
+            </label>
+
+            <label class="block">
+              <span class="mb-2 block text-sm font-medium">Perfil</span>
+              <select id="registerProfile" class="w-full rounded-2xl border border-nutriflow-200 px-4 py-3 outline-none transition focus:border-nutriflow-500" required>
+                <option value="">Selecione</option>
+                <option value="Paciente">Paciente</option>
+                <option value="Nutricionista">Nutricionista</option>
+                <option value="Administrador">Administrador</option>
+              </select>
+            </label>
+
+            <div id="patientConnectionFields" class="hidden space-y-4 rounded-[24px] border border-nutriflow-100 bg-nutriflow-50 px-4 py-4">
+              <p class="text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-600">Vinculo com nutricionista</p>
+              <p class="text-sm leading-7 text-nutriflow-700">Esse vinculo e opcional no cadastro. Se preferir, crie sua conta agora e conecte o nutricionista depois pelo dashboard.</p>
+
+              <label class="block">
+                <span class="mb-2 block text-sm font-medium">E-mail do nutricionista (opcional)</span>
+                <input id="registerNutritionistEmail" class="w-full rounded-2xl border border-nutriflow-200 px-4 py-3 outline-none transition focus:border-nutriflow-500" type="email" placeholder="nutricionista@nutriflow.com" />
+              </label>
+
+              <div class="grid gap-4 md:grid-cols-2">
+                <label class="block">
+                  <span class="mb-2 block text-sm font-medium">Idade</span>
+                  <input id="registerAge" class="w-full rounded-2xl border border-nutriflow-200 px-4 py-3 outline-none transition focus:border-nutriflow-500" type="number" min="1" max="120" placeholder="28" />
+                </label>
+                <label class="block">
+                  <span class="mb-2 block text-sm font-medium">Objetivo nutricional</span>
+                  <input id="registerObjective" class="w-full rounded-2xl border border-nutriflow-200 px-4 py-3 outline-none transition focus:border-nutriflow-500" type="text" placeholder="Emagrecimento, hipertrofia, reeducacao..." />
+                </label>
+              </div>
+
+              <label class="block">
+                <span class="mb-2 block text-sm font-medium">Restricoes alimentares (opcional)</span>
+                <input id="registerRestrictions" class="w-full rounded-2xl border border-nutriflow-200 px-4 py-3 outline-none transition focus:border-nutriflow-500" type="text" placeholder="Ex: sem lactose, alergia a castanhas" />
+              </label>
+            </div>
+
+            <div class="grid gap-4 md:grid-cols-2">
+              <label class="block">
+                <span class="mb-2 block text-sm font-medium">Senha</span>
+                <input id="registerPassword" class="w-full rounded-2xl border border-nutriflow-200 px-4 py-3 outline-none transition focus:border-nutriflow-500" type="password" placeholder="Minimo 8 caracteres" required />
+              </label>
+              <label class="block">
+                <span class="mb-2 block text-sm font-medium">Confirmar senha</span>
+                <input id="registerConfirm" class="w-full rounded-2xl border border-nutriflow-200 px-4 py-3 outline-none transition focus:border-nutriflow-500" type="password" placeholder="Repita a senha" required />
+              </label>
+            </div>
+
+            <label class="flex items-start gap-3 rounded-2xl bg-nutriflow-50 px-4 py-3 text-sm text-nutriflow-700">
+              <input id="registerTerms" class="mt-0.5 rounded border-nutriflow-300" type="checkbox" />
+              Concordo com os termos de uso e politica de privacidade para criar minha conta.
+            </label>
+
+            <button type="submit" class="w-full rounded-full bg-nutriflow-950 px-5 py-4 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-nutriflow-800">Criar conta</button>
+            <p id="registerMessage" class="hidden rounded-2xl bg-nutriflow-100 px-4 py-3 text-sm font-medium text-nutriflow-800"></p>
+            <p class="auth-note">Já possui conta? <button type="button" data-switch-auth="login" class="font-semibold text-nutriflow-900 underline underline-offset-2">Entrar</button></p>
+          </form>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <script src="ui.js"></script>
+  <script src="api.js"></script>
+  <script src="scripts.js"></script>
+</body>
+</html>

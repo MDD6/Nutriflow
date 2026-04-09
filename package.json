@@ -7,7 +7,6 @@
   "bugs": {
     "url": "https://github.com/MDD6/Nutriflow/issues"
   },
-
   "repository": {
     "type": "git",
     "url": "git+https://github.com/MDD6/Nutriflow.git"
@@ -22,7 +21,13 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
+    "@prisma/adapter-better-sqlite3": "^7.7.0",
+    "@prisma/client": "^6.17.1",
+    "better-sqlite3": "^12.8.0",
     "dotenv": "^17.3.1",
     "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "prisma": "^6.17.1"
   }
 }

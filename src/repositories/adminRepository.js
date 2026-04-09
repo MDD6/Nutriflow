@@ -65,6 +65,20 @@ class AdminRepository {
     });
   }
 
+  findUserByEmail(email) {
+    if (!email) {
+      throw new Error("Email é obrigatório");
+    }
+
+    return this.prisma.user.findUnique({
+      where: { email },
+      include: {
+        patientProfile: true,
+        nutritionistProfile: true,
+      },
+    });
+  }
+
   updateUserStatus(userId, isActive) {
     return this.prisma.user.update({
       where: { id: userId },

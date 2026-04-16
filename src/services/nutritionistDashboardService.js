@@ -352,15 +352,19 @@ class NutritionistDashboardService {
     };
   }
 
-  // --- COLE ISSO DENTRO DA CLASSE, ANTES DO toDashboardDto ---
-
   async createAppointment(nutritionist, payload) {
     const patientProfileId = String(payload.patientId || '').trim();
     const type = String(payload.type || 'Consulta').trim();
-    const scheduledAt = new Date(payload.date);
+    const scheduledAt = new Date(payload.date || payload.scheduledAt);
 
     if (!patientProfileId || Number.isNaN(scheduledAt.getTime())) {
       throw new AppError('Informe o paciente e uma data válida para a consulta.', 400);
+    }
+
+    const patient = await this.nutritionistDashboardRepository.findPatientProfile(nutritionist.id, patientProfileId);
+
+    if (!patient) {
+      throw new AppError('Paciente nao encontrado para este nutricionista.', 404);
     }
 
     const appointment = await this.nutritionistDashboardRepository.createAppointment({
@@ -375,18 +379,53 @@ class NutritionistDashboardService {
   }
 
   async deleteResource(nutritionist, resourceType, id) {
-    await this.nutritionistDashboardRepository.deleteResourceById(resourceType, id);
-    return { message: 'Item excluído com sucesso.' };
+    const deletedCount = await this.nutritionistDashboardRepository.deleteResourceById(
+      nutritionist.id,
+      resourceType,
+      id,
+    );
+
+    if (!deletedCount) {
+      throw new AppError('Item nao encontrado para este nutricionista.', 404);
+    }
+
+    return { message: 'Item excluido com sucesso.' };
   }
 
   async addChallengeParticipant(nutritionist, challengeId, payload) {
+    const normalizedChallengeId = String(challengeId || '').trim();
     const patientProfileId = String(payload.patientId || '').trim();
-    if (!patientProfileId) throw new AppError('Selecione um paciente.', 400);
-    
-    await this.nutritionistDashboardRepository.addChallengeParticipant(challengeId, patientProfileId);
+
+    if (!normalizedChallengeId) {
+      throw new AppError('Informe o desafio.', 400);
+    }
+
+    if (!patientProfileId) {
+      throw new AppError('Selecione um paciente.', 400);
+    }
+
+    const patient = await this.nutritionistDashboardRepository.findPatientProfile(nutritionist.id, patientProfileId);
+
+    if (!patient) {
+      throw new AppError('Paciente nao encontrado para este nutricionista.', 404);
+    }
+
+    const result = await this.nutritionistDashboardRepository.addChallengeParticipant(
+      nutritionist.id,
+      normalizedChallengeId,
+      patientProfileId,
+    );
+
+    if (result.status === 'not_found') {
+      throw new AppError('Desafio nao encontrado para este nutricionista.', 404);
+    }
+
+    if (result.status === 'exists') {
+      return { message: 'Paciente ja participa deste desafio.' };
+    }
+
     return { message: 'Paciente adicionado ao desafio.' };
   }
-  // -------------------------------------------------------------
 
   toDashboardDto(workspace) {
     const patientMessages = workspace.messages.filter((message) => message.senderRole === 'PATIENT');

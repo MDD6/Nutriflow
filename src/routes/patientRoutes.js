@@ -10,6 +10,7 @@ function createPatientRoutes(patientDashboardController) {
   router.post('/weights', asyncHandler(patientDashboardController.createWeeklyWeightEntry.bind(patientDashboardController)));
   router.post('/link-nutritionist', asyncHandler(patientDashboardController.linkNutritionist.bind(patientDashboardController)));
   router.post('/messages', asyncHandler(patientDashboardController.sendMessage.bind(patientDashboardController)));
+  router.patch('/profile', asyncHandler(patientDashboardController.updateProfile.bind(patientDashboardController)));
 
   return router;
 }

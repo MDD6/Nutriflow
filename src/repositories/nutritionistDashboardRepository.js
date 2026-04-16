@@ -442,7 +442,6 @@ class NutritionistDashboardRepository {
             messages: { orderBy: { sentAt: 'desc' } },
             appointments: { orderBy: { scheduledAt: 'asc' } },
             progressSnapshots: { orderBy: { recordedAt: 'asc' } },
-            // AQUI ESTÁ A NOVIDADE: Buscando as refeições reais do paciente!
             mealEntries: { orderBy: { loggedAt: 'desc' }, take: 15 },
             challengeLinks: {
               include: { challenge: true },
@@ -653,7 +652,6 @@ class NutritionistDashboardRepository {
       });
     });
   }
-  // --- COLE ISSO DENTRO DA CLASSE, NO FINAL ---
   createAppointment(data) {
     return this.prisma.appointment.create({
       data: {
@@ -662,30 +660,81 @@ class NutritionistDashboardRepository {
         scheduledAt: data.scheduledAt,
         type: data.type,
         status: data.status,
-      }
+      },
     });
   }
 
-  addChallengeParticipant(challengeId, patientProfileId) {
-    return this.prisma.challengeParticipant.create({
-      data: { challengeId, patientProfileId, progress: 0 }
+  async addChallengeParticipant(nutritionistId, challengeId, patientProfileId) {
+    const challenge = await this.prisma.nutritionChallenge.findFirst({
+      where: {
+        id: challengeId,
+        nutritionistId,
+      },
+      include: {
+        participants: {
+          where: {
+            patientProfileId,
+          },
+        },
+      },
     });
+
+    if (!challenge) {
+      return { status: 'not_found' };
+    }
+
+    if (challenge.participants.length) {
+      return { status: 'exists' };
+    }
+
+    const participant = await this.prisma.challengeParticipant.create({
+      data: { challengeId, patientProfileId, progress: 0 },
+    });
+
+    return {
+      status: 'created',
+      participant,
+    };
   }
 
-  async deleteResourceById(resourceType, id) {
-    // Permite excluir qualquer um baseado na rota
+  async deleteResourceById(nutritionistId, resourceType, id) {
     switch (resourceType) {
-      case 'meal-plans': return this.prisma.mealPlan.delete({ where: { id } });
-      case 'assessments': return this.prisma.assessment.delete({ where: { id } });
-      case 'appointments': return this.prisma.appointment.delete({ where: { id } });
-      case 'challenges': 
-        // Exclui participantes primeiro por causa da chave estrangeira
-        await this.prisma.challengeParticipant.deleteMany({ where: { challengeId: id } });
-        return this.prisma.nutritionChallenge.delete({ where: { id } });
-      default: throw new Error('Recurso inválido para exclusão.');
+      case 'meal-plans': {
+        const result = await this.prisma.mealPlan.deleteMany({
+          where: { id, nutritionistId },
+        });
+        return result.count;
+      }
+      case 'assessments': {
+        const result = await this.prisma.assessment.deleteMany({
+          where: { id, nutritionistId },
+        });
+        return result.count;
+      }
+      case 'appointments': {
+        const result = await this.prisma.appointment.deleteMany({
+          where: { id, nutritionistId },
+        });
+        return result.count;
+      }
+      case 'challenges': {
+        return this.prisma.$transaction(async (tx) => {
+          const challenge = await tx.nutritionChallenge.findFirst({
+            where: { id, nutritionistId },
+          });
+
+          if (!challenge) {
+            return 0;
+          }
+
+          await tx.challengeParticipant.deleteMany({ where: { challengeId: id } });
+          await tx.nutritionChallenge.delete({ where: { id } });
+          return 1;
+        });
+      }
+      default: throw new Error('Recurso invalido para exclusao.');
     }
   }
-  // --------------------------------------------
 }
 
 module.exports = {

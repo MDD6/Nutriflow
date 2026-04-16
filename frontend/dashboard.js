@@ -682,6 +682,13 @@ async function linkNutritionist(payload) {
   });
 }
 
+async function updatePatientProfile(payload) {
+  return apiRequest('/api/patient/profile', {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}
+
 function applyDashboardState(payload) {
   state.dashboard = payload || null;
   state.lastChatSignature = getChatSignature(payload?.chat);
@@ -1660,30 +1667,37 @@ function closePatientSettingsModal() {
   document.body.classList.remove('modal-open');
 }
 
-function handlePatientSettingsSubmit(e) {
+async function handlePatientSettingsSubmit(e) {
   e.preventDefault();
   const btn = document.getElementById('profileSubmitBtn');
   btn.textContent = 'Salvando...';
+  btn.disabled = true;
 
-  // Simula o salvamento e atualiza os dados na tela visualmente
-  setTimeout(() => {
-    const updatedData = {
-      ...state.currentUser,
-      name: document.getElementById('profileNameInput').value,
-      age: document.getElementById('profileAgeInput').value,
-      weight: document.getElementById('profileWeightInput').value,
-      height: document.getElementById('profileHeightInput').value,
-      objective: document.getElementById('profileObjectiveInput').value,
-      restrictions: document.getElementById('profileRestrictionsInput').value,
-    };
-    
-    persistCurrentUser(updatedData);
-    renderHeader();
-    renderHighlights(); // Atualiza na barra lateral
-    showToast('Perfil atualizado com sucesso!');
+  const payload = {
+    name: document.getElementById('profileNameInput').value,
+    age: document.getElementById('profileAgeInput').value,
+    weight: document.getElementById('profileWeightInput').value,
+    height: document.getElementById('profileHeightInput').value,
+    objective: document.getElementById('profileObjectiveInput').value,
+    restrictions: document.getElementById('profileRestrictionsInput').value,
+  };
+
+  try {
+    const result = await updatePatientProfile(payload);
+
+    if (result.dashboard) {
+      applyDashboardState(result.dashboard);
+      renderDashboard();
+    }
+
+    showToast(result.message || 'Perfil atualizado com sucesso!');
     closePatientSettingsModal();
+  } catch (error) {
+    showToast(error.message || 'Nao foi possivel atualizar o perfil.');
+  } finally {
+    btn.disabled = false;
     btn.textContent = 'Salvar Perfil';
-  }, 500);
+  }
 }
 
 init();

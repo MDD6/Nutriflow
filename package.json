@@ -16,18 +16,18 @@
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "node --watch src/index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "db:push": "prisma db push",
+    "prisma:generate": "prisma generate",
+    "test": "node --check index.js"
   },
   "dependencies": {
-    "@prisma/adapter-better-sqlite3": "^7.7.0",
-    "@prisma/client": "^6.17.1",
-    "better-sqlite3": "^12.8.0",
+    "@prisma/client": "^6.19.3",
     "dotenv": "^17.3.1",
     "express": "^5.2.1"
   },
   "devDependencies": {
-    "prisma": "^6.17.1"
+    "prisma": "^6.19.3"
   }
 }

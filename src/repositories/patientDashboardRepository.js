@@ -139,6 +139,61 @@ class PatientDashboardRepository {
       },
     });
   }
+
+  async updateProfile(userId, data) {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          name: data.name,
+        },
+      });
+
+      const existingProfile = await tx.patientProfile.findUnique({
+        where: { userId },
+      });
+
+      if (!existingProfile || !data.patientProfile) {
+        return null;
+      }
+
+      await tx.patientProfile.update({
+        where: { id: existingProfile.id },
+        data: data.patientProfile,
+      });
+
+      return tx.patientProfile.findUnique({
+        where: { userId },
+        include: {
+          user: true,
+          nutritionist: true,
+          mealPlans: {
+            orderBy: { createdAt: 'desc' },
+          },
+          assessments: {
+            orderBy: { date: 'desc' },
+          },
+          messages: {
+            orderBy: { sentAt: 'asc' },
+          },
+          appointments: {
+            orderBy: { scheduledAt: 'asc' },
+          },
+          mealEntries: {
+            orderBy: { loggedAt: 'desc' },
+          },
+          progressSnapshots: {
+            orderBy: { recordedAt: 'asc' },
+          },
+          challengeLinks: {
+            include: {
+              challenge: true,
+            },
+          },
+        },
+      });
+    });
+  }
 }
 
 module.exports = {

@@ -1,12 +1,21 @@
-// NutriFlow - Sistema de acompanhamento nutricional
-// Arquivo principal da aplicação
+require('dotenv/config');
 
-const app = require('./app');
-const config = require('../config/config');
+const { createApp } = require('./app');
 
-const PORT = config.port || 3000;
+const app = createApp();
 
-app.listen(PORT, () => {
-  console.log(`🚀 NutriFlow rodando em: http://localhost:${PORT}`);
-  console.log(`📝 Ambiente: ${config.nodeEnv}`);
-});
+app.start();
+
+function shutdown(signal) {
+  console.log(`Encerrando NutriFlow (${signal})...`);
+
+  app.stop()
+    .then(() => process.exit(0))
+    .catch((error) => {
+      console.error('Falha ao encerrar a aplicacao:', error);
+      process.exit(1);
+    });
+}
+
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);

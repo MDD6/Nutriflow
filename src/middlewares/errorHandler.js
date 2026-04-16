@@ -13,6 +13,20 @@ function errorHandler(error, request, response, next) {
     return;
   }
 
+  if (error?.code === 'P2002') {
+    response.status(409).json({
+      message: 'Registro duplicado. Verifique os dados informados.',
+    });
+    return;
+  }
+
+  if (error?.code === 'P2025') {
+    response.status(404).json({
+      message: 'Registro nao encontrado.',
+    });
+    return;
+  }
+
   const statusCode = error instanceof AppError ? error.statusCode : 500;
 
   response.status(statusCode).json({

@@ -125,6 +125,29 @@ function parsePatientAge(value) {
   return age;
 }
 
+function parseProfileMetric(value, options) {
+  const {
+    label,
+    min,
+    max,
+    fallback = 0,
+  } = options;
+  const rawValue = value === undefined || value === null || String(value).trim() === ''
+    ? fallback
+    : value;
+  const parsed = Number(rawValue);
+
+  if (!Number.isFinite(parsed)) {
+    throw new AppError(`${label} precisa ser um numero valido.`, 400);
+  }
+
+  if (parsed < min || parsed > max) {
+    throw new AppError(`${label} deve ficar entre ${min} e ${max}.`, 400);
+  }
+
+  return Number(parsed.toFixed(2));
+}
+
 function clampPercentage(value) {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
@@ -434,6 +457,55 @@ class PatientDashboardService {
     };
   }
 
+  async updateProfile(patientUser, payload) {
+    const name = normalizeText(payload.name);
+
+    if (name.length < 2 || name.length > 120) {
+      throw new AppError('Informe um nome com 2 a 120 caracteres.', 400);
+    }
+
+    const currentProfile = await this.patientDashboardRepository.findByUserId(patientUser.id);
+    const patientProfile = currentProfile
+      ? {
+          age: parsePatientAge(payload.age || currentProfile.age),
+          objective: normalizeText(payload.objective) || currentProfile.objective,
+          restrictions: normalizeText(payload.restrictions) || 'Sem restricoes informadas.',
+          currentWeight: parseProfileMetric(payload.weight, {
+            label: 'Peso',
+            min: 0,
+            max: 350,
+            fallback: currentProfile.currentWeight,
+          }),
+          height: parseProfileMetric(payload.height, {
+            label: 'Altura',
+            min: 0,
+            max: 2.5,
+            fallback: currentProfile.height,
+          }),
+        }
+      : null;
+
+    const updatedProfile = await this.patientDashboardRepository.updateProfile(patientUser.id, {
+      name,
+      patientProfile,
+    });
+
+    if (!updatedProfile) {
+      return {
+        message: 'Perfil atualizado com sucesso.',
+        dashboard: this.toSetupDto({
+          ...patientUser,
+          name,
+        }),
+      };
+    }
+
+    return {
+      message: 'Perfil atualizado com sucesso.',
+      dashboard: this.toDashboardDto(updatedProfile),
+    };
+  }
+
   async createMealEntry(patientUser, payload) {
     const patientProfile = await this.requirePatientProfile(patientUser.id);
     const mealType = parseMealType(payload.mealType);
@@ -638,7 +710,12 @@ class PatientDashboardService {
         name: patientProfile.user.name,
         email: patientProfile.user.email,
         profile: patientProfile.user.profile,
+        age: patientProfile.age,
         objective: patientProfile.objective,
+        restrictions: patientProfile.restrictions,
+        weight: patientProfile.currentWeight,
+        height: patientProfile.height,
+        bodyFat: patientProfile.bodyFat,
         nutritionist: {
           id: patientProfile.nutritionist.id,
           name: patientProfile.nutritionist.name,

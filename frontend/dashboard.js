@@ -800,7 +800,7 @@ function renderConnectionPanel() { return; }
 
 function renderSidebar() { return; }
 
-function renderWeeklyBars(items) {
+function renderWeeklyBars(items, caloriesTarget) {
   const container = document.getElementById('weeklyCaloriesChart');
 
   if (!container) {
@@ -808,16 +808,101 @@ function renderWeeklyBars(items) {
   }
 
   if (!items?.length) {
-    container.innerHTML = '<p class="col-span-full text-sm text-nutriflow-600">Comece a registrar refeicoes para acompanhar o comportamento da semana.</p>';
+    container.innerHTML = '<p class="text-sm text-nutriflow-600">Comece a registrar refeicoes para acompanhar o comportamento da semana.</p>';
     return;
   }
 
-  container.innerHTML = items.map((item) => `
-    <div title="${escapeHtml(`${item.calories} kcal`)}">
-      <span style="height:${Math.max(item.percent, item.calories > 0 ? 14 : 6)}%"></span>
-      <small>${escapeHtml(item.label)}</small>
-    </div>
+  const svgWidth = 380;
+  const svgHeight = 200;
+  const marginLeft = 44;
+  const marginRight = 16;
+  const marginTop = 26;
+  const marginBottom = 28;
+  const chartWidth = svgWidth - marginLeft - marginRight;
+  const chartHeight = svgHeight - marginTop - marginBottom;
+
+  const target = Number(caloriesTarget) > 0 ? Number(caloriesTarget) : 0;
+  const maxCalories = Math.max(...items.map((i) => i.calories), target, 1);
+  const yMax = Math.ceil(maxCalories / 100) * 100;
+
+  const barCount = items.length;
+  const barGap = 10;
+  const barWidth = Math.floor((chartWidth - barGap * (barCount - 1)) / barCount);
+
+  function toY(value) {
+    return marginTop + chartHeight - Math.round((value / yMax) * chartHeight);
+  }
+
+  const yTickCount = 4;
+  const gridLines = Array.from({ length: yTickCount + 1 }, (_, i) => {
+    const value = Math.round((yMax / yTickCount) * i);
+    const y = toY(value);
+    const label = value >= 1000 ? `${(value / 1000).toFixed(1)}k` : String(value);
+    return { value, y, label };
+  });
+
+  const targetY = target > 0 ? toY(target) : null;
+
+  const gridLinesHtml = gridLines.map(({ y, label }) => `
+    <line x1="${marginLeft}" y1="${y}" x2="${svgWidth - marginRight}" y2="${y}" stroke="rgba(79,107,61,.1)" stroke-width="1"></line>
+    <text x="${marginLeft - 6}" y="${y + 4}" text-anchor="end" font-size="9" fill="#7a8d70" font-weight="600">${escapeHtml(label)}</text>
   `).join('');
+
+  const targetLineHtml = targetY !== null ? `
+    <line x1="${marginLeft}" y1="${targetY}" x2="${svgWidth - marginRight}" y2="${targetY}" stroke="#4f6b3d" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.65"></line>
+    <text x="${svgWidth - marginRight + 3}" y="${targetY + 4}" font-size="9" fill="#4f6b3d" font-weight="700">meta</text>
+  ` : '';
+
+  const barsHtml = items.map((item, index) => {
+    const x = marginLeft + index * (barWidth + barGap);
+    const isActive = item.calories > 0;
+    const isOnTarget = item.percent >= 80;
+    const gradientId = `wk-bar-${index}`;
+
+    if (!isActive) {
+      return `
+        <rect x="${x}" y="${marginTop + chartHeight - 4}" width="${barWidth}" height="4" rx="2" fill="rgba(79,107,61,.15)"></rect>
+        <text x="${x + barWidth / 2}" y="${svgHeight - marginBottom + 16}" text-anchor="middle" font-size="10" fill="#7a8d70" font-weight="700">${escapeHtml(item.label)}</text>
+      `;
+    }
+
+    const barHeight = Math.max(Math.round((item.calories / yMax) * chartHeight), 4);
+    const barY = marginTop + chartHeight - barHeight;
+    const colorTop = isOnTarget ? '#9ccc7d' : '#c3e3a8';
+    const colorBottom = isOnTarget ? '#5f8249' : '#92ca74';
+
+    return `
+      <rect x="${x}" y="${barY}" width="${barWidth}" height="${barHeight}" rx="6" fill="url(#${gradientId})"></rect>
+      <text x="${x + barWidth / 2}" y="${barY - 5}" text-anchor="middle" font-size="9" fill="#1c2618" font-weight="800">${item.calories}</text>
+      <text x="${x + barWidth / 2}" y="${svgHeight - marginBottom + 16}" text-anchor="middle" font-size="10" fill="#5f8249" font-weight="700">${escapeHtml(item.label)}</text>
+    `;
+  }).join('');
+
+  const defsHtml = `
+    <defs>
+      ${items.map((item, index) => {
+        if (item.calories <= 0) return '';
+        const isOnTarget = item.percent >= 80;
+        const colorTop = isOnTarget ? '#9ccc7d' : '#c3e3a8';
+        const colorBottom = isOnTarget ? '#5f8249' : '#92ca74';
+        return `
+          <linearGradient id="wk-bar-${index}" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="${colorTop}"></stop>
+            <stop offset="100%" stop-color="${colorBottom}"></stop>
+          </linearGradient>
+        `;
+      }).join('')}
+    </defs>
+  `;
+
+  container.innerHTML = `
+    <svg viewBox="0 0 ${svgWidth} ${svgHeight}" class="weekly-consumption-chart w-full h-auto" role="img" aria-label="Gráfico de consumo calórico semanal">
+      ${defsHtml}
+      ${gridLinesHtml}
+      ${targetLineHtml}
+      ${barsHtml}
+    </svg>
+  `;
 }
 
 function getWeeklyHeadline(weeklyCalories) {
@@ -903,7 +988,7 @@ function renderOverview() {
 
   setTextContent(document.getElementById('weeklyCaloriesHeadline'), weeklyCopy.headline);
   setTextContent(document.getElementById('weeklyTrendPercent'), weeklyCopy.trend);
-  renderWeeklyBars(overview.weeklyCalories || []);
+  renderWeeklyBars(overview.weeklyCalories || [], overview.caloriesTarget || 0);
 }
 
 function renderGoals() {

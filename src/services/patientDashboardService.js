@@ -256,6 +256,19 @@ function getWeekRange(date) {
   };
 }
 
+function getDayRange(date) {
+  const dayStart = new Date(date);
+  dayStart.setHours(0, 0, 0, 0);
+
+  const dayEnd = new Date(dayStart);
+  dayEnd.setDate(dayEnd.getDate() + 1);
+
+  return {
+    dayStart,
+    dayEnd,
+  };
+}
+
 function sumMeals(meals) {
   return meals.reduce((totals, meal) => ({
     calories: totals.calories + meal.calories,
@@ -355,6 +368,64 @@ function getPaceLabel(objective) {
   }
 
   return '0.5kg/sem';
+}
+
+function parseWeightNote(value) {
+  const note = normalizeText(value);
+
+  if (note.length > 180) {
+    throw new AppError('A observacao do peso deve ter ate 180 caracteres.', 400);
+  }
+
+  return note;
+}
+
+function calculateWeeksBetween(startDate, endDate) {
+  const start = new Date(startDate).getTime();
+  const end = new Date(endDate).getTime();
+
+  if (Number.isNaN(start) || Number.isNaN(end) || end <= start) {
+    return 0;
+  }
+
+  return (end - start) / (7 * 24 * 60 * 60 * 1000);
+}
+
+function formatSignedWeight(value) {
+  const rounded = Number(value.toFixed(1));
+  const prefix = rounded > 0 ? '+' : '';
+  return `${prefix}${rounded}kg`;
+}
+
+function buildWeightTimeline(patientProfile) {
+  if (patientProfile.weightEntries?.length) {
+    return patientProfile.weightEntries.map((entry) => ({
+      id: entry.id,
+      weight: entry.weight,
+      note: entry.note,
+      recordedAt: entry.recordedAt,
+    }));
+  }
+
+  if (patientProfile.progressSnapshots?.length) {
+    return patientProfile.progressSnapshots.map((snapshot) => ({
+      id: snapshot.id,
+      weight: snapshot.weight,
+      note: '',
+      recordedAt: snapshot.recordedAt,
+    }));
+  }
+
+  if (patientProfile.currentWeight > 0) {
+    return [{
+      id: 'current',
+      weight: patientProfile.currentWeight,
+      note: 'Peso atual do perfil.',
+      recordedAt: new Date(),
+    }];
+  }
+
+  return [];
 }
 
 class PatientDashboardService {
@@ -538,6 +609,8 @@ class PatientDashboardService {
     const weight = parseWeeklyWeight(payload.weight);
     const recordedAt = this.parseWeightDateOrNow(payload.recordedAt);
     const { weekStart, weekEnd } = getWeekRange(recordedAt);
+    const { dayStart, dayEnd } = getDayRange(recordedAt);
+    const note = parseWeightNote(payload.note);
     const latestSnapshot = patientProfile.progressSnapshots[patientProfile.progressSnapshots.length - 1] || null;
     const adherence = latestSnapshot?.adherence ?? patientProfile.progress;
     const progress = latestSnapshot?.progress ?? patientProfile.progress;
@@ -545,7 +618,10 @@ class PatientDashboardService {
     const result = await this.patientDashboardRepository.upsertWeeklyWeightEntry({
       patientProfileId: patientProfile.id,
       weight,
+      note,
       recordedAt,
+      dayStart,
+      dayEnd,
       weekStart,
       weekEnd,
       adherence,
@@ -557,10 +633,11 @@ class PatientDashboardService {
         ? 'Peso semanal atualizado com sucesso.'
         : 'Peso semanal registrado com sucesso.',
       weightEntry: {
-        id: result.snapshot.id,
+        id: result.weightEntry.id,
         label: result.snapshot.label,
-        weight: result.snapshot.weight,
-        dateLabel: formatShortDate(result.snapshot.recordedAt),
+        weight: result.weightEntry.weight,
+        note: result.weightEntry.note,
+        dateLabel: formatShortDate(result.weightEntry.recordedAt),
       },
     };
   }
@@ -657,17 +734,7 @@ class PatientDashboardService {
     const fatTarget = activePlan?.fats || 0;
     const mealConsistencyTarget = 4;
     const dailySummaries = this.buildDailySummaries(patientProfile.mealEntries, calorieTarget);
-    const snapshots = patientProfile.progressSnapshots.length
-      ? patientProfile.progressSnapshots
-      : patientProfile.currentWeight > 0
-        ? [{
-            label: 'Atual',
-            weight: patientProfile.currentWeight,
-            adherence: patientProfile.progress,
-            progress: patientProfile.progress,
-            recordedAt: new Date(),
-          }]
-        : [];
+    const weightTimeline = buildWeightTimeline(patientProfile);
     const calorieProgress = calculateTargetProgress(todayTotals.calories, calorieTarget);
     const proteinProgress = calculateTargetProgress(todayTotals.protein, proteinTarget);
     const mealProgress = calculateTargetProgress(todayMeals.length, mealConsistencyTarget);
@@ -777,12 +844,16 @@ class PatientDashboardService {
         sections: this.buildPlanSections(activePlan, patientProfile.objective),
       },
       weight: {
-        labels: snapshots.slice(-5).map((snapshot) => formatShortDate(snapshot.recordedAt)),
-        values: snapshots.slice(-5).map((snapshot) => snapshot.weight),
-        variationLabel: this.getVariationLabel(snapshots),
+        labels: weightTimeline.slice(-5).map((entry) => formatShortDate(entry.recordedAt)),
+        values: weightTimeline.slice(-5).map((entry) => entry.weight),
+        variationLabel: this.getVariationLabel(weightTimeline),
         currentLabel: patientProfile.currentWeight ? `${patientProfile.currentWeight.toFixed(1)}kg` : '--',
         targetLabel: patientProfile.currentWeight ? `${getTargetWeight(patientProfile.currentWeight, patientProfile.objective).toFixed(1)}kg` : '--',
         paceLabel: patientProfile.currentWeight ? getPaceLabel(patientProfile.objective) : '--',
+        initialLabel: weightTimeline.length ? `${weightTimeline[0].weight.toFixed(1)}kg` : '--',
+        weeklyAverageLabel: this.getWeeklyAverageLabel(weightTimeline),
+        trendLabel: this.getWeightTrendLabel(weightTimeline),
+        history: this.toWeightHistoryDto(weightTimeline),
       },
       chat: this.toChatDto(patientProfile),
       clinical: {
@@ -937,10 +1008,57 @@ class PatientDashboardService {
 
     const firstWeight = snapshots[0].weight;
     const lastWeight = snapshots[snapshots.length - 1].weight;
-    const variation = Number((lastWeight - firstWeight).toFixed(1));
-    const prefix = variation > 0 ? '+' : '';
+    return formatSignedWeight(lastWeight - firstWeight);
+  }
 
-    return `${prefix}${variation}kg`;
+  getWeeklyAverageLabel(entries) {
+    if (entries.length < 2) {
+      return '--';
+    }
+
+    const firstEntry = entries[0];
+    const lastEntry = entries[entries.length - 1];
+    const weeks = calculateWeeksBetween(firstEntry.recordedAt, lastEntry.recordedAt);
+
+    if (!weeks) {
+      return '--';
+    }
+
+    return `${formatSignedWeight((lastEntry.weight - firstEntry.weight) / weeks)}/sem`;
+  }
+
+  getWeightTrendLabel(entries) {
+    if (entries.length < 2) {
+      return 'Dados insuficientes';
+    }
+
+    const recentEntries = entries.slice(-3);
+    const firstWeight = recentEntries[0].weight;
+    const lastWeight = recentEntries[recentEntries.length - 1].weight;
+    const variation = Number((lastWeight - firstWeight).toFixed(1));
+
+    if (Math.abs(variation) < 0.2) {
+      return 'Estavel';
+    }
+
+    return variation < 0 ? 'Em queda' : 'Em alta';
+  }
+
+  toWeightHistoryDto(entries) {
+    return entries.slice(-6).reverse().map((entry, index, list) => {
+      const previousEntry = entries[entries.findIndex((candidate) => candidate.id === entry.id) - 1];
+      const variation = previousEntry
+        ? formatSignedWeight(entry.weight - previousEntry.weight)
+        : '--';
+
+      return {
+        id: entry.id,
+        dateLabel: formatShortDate(entry.recordedAt),
+        weightLabel: `${entry.weight.toFixed(1)}kg`,
+        variationLabel: variation,
+        note: entry.note || '',
+      };
+    });
   }
 
   toMealEntryDto(mealEntry) {

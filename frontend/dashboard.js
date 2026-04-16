@@ -52,6 +52,7 @@ const weightEntryModal = document.getElementById('weightEntryModal');
 const weightEntryForm = document.getElementById('weightEntryForm');
 const weightRecordedAtInput = document.getElementById('weightRecordedAtInput');
 const weightValueInput = document.getElementById('weightValueInput');
+const weightNoteInput = document.getElementById('weightNoteInput');
 const weightSubmitButton = document.getElementById('weightSubmitButton');
 const weightFormError = document.getElementById('weightFormError');
 
@@ -522,6 +523,7 @@ function getWeeklyWeightPayloadFromForm() {
   return {
     weight: Number.isFinite(weight) ? Number(weight.toFixed(1)) : NaN,
     recordedAt,
+    note: String(weightNoteInput?.value || '').trim(),
   };
 }
 
@@ -548,6 +550,10 @@ function validateWeeklyWeightPayload(payload) {
     return 'Nao e permitido registrar peso em uma data futura.';
   }
 
+  if (payload.note.length > 180) {
+    return 'A observacao deve ter ate 180 caracteres.';
+  }
+
   return '';
 }
 
@@ -556,7 +562,7 @@ function setWeightFormLoading(isLoading) {
     return;
   }
 
-  weightEntryForm.querySelectorAll('input, button').forEach((element) => {
+  weightEntryForm.querySelectorAll('input, textarea, button').forEach((element) => {
     element.disabled = isLoading;
   });
 
@@ -566,7 +572,7 @@ function setWeightFormLoading(isLoading) {
 
   if (addWeeklyWeightButton) {
     addWeeklyWeightButton.disabled = isLoading || isSetupRequired();
-    addWeeklyWeightButton.textContent = isLoading ? 'Salvando peso...' : 'Adicionar peso semanal';
+    addWeeklyWeightButton.textContent = isLoading ? 'Salvando peso...' : 'Adicionar peso';
   }
 }
 
@@ -1103,13 +1109,36 @@ function renderWeight() {
     currentLabel: '--',
     targetLabel: '--',
     paceLabel: '--',
+    initialLabel: '--',
+    weeklyAverageLabel: '--',
+    trendLabel: '--',
+    history: [],
   };
 
   setTextContent(document.getElementById('weightVariationValue'), weight.variationLabel || '--');
   setTextContent(document.getElementById('currentWeightValue'), weight.currentLabel || '--');
   setTextContent(document.getElementById('targetWeightValue'), weight.targetLabel || '--');
   setTextContent(document.getElementById('paceValue'), weight.paceLabel || '--');
+  setTextContent(document.getElementById('initialWeightValue'), weight.initialLabel || '--');
+  setTextContent(document.getElementById('weeklyWeightAverageValue'), weight.weeklyAverageLabel || '--');
+  setTextContent(document.getElementById('weightTrendValue'), weight.trendLabel || '--');
   renderWeightChart(weight.labels || [], weight.values || []);
+
+  const historyList = document.getElementById('weightHistoryList');
+  const history = weight.history || [];
+
+  if (historyList) {
+    historyList.innerHTML = history.length
+      ? history.map((entry) => `
+          <div class="grid grid-cols-[.9fr_.7fr_.7fr_1.4fr] gap-2 px-4 py-3">
+            <span>${escapeHtml(entry.dateLabel)}</span>
+            <span class="font-bold text-nutriflow-950">${escapeHtml(entry.weightLabel)}</span>
+            <span>${escapeHtml(entry.variationLabel)}</span>
+            <span class="text-nutriflow-600">${escapeHtml(entry.note || 'Sem observacao')}</span>
+          </div>
+        `).join('')
+      : '<div class="px-4 py-4 text-sm text-nutriflow-600">Nenhum peso registrado ainda.</div>';
+  }
 }
 
 function renderChat() {

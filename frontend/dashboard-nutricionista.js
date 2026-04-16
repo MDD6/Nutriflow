@@ -135,9 +135,12 @@ function renderPatientProfileModal(patient) {
 
   const historyContainer = document.getElementById('patientProfileWeightHistory');
   const patientAssessments = state.assessments.filter(a => a.patientId === patient.id);
+  const patientWeights = patient.weightEntries || [];
   if (historyContainer) {
-    historyContainer.innerHTML = patientAssessments.length 
-      ? patientAssessments.slice(0, 3).map(a => `<span class="bg-white border px-3 py-1 rounded-lg text-sm font-bold text-nutriflow-950">${a.weight}kg</span>`).join('')
+    historyContainer.innerHTML = patientWeights.length
+      ? patientWeights.slice(-5).reverse().map(entry => `<span class="bg-white border px-3 py-1 rounded-lg text-sm font-bold text-nutriflow-950">${entry.weight}kg <small class="text-nutriflow-500">${entry.date}</small></span>`).join('')
+      : patientAssessments.length
+        ? patientAssessments.slice(0, 3).map(a => `<span class="bg-white border px-3 py-1 rounded-lg text-sm font-bold text-nutriflow-950">${a.weight}kg</span>`).join('')
       : '<span class="text-xs text-nutriflow-500 font-bold">Sem registros</span>';
   }
 

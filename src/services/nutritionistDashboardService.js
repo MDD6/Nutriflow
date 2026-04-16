@@ -93,6 +93,20 @@ function calculateAverage(numbers) {
   return Math.round(numbers.reduce((total, value) => total + value, 0) / numbers.length);
 }
 
+function buildWeightTimeline(patientProfile) {
+  if (patientProfile.weightEntries?.length) {
+    return patientProfile.weightEntries;
+  }
+
+  if (patientProfile.progressSnapshots?.length) {
+    return patientProfile.progressSnapshots;
+  }
+
+  return patientProfile.currentWeight
+    ? [{ weight: patientProfile.currentWeight, recordedAt: new Date() }]
+    : [];
+}
+
 function parseMealPlanItems(items) {
   if (!Array.isArray(items)) {
     return [];
@@ -581,6 +595,7 @@ class NutritionistDashboardService {
             progress: patientProfile.progress,
           },
         ];
+    const weightTimeline = buildWeightTimeline(patientProfile);
 
     return {
       id: patientProfile.id,
@@ -604,7 +619,12 @@ class NutritionistDashboardService {
       bodyFat: patientProfile.bodyFat,
       nextAppointment: nextAppointment ? formatDateTime(nextAppointment.scheduledAt) : 'Sem consulta agendada',
       adherence: snapshots.slice(-4).map((snapshot) => snapshot.adherence),
-      weightHistory: snapshots.slice(-5).map((snapshot) => snapshot.weight),
+      weightHistory: weightTimeline.slice(-5).map((entry) => entry.weight),
+      weightEntries: weightTimeline.slice(-6).map((entry) => ({
+        weight: entry.weight,
+        date: formatShortDate(entry.recordedAt),
+        note: entry.note || '',
+      })),
       lastMessagePreview: latestMessage?.content || 'Sem mensagens recentes.',
       lastMessageTime: latestMessage ? formatMessageTime(latestMessage.sentAt) : '',
       pendingMessages,

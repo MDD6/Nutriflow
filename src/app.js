@@ -29,6 +29,26 @@ const { createPatientRoutes } = require('./routes/patientRoutes');
 const { createNutritionistRoutes } = require('./routes/nutritionistRoutes');
 const { createAdminRoutes } = require('./routes/adminRoutes');
 
+const FRONTEND_ROUTE_ALIASES = new Map([
+  ['/home', '/index.html'],
+  ['/home/', '/index.html'],
+  ['/home/index.html', '/index.html'],
+  ['/home/styles.css', '/styles.css'],
+  ['/home/scripts.js', '/scripts.js'],
+  ['/home/api.js', '/api.js'],
+  ['/home/ui.js', '/ui.js'],
+  ['/dashboard', '/dashboard.html'],
+  ['/dashboard/', '/dashboard.html'],
+  ['/dashboard-nutricionista', '/dashboard-nutricionista.html'],
+  ['/dashboard-nutricionista/', '/dashboard-nutricionista.html'],
+  ['/dashboard-admin', '/dashboard-admin.html'],
+  ['/dashboard-admin/', '/dashboard-admin.html'],
+  ['/Nutricionista/dashboard-nutricionista.html', '/dashboard-nutricionista.html'],
+  ['/Nutricionista/dashboard-nutricionista.js', '/dashboard-nutricionista.js'],
+  ['/nutricionista/dashboard-nutricionista.html', '/dashboard-nutricionista.html'],
+  ['/nutricionista/dashboard-nutricionista.js', '/dashboard-nutricionista.js'],
+]);
+
 function createCorsMiddleware() {
   return function corsMiddleware(request, response, next) {
     response.setHeader('Access-Control-Allow-Origin', request.headers.origin || '*');
@@ -42,6 +62,27 @@ function createCorsMiddleware() {
     }
 
     next();
+  };
+}
+
+function createFrontendRouteAliasMiddleware() {
+  return function frontendRouteAliasMiddleware(request, response, next) {
+    if (request.method !== 'GET' && request.method !== 'HEAD') {
+      next();
+      return;
+    }
+
+    const alias = FRONTEND_ROUTE_ALIASES.get(request.path);
+
+    if (!alias) {
+      next();
+      return;
+    }
+
+    const queryIndex = request.originalUrl.indexOf('?');
+    const search = queryIndex === -1 ? '' : request.originalUrl.slice(queryIndex);
+
+    response.redirect(302, `${alias}${search}`);
   };
 }
 
@@ -117,6 +158,7 @@ function createApp(options = {}) {
   app.use('/api/nutritionist', createNutritionistRoutes(dependencies.nutritionistDashboardController));
   app.use('/api/admin', createAdminRoutes(dependencies.adminController));
 
+  app.use(createFrontendRouteAliasMiddleware());
   app.use(express.static(frontendDir));
 
   app.get('/', (request, response) => {

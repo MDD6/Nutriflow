@@ -449,6 +449,15 @@ class NutritionistDashboardRepository {
               ...snapshot,
             },
           });
+
+          await tx.weightEntry.create({
+            data: {
+              patientProfileId: profile.id,
+              weight: snapshot.weight,
+              note: 'Registro inicial importado do acompanhamento semanal.',
+              recordedAt: snapshot.recordedAt,
+            },
+          });
         }
       }
 
@@ -499,6 +508,7 @@ class NutritionistDashboardRepository {
             assessments: { orderBy: { date: 'desc' } },
             messages: { orderBy: { sentAt: 'desc' } },
             appointments: { orderBy: { scheduledAt: 'asc' } },
+            weightEntries: { orderBy: { recordedAt: 'asc' } },
             progressSnapshots: { orderBy: { recordedAt: 'asc' } },
             mealEntries: { orderBy: { loggedAt: 'desc' }, take: 15 },
             challengeLinks: {
@@ -532,6 +542,9 @@ class NutritionistDashboardRepository {
       },
       include: {
         user: true,
+        weightEntries: {
+          orderBy: { recordedAt: 'asc' },
+        },
         progressSnapshots: {
           orderBy: { recordedAt: 'asc' },
         },
@@ -647,6 +660,40 @@ class NutritionistDashboardRepository {
           lastAssessmentAt: data.date,
         },
       });
+
+      const dayStart = new Date(data.date);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(dayStart);
+      dayEnd.setDate(dayEnd.getDate() + 1);
+      const existingWeightEntry = await tx.weightEntry.findFirst({
+        where: {
+          patientProfileId: data.patientProfileId,
+          recordedAt: {
+            gte: dayStart,
+            lt: dayEnd,
+          },
+        },
+      });
+
+      if (existingWeightEntry) {
+        await tx.weightEntry.update({
+          where: { id: existingWeightEntry.id },
+          data: {
+            weight: data.weight,
+            note: data.notes,
+            recordedAt: data.date,
+          },
+        });
+      } else {
+        await tx.weightEntry.create({
+          data: {
+            patientProfileId: data.patientProfileId,
+            weight: data.weight,
+            note: data.notes,
+            recordedAt: data.date,
+          },
+        });
+      }
 
       await tx.progressSnapshot.create({
         data: {

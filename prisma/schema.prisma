@@ -51,6 +51,7 @@ model PatientProfile {
   messages          PatientMessage[]
   appointments      Appointment[]
   mealEntries       MealEntry[]
+  weightEntries     WeightEntry[]
   progressSnapshots ProgressSnapshot[]
   challengeLinks    ChallengeParticipant[]
   goal              Goal?
@@ -221,6 +222,19 @@ model ProgressSnapshot {
   recordedAt       DateTime
   createdAt        DateTime       @default(now())
   patientProfile   PatientProfile @relation(fields: [patientProfileId], references: [id], onDelete: Cascade)
+}
+
+model WeightEntry {
+  id               String         @id @default(uuid())
+  patientProfileId String
+  weight           Float
+  note             String         @default("")
+  recordedAt       DateTime
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  patientProfile   PatientProfile @relation(fields: [patientProfileId], references: [id], onDelete: Cascade)
+
+  @@index([patientProfileId, recordedAt])
 }
 
 model Goal {

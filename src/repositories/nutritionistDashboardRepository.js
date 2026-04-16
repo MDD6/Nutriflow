@@ -1,6 +1,56 @@
+const DEFAULT_FOODS = [
+  { name: 'Arroz integral cozido', calories: 124, protein: 3, carbs: 26, fat: 1 },
+  { name: 'Feijao carioca cozido', calories: 76, protein: 5, carbs: 14, fat: 1 },
+  { name: 'Peito de frango grelhado', calories: 165, protein: 31, carbs: 0, fat: 4 },
+  { name: 'Ovo inteiro', calories: 143, protein: 13, carbs: 1, fat: 10 },
+  { name: 'Aveia em flocos', calories: 389, protein: 17, carbs: 66, fat: 7 },
+  { name: 'Banana prata', calories: 89, protein: 1, carbs: 23, fat: 0 },
+  { name: 'Batata doce cozida', calories: 86, protein: 2, carbs: 20, fat: 0 },
+  { name: 'Iogurte natural', calories: 61, protein: 4, carbs: 5, fat: 3 },
+  { name: 'Carne bovina magra', calories: 217, protein: 27, carbs: 0, fat: 12 },
+  { name: 'Tilapia grelhada', calories: 129, protein: 26, carbs: 0, fat: 3 },
+  { name: 'Brocolis cozido', calories: 35, protein: 2, carbs: 7, fat: 0 },
+  { name: 'Azeite de oliva', calories: 884, protein: 0, carbs: 0, fat: 100 },
+  { name: 'Pao integral', calories: 247, protein: 13, carbs: 41, fat: 4 },
+  { name: 'Queijo cottage', calories: 98, protein: 11, carbs: 3, fat: 4 },
+  { name: 'Whey protein', calories: 400, protein: 80, carbs: 8, fat: 6 },
+];
+
 class NutritionistDashboardRepository {
   constructor(prisma) {
     this.prisma = prisma;
+  }
+
+  async ensureDefaultFoods() {
+    const foodsCount = await this.prisma.food.count();
+
+    if (foodsCount > 0) {
+      return;
+    }
+
+    await this.prisma.$transaction(
+      DEFAULT_FOODS.map((food) => this.prisma.food.upsert({
+        where: { name: food.name },
+        update: {},
+        create: food,
+      })),
+    );
+  }
+
+  findFoods() {
+    return this.prisma.food.findMany({
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  findFoodsByIds(foodIds) {
+    return this.prisma.food.findMany({
+      where: {
+        id: {
+          in: foodIds,
+        },
+      },
+    });
   }
 
   countManagedPatients(nutritionistId) {
@@ -437,7 +487,15 @@ class NutritionistDashboardRepository {
         managedPatients: {
           include: {
             user: true,
-            mealPlans: { orderBy: { createdAt: 'desc' } },
+            mealPlans: {
+              include: {
+                items: {
+                  include: { food: true },
+                  orderBy: { createdAt: 'asc' },
+                },
+              },
+              orderBy: { createdAt: 'desc' },
+            },
             assessments: { orderBy: { date: 'desc' } },
             messages: { orderBy: { sentAt: 'desc' } },
             appointments: { orderBy: { scheduledAt: 'asc' } },
@@ -448,7 +506,16 @@ class NutritionistDashboardRepository {
             },
           },
         },
-        mealPlans: { include: { patientProfile: { include: { user: true } } }, orderBy: { createdAt: 'desc' } },
+        mealPlans: {
+          include: {
+            patientProfile: { include: { user: true } },
+            items: {
+              include: { food: true },
+              orderBy: { createdAt: 'asc' },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
         assessments: { include: { patientProfile: { include: { user: true } } }, orderBy: { date: 'desc' } },
         messages: { include: { patientProfile: { include: { user: true } } }, orderBy: { sentAt: 'desc' } },
         appointments: { include: { patientProfile: { include: { user: true } } }, orderBy: { scheduledAt: 'asc' } },
@@ -517,6 +584,15 @@ class NutritionistDashboardRepository {
           fats: data.fats,
           notes: data.notes,
           status: data.status,
+          items: data.items?.length
+            ? {
+                create: data.items.map((item) => ({
+                  foodId: item.foodId,
+                  quantity: item.quantity,
+                  mealTime: item.mealTime,
+                })),
+              }
+            : undefined,
         },
       });
 
@@ -535,6 +611,10 @@ class NutritionistDashboardRepository {
             include: {
               user: true,
             },
+          },
+          items: {
+            include: { food: true },
+            orderBy: { createdAt: 'asc' },
           },
         },
       });

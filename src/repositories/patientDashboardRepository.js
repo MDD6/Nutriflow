@@ -10,6 +10,12 @@ class PatientDashboardRepository {
         user: true,
         nutritionist: true,
         mealPlans: {
+          include: {
+            items: {
+              include: { food: true },
+              orderBy: { createdAt: 'asc' },
+            },
+          },
           orderBy: { createdAt: 'desc' },
         },
         assessments: {
@@ -168,6 +174,12 @@ class PatientDashboardRepository {
           user: true,
           nutritionist: true,
           mealPlans: {
+            include: {
+              items: {
+                include: { food: true },
+                orderBy: { createdAt: 'asc' },
+              },
+            },
             orderBy: { createdAt: 'desc' },
           },
           assessments: {

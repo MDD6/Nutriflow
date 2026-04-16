@@ -93,6 +93,80 @@ function calculateAverage(numbers) {
   return Math.round(numbers.reduce((total, value) => total + value, 0) / numbers.length);
 }
 
+function parseMealPlanItems(items) {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  const parsedItems = items
+    .map((item) => ({
+      foodId: String(item.foodId || '').trim(),
+      mealTime: normalizeText(item.mealTime) || 'Refeicao',
+      quantity: Number(item.quantity),
+    }))
+    .filter((item) => item.foodId || Number.isFinite(item.quantity));
+
+  if (parsedItems.length > 40) {
+    throw new AppError('O plano pode ter no maximo 40 alimentos.', 400);
+  }
+
+  for (const item of parsedItems) {
+    if (!item.foodId) {
+      throw new AppError('Selecione o alimento em todos os itens do plano.', 400);
+    }
+
+    if (!Number.isFinite(item.quantity) || item.quantity <= 0 || item.quantity > 2000) {
+      throw new AppError('A quantidade dos alimentos deve ficar entre 1g e 2000g.', 400);
+    }
+  }
+
+  return parsedItems.map((item) => ({
+    ...item,
+    quantity: Number(item.quantity.toFixed(1)),
+  }));
+}
+
+function calculateNutritionFromItems(items, foods) {
+  const foodsById = new Map(foods.map((food) => [food.id, food]));
+  const totals = {
+    calories: 0,
+    protein: 0,
+    carbs: 0,
+    fats: 0,
+  };
+  const detailedItems = items.map((item) => {
+    const food = foodsById.get(item.foodId);
+
+    if (!food) {
+      throw new AppError('Um ou mais alimentos do plano nao foram encontrados.', 400);
+    }
+
+    const factor = item.quantity / 100;
+    const calculated = {
+      calories: Math.round(food.calories * factor),
+      protein: Math.round(food.protein * factor),
+      carbs: Math.round(food.carbs * factor),
+      fats: Math.round(food.fat * factor),
+    };
+
+    totals.calories += calculated.calories;
+    totals.protein += calculated.protein;
+    totals.carbs += calculated.carbs;
+    totals.fats += calculated.fats;
+
+    return {
+      ...item,
+      food,
+      calculated,
+    };
+  });
+
+  return {
+    totals,
+    items: detailedItems,
+  };
+}
+
 class NutritionistDashboardService {
   constructor(nutritionistDashboardRepository, userRepository) {
     this.nutritionistDashboardRepository = nutritionistDashboardRepository;
@@ -100,13 +174,18 @@ class NutritionistDashboardService {
   }
 
   async getDashboard(nutritionist) {
-    const workspace = await this.nutritionistDashboardRepository.findDashboard(nutritionist.id);
+    await this.nutritionistDashboardRepository.ensureDefaultFoods();
+
+    const [workspace, foods] = await Promise.all([
+      this.nutritionistDashboardRepository.findDashboard(nutritionist.id),
+      this.nutritionistDashboardRepository.findFoods(),
+    ]);
 
     if (!workspace) {
       throw new AppError('Nutricionista nao encontrado.', 404);
     }
 
-    return this.toDashboardDto(workspace);
+    return this.toDashboardDto(workspace, foods);
   }
 
   async createMealPlan(nutritionist, payload) {
@@ -116,6 +195,7 @@ class NutritionistDashboardService {
     const status = String(payload.status || 'Ativo').trim() || 'Ativo';
     const startDate = this.parseDate(payload.startDate, 'Informe a data de inicio do plano.');
     const endDate = this.parseDate(payload.endDate, 'Informe a data de fim do plano.');
+    const items = parseMealPlanItems(payload.items);
 
     if (!patientProfileId || !title) {
       throw new AppError('Informe paciente e titulo do plano alimentar.', 400);
@@ -131,18 +211,38 @@ class NutritionistDashboardService {
       throw new AppError('Paciente nao encontrado para este nutricionista.', 404);
     }
 
+    await this.nutritionistDashboardRepository.ensureDefaultFoods();
+
+    const nutrition = items.length
+      ? calculateNutritionFromItems(
+          items,
+          await this.nutritionistDashboardRepository.findFoodsByIds(items.map((item) => item.foodId)),
+        )
+      : null;
+    const totals = nutrition?.totals || {
+      calories: Math.max(0, Math.round(toNumber(payload.calories))),
+      protein: Math.max(0, Math.round(toNumber(payload.protein))),
+      carbs: Math.max(0, Math.round(toNumber(payload.carbs))),
+      fats: Math.max(0, Math.round(toNumber(payload.fats))),
+    };
+
     const mealPlan = await this.nutritionistDashboardRepository.createMealPlan({
       nutritionistId: nutritionist.id,
       patientProfileId,
       title,
       startDate,
       endDate,
-      calories: Math.max(0, Math.round(toNumber(payload.calories))),
-      protein: Math.max(0, Math.round(toNumber(payload.protein))),
-      carbs: Math.max(0, Math.round(toNumber(payload.carbs))),
-      fats: Math.max(0, Math.round(toNumber(payload.fats))),
-      notes,
+      calories: totals.calories,
+      protein: totals.protein,
+      carbs: totals.carbs,
+      fats: totals.fats,
+      notes: notes || (items.length ? 'Macros calculados automaticamente pela base de alimentos.' : ''),
       status,
+      items: nutrition?.items.map((item) => ({
+        foodId: item.foodId,
+        quantity: item.quantity,
+        mealTime: item.mealTime,
+      })) || [],
     });
 
     return {
@@ -427,7 +527,7 @@ class NutritionistDashboardService {
     return { message: 'Paciente adicionado ao desafio.' };
   }
 
-  toDashboardDto(workspace) {
+  toDashboardDto(workspace, foods = []) {
     const patientMessages = workspace.messages.filter((message) => message.senderRole === 'PATIENT');
     const patients = [...workspace.managedPatients]
       .sort((left, right) => left.user.name.localeCompare(right.user.name, 'pt-BR'))
@@ -457,6 +557,7 @@ class NutritionistDashboardService {
       messages,
       appointments,
       challenges,
+      foods: foods.map((food) => this.toFoodDto(food)),
       reports: this.buildReports(patients, mealPlans, workspace.assessments),
     };
   }
@@ -524,6 +625,34 @@ class NutritionistDashboardService {
       status: mealPlan.status,
       startDate: toIsoDate(mealPlan.startDate),
       endDate: toIsoDate(mealPlan.endDate),
+      items: (mealPlan.items || []).map((item) => this.toMealPlanItemDto(item)),
+    };
+  }
+
+  toMealPlanItemDto(item) {
+    const factor = item.quantity / 100;
+
+    return {
+      id: item.id,
+      foodId: item.foodId,
+      food: item.food?.name || 'Alimento',
+      quantity: item.quantity,
+      mealTime: item.mealTime,
+      calories: item.food ? Math.round(item.food.calories * factor) : 0,
+      protein: item.food ? Math.round(item.food.protein * factor) : 0,
+      carbs: item.food ? Math.round(item.food.carbs * factor) : 0,
+      fats: item.food ? Math.round(item.food.fat * factor) : 0,
+    };
+  }
+
+  toFoodDto(food) {
+    return {
+      id: food.id,
+      name: food.name,
+      calories: food.calories,
+      protein: food.protein,
+      carbs: food.carbs,
+      fat: food.fat,
     };
   }
 

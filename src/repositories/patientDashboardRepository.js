@@ -30,6 +30,9 @@ class PatientDashboardRepository {
         mealEntries: {
           orderBy: { loggedAt: 'desc' },
         },
+        weightEntries: {
+          orderBy: { recordedAt: 'asc' },
+        },
         progressSnapshots: {
           orderBy: { recordedAt: 'asc' },
         },
@@ -73,6 +76,18 @@ class PatientDashboardRepository {
 
   async upsertWeeklyWeightEntry(data) {
     return this.prisma.$transaction(async (tx) => {
+      const existingWeightEntry = await tx.weightEntry.findFirst({
+        where: {
+          patientProfileId: data.patientProfileId,
+          recordedAt: {
+            gte: data.dayStart,
+            lt: data.dayEnd,
+          },
+        },
+        orderBy: {
+          recordedAt: 'desc',
+        },
+      });
       const existingSnapshot = await tx.progressSnapshot.findFirst({
         where: {
           patientProfileId: data.patientProfileId,
@@ -86,8 +101,26 @@ class PatientDashboardRepository {
         },
       });
 
+      const weightEntry = existingWeightEntry
+        ? await tx.weightEntry.update({
+            where: { id: existingWeightEntry.id },
+            data: {
+              weight: data.weight,
+              note: data.note,
+              recordedAt: data.recordedAt,
+            },
+          })
+        : await tx.weightEntry.create({
+            data: {
+              patientProfileId: data.patientProfileId,
+              weight: data.weight,
+              note: data.note,
+              recordedAt: data.recordedAt,
+            },
+          });
+
       let snapshot = null;
-      let action = 'created';
+      let action = existingWeightEntry ? 'updated' : 'created';
 
       if (existingSnapshot) {
         snapshot = await tx.progressSnapshot.update({
@@ -128,6 +161,7 @@ class PatientDashboardRepository {
 
       return {
         action,
+        weightEntry,
         snapshot,
       };
     });
@@ -193,6 +227,9 @@ class PatientDashboardRepository {
           },
           mealEntries: {
             orderBy: { loggedAt: 'desc' },
+          },
+          weightEntries: {
+            orderBy: { recordedAt: 'asc' },
           },
           progressSnapshots: {
             orderBy: { recordedAt: 'asc' },

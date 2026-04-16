@@ -839,6 +839,45 @@ class PatientDashboardService {
       return [];
     }
 
+    const planItems = activePlan.items || [];
+
+    if (planItems.length) {
+      const groupedItems = new Map();
+
+      for (const item of planItems) {
+        const mealTime = item.mealTime || 'Refeicao';
+        const items = groupedItems.get(mealTime) || [];
+        items.push(item);
+        groupedItems.set(mealTime, items);
+      }
+
+      return [...groupedItems.entries()].map(([mealTime, items]) => {
+        const totals = items.reduce((accumulator, item) => {
+          const factor = item.quantity / 100;
+
+          accumulator.calories += item.food ? Math.round(item.food.calories * factor) : 0;
+          accumulator.protein += item.food ? Math.round(item.food.protein * factor) : 0;
+          accumulator.carbs += item.food ? Math.round(item.food.carbs * factor) : 0;
+          accumulator.fats += item.food ? Math.round(item.food.fat * factor) : 0;
+          return accumulator;
+        }, {
+          calories: 0,
+          protein: 0,
+          carbs: 0,
+          fats: 0,
+        });
+        const foodsLabel = items
+          .map((item) => `${item.food?.name || 'Alimento'} (${Number(item.quantity).toLocaleString('pt-BR')}g)`)
+          .join(', ');
+
+        return {
+          slotLabel: mealTime,
+          title: `${totals.calories} kcal - ${totals.protein}g proteina`,
+          description: `${foodsLabel}. Carboidratos: ${totals.carbs}g. Gorduras: ${totals.fats}g.`,
+        };
+      });
+    }
+
     const planTitle = activePlan?.title || 'Plano alimentar atual';
     const planNotes = activePlan?.notes || `Ajustes focados em ${objective.toLowerCase()}.`;
 

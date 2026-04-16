@@ -1137,6 +1137,15 @@ main .dashboard-card:nth-of-type(5) {
   font-weight: 700;
 }
 
+.weekly-consumption-chart {
+  display: block;
+  overflow: visible;
+}
+
+.weekly-consumption-chart text {
+  font-family: 'Manrope', 'Segoe UI', sans-serif;
+}
+
 .meal-timeline {
   position: relative;
 }

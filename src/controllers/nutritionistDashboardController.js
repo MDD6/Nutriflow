@@ -35,6 +35,26 @@ class NutritionistDashboardController {
     response.status(201).json(result);
   }
 
+  async updateAppointmentStatus(request, response) {
+    const nutritionist = await this.sessionService.requireNutritionist(request);
+    const result = await this.nutritionistDashboardService.updateAppointmentStatus(
+      nutritionist,
+      request.params.id,
+      request.body || {},
+    );
+    response.status(200).json(result);
+  }
+
+  async rescheduleAppointment(request, response) {
+    const nutritionist = await this.sessionService.requireNutritionist(request);
+    const result = await this.nutritionistDashboardService.rescheduleAppointment(
+      nutritionist,
+      request.params.id,
+      request.body || {},
+    );
+    response.status(200).json(result);
+  }
+
   // Nova Função: Adicionar ao Desafio
   async addChallengeParticipant(request, response) {
     const nutritionist = await this.sessionService.requireNutritionist(request);

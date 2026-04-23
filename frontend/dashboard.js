@@ -1420,8 +1420,12 @@ function renderClinical() {
     } else {
       checklistContainer.innerHTML = checklist.map((item) => `
         <li class="flex items-start gap-3">
-          <span class="check-dot${item.done ? ' is-done' : ''} mt-1"></span>
-          <span class="leading-7">${escapeHtml(item.label)}</span>
+          ${item.isChallenge && !item.done ? `
+            <button type="button" onclick="window.handleCompleteChallenge('${item.id}')" title="Marcar como concluído" class="check-dot mt-1 cursor-pointer hover:bg-nutriflow-300 transition-colors border-2"></button>
+          ` : `
+            <span class="check-dot${item.done ? ' is-done' : ''} mt-1"></span>
+          `}
+          <span class="leading-7 ${item.done ? 'text-nutriflow-400 line-through' : ''}">${escapeHtml(item.label)}</span>
         </li>
       `).join('');
     }
@@ -1429,6 +1433,16 @@ function renderClinical() {
 
   setTextContent(document.getElementById('weeklyInsightText'), clinical.insight || 'Sem insights disponiveis no momento.');
 }
+
+window.handleCompleteChallenge = async function(challengeId) {
+  try {
+    await apiRequest(`/api/patient/challenges/${challengeId}/complete`, { method: 'PATCH' });
+    await refreshDashboard();
+    showToast('Desafio concluído! Mandou bem!');
+  } catch (error) {
+    showToast(error.message || 'Erro ao concluir o desafio.');
+  }
+};
 
 function renderDashboard() {
   renderHeader();
@@ -1443,6 +1457,7 @@ function renderDashboard() {
   renderWeight();
   renderChat();
   renderClinical();
+  renderChallenges()
 }
 
 async function refreshDashboard() {
@@ -1916,6 +1931,33 @@ async function handlePatientSettingsSubmit(e) {
     btn.disabled = false;
     btn.textContent = 'Salvar Perfil';
   }
+} 
+
+function renderChallenges() {
+  const container = document.getElementById('activeChallengesList');
+  const challenges = state.dashboard?.clinical?.checklist?.filter(item => item.isChallenge) || [];
+
+  if (!container) return;
+
+  if (!challenges.length) {
+    container.innerHTML = '<p class="text-xs text-nutriflow-500 italic">Nenhum desafio ativo no momento.</p>';
+    return;
+  }
+
+  container.innerHTML = challenges.map(item => `
+    <div class="flex items-center justify-between p-3 rounded-2xl bg-white border border-nutriflow-100 shadow-sm">
+      <div class="flex items-center gap-3">
+        <button type="button" 
+                onclick="window.handleCompleteChallenge('${item.id}')" 
+                class="w-6 h-6 rounded-full border-2 border-nutriflow-200 flex items-center justify-center transition-all ${item.done ? 'bg-nutriflow-400 border-nutriflow-400' : 'hover:border-nutriflow-400'}"
+                ${item.done ? 'disabled' : ''}>
+          ${item.done ? '<span class="text-white text-xs">✓</span>' : ''}
+        </button>
+        <span class="text-sm font-semibold ${item.done ? 'text-nutriflow-400 line-through' : 'text-nutriflow-950'}">${escapeHtml(item.label)}</span>
+      </div>
+      ${item.done ? '<span class="text-[10px] font-bold text-nutriflow-400 uppercase">Feito!</span>' : ''}
+    </div>
+  `).join('');
 }
 
 init();

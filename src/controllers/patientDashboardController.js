@@ -45,6 +45,11 @@ class PatientDashboardController {
     const result = await this.patientDashboardService.updateProfile(patient, request.body || {});
     response.status(200).json(result);
   }
+  async completeChallenge(request, response) {
+    const patient = await this.sessionService.requirePatient(request);
+    const result = await this.patientDashboardService.completeChallenge(patient, request.params.id);
+    response.status(200).json(result);
+  }
 }
 
 module.exports = {

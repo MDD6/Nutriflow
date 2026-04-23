@@ -385,13 +385,33 @@
           <textarea id="mealDescriptionInput" rows="3" maxlength="280" placeholder="Descreva os alimentos, preparo ou observacoes do horario."></textarea>
         </label>
 
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <p class="text-xs font-bold uppercase tracking-[0.16em] text-nutriflow-600">Alimentos Consumidos</p>
+            <p class="text-[10px] text-nutriflow-500">Selecione os alimentos para cálculo automático.</p>
+          </div>
+          <div class="flex gap-2">
+            <button id="btnAutoFillMeal" class="rounded-lg border border-nutriflow-200 bg-white px-3 py-2 text-xs font-bold text-nutriflow-700 shadow-sm transition hover:bg-nutriflow-100" type="button">
+              ⚡ Preencher do Plano
+            </button>
+            <button id="btnAddMealItem" class="rounded-lg bg-nutriflow-950 px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-nutriflow-800" type="button">
+              + Adicionar
+            </button>
+          </div>
+        </div>
+
+        <div id="mealItemsList" class="mt-3 grid gap-2"></div>
+        <div class="grid gap-4 md:grid-cols-3 mt-4">
+          <label class="nf-field"><span>Calorias (kcal)</span><input id="mealCaloriesInput" type="number" class="bg-nutriflow-50" readonly value="0" required /></label>
+        </div>
+
         <div class="grid gap-4 md:grid-cols-3">
-          <label class="nf-field"><span>Calorias (kcal)</span><input id="mealCaloriesInput" type="number" min="0" max="2500" step="1" value="0" required /></label>
-          <label class="nf-field"><span>Proteina (g)</span><input id="mealProteinInput" type="number" min="0" max="250" step="1" value="0" required /></label>
-          <label class="nf-field"><span>Carboidrato (g)</span><input id="mealCarbsInput" type="number" min="0" max="350" step="1" value="0" required /></label>
-          <label class="nf-field"><span>Gordura (g)</span><input id="mealFatsInput" type="number" min="0" max="180" step="1" value="0" required /></label>
-          <label class="nf-field"><span>Fibra (g)</span><input id="mealFiberInput" type="number" min="0" max="80" step="1" value="0" required /></label>
-          <label class="nf-field"><span>Agua (ml)</span><input id="mealWaterInput" type="number" min="0" max="2000" step="10" value="0" required /></label>
+          <label class="nf-field"><span>Calorias (kcal)</span><input id="mealCaloriesInput" type="number" class="bg-nutriflow-50" readonly value="0" required /></label>
+          <label class="nf-field"><span>Proteina (g)</span><input id="mealProteinInput" type="number" class="bg-nutriflow-50" readonly value="0" required /></label>
+          <label class="nf-field"><span>Carboidrato (g)</span><input id="mealCarbsInput" type="number" class="bg-nutriflow-50" readonly value="0" required /></label>
+          <label class="nf-field"><span>Gordura (g)</span><input id="mealFatsInput" type="number" class="bg-nutriflow-50" readonly value="0" required /></label>
+          <label class="nf-field"><span>Fibra (g)</span><input id="mealFiberInput" type="number" class="bg-nutriflow-50" readonly value="0" required /></label>
+          <label class="nf-field"><span>Agua (ml)</span><input id="mealWaterInput" type="number" min="0" max="2000" step="10" value="0" required title="A água geralmente é inserida manualmente" /></label>
         </div>
 
         <p id="mealFormError" class="meal-form-error hidden" role="alert"></p>

@@ -45,6 +45,12 @@ class PatientDashboardRepository {
     });
   }
 
+  getAllFoods() {
+    return this.prisma.food.findMany({
+      orderBy: { name: 'asc' },
+    });
+  }
+
   async createMealEntry(data) {
     return this.prisma.$transaction(async (tx) => {
       const mealEntry = await tx.mealEntry.create({
@@ -60,6 +66,14 @@ class PatientDashboardRepository {
           fiber: data.fiber,
           waterMl: data.waterMl,
           loggedAt: data.loggedAt,
+          ...(data.items && data.items.length > 0 && {
+            items: {
+              create: data.items.map(item => ({
+                foodId: item.foodId,
+                quantity: item.quantity
+              }))
+            }
+          })
         },
       });
 

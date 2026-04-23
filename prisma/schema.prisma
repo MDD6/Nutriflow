@@ -132,6 +132,7 @@ model MealEntry {
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
   patientProfile   PatientProfile @relation(fields: [patientProfileId], references: [id], onDelete: Cascade)
+  items MealEntryItem[]
 
   @@index([patientProfileId])
   @@index([patientProfileId, loggedAt])
@@ -148,6 +149,7 @@ model Food {
   updatedAt  DateTime       @updatedAt
   logs       FoodLog[]
   mealPlanItems MealPlanItem[]
+  mealEntryItems MealEntryItem[]
 }
 
 model FoodLog {
@@ -247,4 +249,17 @@ model Goal {
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
   patientProfile PatientProfile @relation(fields: [patientProfileId], references: [id], onDelete: Cascade)
+}
+
+model MealEntryItem {
+  id          String    @id @default(uuid())
+  quantity    Float
+  
+  mealEntryId String
+  mealEntry   MealEntry @relation(fields: [mealEntryId], references: [id], onDelete: Cascade)
+  
+  foodId      String
+  food        Food      @relation(fields: [foodId], references: [id])
+
+  @@index([mealEntryId])
 }

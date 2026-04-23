@@ -436,12 +436,16 @@ class PatientDashboardService {
 
   async getDashboard(patientUser) {
     const patientProfile = await this.patientDashboardRepository.findByUserId(patientUser.id);
+    
+    const foods = await this.patientDashboardRepository.getAllFoods();
 
     if (!patientProfile) {
-      return this.toSetupDto(patientUser);
+      const setupDto = this.toSetupDto(patientUser);
+      return { ...setupDto, foods }; 
     }
 
-    return this.toDashboardDto(patientProfile);
+    const dashboardDto = this.toDashboardDto(patientProfile);
+    return { ...dashboardDto, foods }; 
   }
 
   async getChat(patientUser) {
@@ -584,6 +588,8 @@ class PatientDashboardService {
     const description = parseMealDescription(payload.description, mealType);
     const loggedAt = this.parseDateOrNow(payload.loggedAt);
 
+    const items = Array.isArray(payload.items) ? payload.items : [];
+
     const mealEntry = await this.patientDashboardRepository.createMealEntry({
       patientProfileId: patientProfile.id,
       mealType,
@@ -596,6 +602,7 @@ class PatientDashboardService {
       fiber: parseBoundedInteger(payload.fiber, MEAL_NUMERIC_LIMITS.fiber),
       waterMl: parseBoundedInteger(payload.waterMl, MEAL_NUMERIC_LIMITS.waterMl),
       loggedAt,
+      items, 
     });
 
     return {
@@ -842,6 +849,7 @@ class PatientDashboardService {
       plan: {
         title: activePlan?.title || 'Sem plano alimentar ativo',
         sections: this.buildPlanSections(activePlan, patientProfile.objective),
+        rawItems: activePlan?.items || [],
       },
       weight: {
         labels: weightTimeline.slice(-5).map((entry) => formatShortDate(entry.recordedAt)),

@@ -272,6 +272,9 @@ function resetMealEntryForm() {
     });
 
   setMealFormError('');
+
+  const list = document.getElementById('mealItemsList');
+  if (list) list.innerHTML = ''; // Limpa a lista ao abrir o modal
 }
 
 function applyMealTemplate(templateKey) {
@@ -324,6 +327,108 @@ function applyMealTemplate(templateKey) {
   setMealFormError('');
 }
 
+// --- LÓGICA DINÂMICA DE ALIMENTOS DO PACIENTE ---
+
+// Simula a busca do alimento (o back-end precisa retornar state.dashboard.foods igual no nutri)
+function getFoodByIdForPatient(foodId) {
+  const foods = state.dashboard?.foods || [];
+  return foods.find((food) => food.id === foodId) || null;
+}
+
+function buildFoodOptionsForPatient(selectedFoodId = '') {
+  const foods = state.dashboard?.foods || [];
+  if (!foods.length) return '<option value="">Base de alimentos vazia</option>';
+  
+  return '<option value="">Selecione um alimento</option>' + foods.map((food) => `
+    <option value="${food.id}" ${food.id === selectedFoodId ? 'selected' : ''}>${escapeHtml(food.name)}</option>
+  `).join('');
+}
+
+function getMealItemsPayload() {
+  return Array.from(document.querySelectorAll('[data-meal-item-row]')).map((row) => {
+    const foodId = row.querySelector('[data-meal-food]')?.value || '';
+    const quantity = Number(row.querySelector('[data-meal-quantity]')?.value || 0);
+    return { foodId, quantity };
+  }).filter((item) => item.foodId && Number.isFinite(item.quantity) && item.quantity > 0);
+}
+
+function updateMealTotals() {
+  const totals = getMealItemsPayload().reduce((acc, item) => {
+    const food = getFoodByIdForPatient(item.foodId);
+    if (!food || !Number.isFinite(item.quantity)) return acc;
+
+    const factor = item.quantity / 100;
+    acc.calories += (food.calories || 0) * factor;
+    acc.protein += (food.protein || 0) * factor;
+    acc.carbs += (food.carbs || 0) * factor;
+    acc.fats += (food.fat || food.fats || 0) * factor;
+    acc.fiber += (food.fiber || 0) * factor; // Assumindo que o banco tem fibra
+    return acc;
+  }, { calories: 0, protein: 0, carbs: 0, fats: 0, fiber: 0 });
+
+  mealCaloriesInput.value = Math.round(totals.calories);
+  mealProteinInput.value = Math.round(totals.protein);
+  mealCarbsInput.value = Math.round(totals.carbs);
+  mealFatsInput.value = Math.round(totals.fats);
+  mealFiberInput.value = Math.round(totals.fiber);
+}
+
+function addMealItemRow(item = {}) {
+  const list = document.getElementById('mealItemsList');
+  if (!list) return;
+
+  const row = document.createElement('div');
+  row.className = 'grid gap-2 rounded-lg border border-white bg-white p-2 shadow-sm grid-cols-[1fr_100px_auto]';
+  row.dataset.mealItemRow = 'true';
+  row.innerHTML = `
+    <select class="rounded-lg border border-nutriflow-200 px-3 py-2 text-sm font-bold" data-meal-food required>
+      ${buildFoodOptionsForPatient(item.foodId || '')}
+    </select>
+    <div class="relative">
+      <input class="w-full rounded-lg border border-nutriflow-200 px-3 py-2 text-sm font-bold pr-6" data-meal-quantity type="number" min="1" step="1" value="${item.quantity || 100}" required />
+      <span class="absolute right-2 top-2 text-xs text-nutriflow-500 font-bold">g</span>
+    </div>
+    <button class="rounded-lg border border-red-100 px-3 py-2 text-xs font-bold text-red-500 hover:bg-red-50" type="button" data-remove-meal-item>Excluir</button>
+  `;
+
+  row.querySelectorAll('select, input').forEach((field) => {
+    field.addEventListener('input', updateMealTotals);
+    field.addEventListener('change', updateMealTotals);
+  });
+
+  row.querySelector('[data-remove-meal-item]')?.addEventListener('click', () => {
+    row.remove();
+    updateMealTotals();
+  });
+
+  list.appendChild(row);
+  updateMealTotals();
+}
+
+document.getElementById('btnAddMealItem')?.addEventListener('click', () => addMealItemRow());
+
+document.getElementById('btnAutoFillMeal')?.addEventListener('click', () => {
+  const selectedMealType = document.getElementById('mealTypeInput').value;
+  const rawItems = state.dashboard?.plan?.rawItems || [];
+  
+  const planItemsForMeal = rawItems.filter(item => item.mealTime === selectedMealType);
+
+  if (planItemsForMeal.length === 0) {
+    showToast(`Nenhum alimento cadastrado no plano para: ${selectedMealType}`);
+    return;
+  }
+
+  // Limpa a lista atual
+  const list = document.getElementById('mealItemsList');
+  if (list) list.innerHTML = '';
+
+  planItemsForMeal.forEach(item => {
+    addMealItemRow({ foodId: item.foodId, quantity: item.quantity });
+  });
+  
+  showToast('Alimentos do plano adicionados!');
+});
+
 function openMealEntryModal(options = {}) {
   if (!mealEntryModal) {
     return;
@@ -371,15 +476,14 @@ function closeMealEntryModal(options = {}) {
 function getMealPayloadFromForm() {
   const loggedAtRaw = String(mealLoggedAtInput?.value || '').trim();
   const loggedAtDate = loggedAtRaw ? new Date(loggedAtRaw) : null;
-  const loggedAt = loggedAtDate && !Number.isNaN(loggedAtDate.getTime())
-    ? loggedAtDate.toISOString()
-    : '';
+  const loggedAt = loggedAtDate && !Number.isNaN(loggedAtDate.getTime()) ? loggedAtDate.toISOString() : '';
 
   return {
     mealType: String(mealTypeInput?.value || '').trim(),
     title: String(mealTitleInput?.value || '').trim(),
     description: String(mealDescriptionInput?.value || '').trim(),
     loggedAt,
+    items: getMealItemsPayload(), 
     calories: toRoundedNumber(mealCaloriesInput?.value, 0),
     protein: toRoundedNumber(mealProteinInput?.value, 0),
     carbs: toRoundedNumber(mealCarbsInput?.value, 0),

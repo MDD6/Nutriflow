@@ -23,7 +23,14 @@ const state = {
   selectedPatientId: null,
   activeFilterId: null, // Novo: Guarda se estamos filtrando a tela por um paciente
   activeChallengeId: null, // Para adicionar pacientes a desafios
-  mealPlans: [], assessments: [], appointments: [], challenges: [], messages: [], foods: []
+  mealPlans: [], assessments: [], appointments: [], challenges: [], messages: [], foods: [], reminders: []
+};
+
+const APPOINTMENT_STATUS_LABELS = {
+  agendada: 'Agendada',
+  confirmada: 'Confirmada',
+  remarcada: 'Remarcada',
+  faltou: 'Faltou',
 };
 
 const toast = document.getElementById('nutritionistToast');
@@ -39,6 +46,7 @@ async function fetchDatabaseData() {
     state.mealPlans = data.mealPlans || [];
     state.assessments = data.assessments || [];
     state.appointments = data.appointments || [];
+    state.reminders = data.reminders || [];
     state.challenges = data.challenges || [];
     state.messages = data.messages || [];
     state.foods = data.foods || [];
@@ -311,14 +319,32 @@ function renderGeneralLists() {
     `).join('') : '<p class="text-sm text-nutriflow-500">Nenhuma avaliação.</p>';
 
   const agendaContainer = document.getElementById('appointmentsList');
+  const remindersContainer = document.getElementById('appointmentRemindersList');
+
+  if (remindersContainer) {
+    remindersContainer.innerHTML = state.reminders.length
+      ? state.reminders.map((reminder) => `
+        <div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+          <p class="text-xs font-bold uppercase tracking-[0.12em] text-amber-700">${escapeHtml(reminder.reminder?.label || 'Lembrete')}</p>
+          <p class="mt-1 text-sm font-bold text-nutriflow-950">${escapeHtml(reminder.patient)} - ${escapeHtml(reminder.type)}</p>
+          <p class="text-xs text-nutriflow-700">${escapeHtml(reminder.date)} (${escapeHtml(String(reminder.reminder?.minutesUntil || 0))} min)</p>
+        </div>
+      `).join('')
+      : '<p class="text-sm text-nutriflow-500">Sem lembretes de consulta nas próximas 24h.</p>';
+  }
+
   agendaContainer.innerHTML = apps.length ? apps.map(app => `
       <div class="bg-white border rounded-xl p-3 shadow-sm flex justify-between items-center relative group">
         <div>
           <p class="text-sm font-bold text-nutriflow-950">${app.patient}</p>
           <p class="text-xs font-bold text-nutriflow-500">${app.type}</p>
+          <p class="text-[11px] font-bold text-nutriflow-700 mt-1">Status: ${escapeHtml(APPOINTMENT_STATUS_LABELS[app.status] || app.status)}</p>
         </div>
         <div class="flex items-center gap-2">
           <p class="text-xs font-bold bg-nutriflow-50 px-2 py-1 rounded-lg">${app.date}</p>
+          <button onclick="window.updateAppointmentStatus('${app.id}', 'confirmada')" class="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-700">Confirmar</button>
+          <button onclick="window.rescheduleAppointment('${app.id}')" class="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-bold text-amber-700">Remarcar</button>
+          <button onclick="window.updateAppointmentStatus('${app.id}', 'faltou')" class="rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-[11px] font-bold text-rose-700">Faltou</button>
           <button onclick="window.deleteResource('appointments', '${app.id}')" class="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition">🗑️</button>
         </div>
       </div>
@@ -375,6 +401,38 @@ window.duplicatePlan = function(planId) {
 window.openAddParticipant = function(challengeId) {
   state.activeChallengeId = challengeId;
   openModal('addParticipant');
+};
+
+window.updateAppointmentStatus = async function(appointmentId, status) {
+  try {
+    await apiRequest(`/api/nutritionist/appointments/${appointmentId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    });
+    showToast('Status da consulta atualizado.');
+    await fetchDatabaseData();
+  } catch (error) {
+    showToast(error.message || 'Erro ao atualizar status da consulta.');
+  }
+};
+
+window.rescheduleAppointment = async function(appointmentId) {
+  const newDate = window.prompt('Nova data/hora (formato: 2026-12-30T14:30):');
+
+  if (!newDate) {
+    return;
+  }
+
+  try {
+    await apiRequest(`/api/nutritionist/appointments/${appointmentId}/reschedule`, {
+      method: 'PATCH',
+      body: JSON.stringify({ scheduledAt: newDate }),
+    });
+    showToast('Consulta remarcada com sucesso.');
+    await fetchDatabaseData();
+  } catch (error) {
+    showToast(error.message || 'Erro ao remarcar consulta.');
+  }
 };
 
 // MODAIS

@@ -788,6 +788,38 @@ class NutritionistDashboardRepository {
         type: data.type,
         status: data.status,
       },
+      include: {
+        patientProfile: {
+          include: {
+            user: true,
+          },
+        },
+      },
+    });
+  }
+
+  async updateAppointment(nutritionistId, appointmentId, data) {
+    const appointment = await this.prisma.appointment.findFirst({
+      where: {
+        id: appointmentId,
+        nutritionistId,
+      },
+    });
+
+    if (!appointment) {
+      return null;
+    }
+
+    return this.prisma.appointment.update({
+      where: { id: appointmentId },
+      data,
+      include: {
+        patientProfile: {
+          include: {
+            user: true,
+          },
+        },
+      },
     });
   }
 

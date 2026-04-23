@@ -85,6 +85,59 @@ function toNumber(value, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+const APPOINTMENT_STATUSES = {
+  SCHEDULED: 'agendada',
+  CONFIRMED: 'confirmada',
+  RESCHEDULED: 'remarcada',
+  MISSED: 'faltou',
+};
+
+const ALLOWED_APPOINTMENT_STATUSES = new Set(Object.values(APPOINTMENT_STATUSES));
+
+function normalizeAppointmentStatus(value) {
+  const normalized = normalizeText(value).toLowerCase();
+
+  if (!normalized) {
+    return APPOINTMENT_STATUSES.SCHEDULED;
+  }
+
+  if (normalized === 'confirmado' || normalized === 'confirmada') {
+    return APPOINTMENT_STATUSES.CONFIRMED;
+  }
+
+  if (normalized === 'a confirmar' || normalized === 'pendente') {
+    return APPOINTMENT_STATUSES.SCHEDULED;
+  }
+
+  if (ALLOWED_APPOINTMENT_STATUSES.has(normalized)) {
+    return normalized;
+  }
+
+  throw new AppError('Status de consulta invalido. Use: agendada, confirmada, remarcada ou faltou.', 400);
+}
+
+function buildAppointmentReminder(appointment) {
+  const scheduledAt = new Date(appointment.scheduledAt);
+
+  if (Number.isNaN(scheduledAt.getTime())) {
+    return null;
+  }
+
+  const diffMs = scheduledAt.getTime() - Date.now();
+
+  if (diffMs < 0 || diffMs > 24 * 60 * 60 * 1000) {
+    return null;
+  }
+
+  return {
+    due: true,
+    minutesUntil: Math.max(0, Math.round(diffMs / 60000)),
+    label: diffMs <= 60 * 60 * 1000
+      ? 'Consulta em menos de 1 hora'
+      : 'Consulta nas proximas 24 horas',
+  };
+}
+
 function calculateAverage(numbers) {
   if (!numbers.length) {
     return 0;
@@ -486,10 +539,71 @@ class NutritionistDashboardService {
       patientProfileId,
       scheduledAt,
       type,
-      status: 'Confirmado',
+      status: APPOINTMENT_STATUSES.SCHEDULED,
     });
 
-    return { message: 'Consulta agendada com sucesso.', appointment };
+    return {
+      message: 'Consulta agendada com sucesso.',
+      appointment: this.toAppointmentDto({
+        ...appointment,
+        patientProfile: {
+          user: {
+            name: patient.user.name,
+          },
+        },
+      }),
+    };
+  }
+
+  async updateAppointmentStatus(nutritionist, appointmentId, payload) {
+    const normalizedAppointmentId = String(appointmentId || '').trim();
+    const status = normalizeAppointmentStatus(payload.status);
+
+    if (!normalizedAppointmentId) {
+      throw new AppError('Informe a consulta para atualizar o status.', 400);
+    }
+
+    const appointment = await this.nutritionistDashboardRepository.updateAppointment(
+      nutritionist.id,
+      normalizedAppointmentId,
+      { status },
+    );
+
+    if (!appointment) {
+      throw new AppError('Consulta nao encontrada para este nutricionista.', 404);
+    }
+
+    return {
+      message: 'Status da consulta atualizado com sucesso.',
+      appointment: this.toAppointmentDto(appointment),
+    };
+  }
+
+  async rescheduleAppointment(nutritionist, appointmentId, payload) {
+    const normalizedAppointmentId = String(appointmentId || '').trim();
+    const scheduledAt = this.parseDate(payload.date || payload.scheduledAt, 'Informe uma nova data valida.');
+
+    if (!normalizedAppointmentId) {
+      throw new AppError('Informe a consulta para remarcar.', 400);
+    }
+
+    const appointment = await this.nutritionistDashboardRepository.updateAppointment(
+      nutritionist.id,
+      normalizedAppointmentId,
+      {
+        scheduledAt,
+        status: APPOINTMENT_STATUSES.RESCHEDULED,
+      },
+    );
+
+    if (!appointment) {
+      throw new AppError('Consulta nao encontrada para este nutricionista.', 404);
+    }
+
+    return {
+      message: 'Consulta remarcada com sucesso.',
+      appointment: this.toAppointmentDto(appointment),
+    };
   }
 
   async deleteResource(nutritionist, resourceType, id) {
@@ -550,6 +664,10 @@ class NutritionistDashboardService {
     const assessments = workspace.assessments.map((assessment) => this.toAssessmentDto(assessment));
     const messages = patientMessages.map((message) => this.toMessageDto(message));
     const appointments = workspace.appointments.map((appointment) => this.toAppointmentDto(appointment));
+    const reminders = appointments
+      .filter((appointment) => appointment.reminder?.due)
+      .sort((left, right) => left.reminder.minutesUntil - right.reminder.minutesUntil)
+      .slice(0, 5);
     const challenges = workspace.challenges.map((challenge) => this.toChallengeDto(challenge));
 
     return {
@@ -564,12 +682,14 @@ class NutritionistDashboardService {
         activePlans: mealPlans.filter((plan) => plan.status === 'Ativo').length,
         monthlyAssessments: this.countCurrentMonthAssessments(workspace.assessments),
         pendingMessages: patientMessages.filter((message) => message.pending).length,
+        pendingAppointments: appointments.filter((appointment) => appointment.status !== APPOINTMENT_STATUSES.MISSED).length,
       },
       patients,
       mealPlans,
       assessments,
       messages,
       appointments,
+      reminders,
       challenges,
       foods: foods.map((food) => this.toFoodDto(food)),
       reports: this.buildReports(patients, mealPlans, workspace.assessments),
@@ -736,13 +856,17 @@ class NutritionistDashboardService {
   }
 
   toAppointmentDto(appointment) {
+    const normalizedStatus = normalizeAppointmentStatus(appointment.status);
+    const reminder = buildAppointmentReminder(appointment);
+
     return {
       id: appointment.id,
       patientId: appointment.patientProfileId,
       patient: appointment.patientProfile.user.name,
       date: formatDateTime(appointment.scheduledAt),
       type: appointment.type,
-      status: appointment.status,
+      status: normalizedStatus,
+      reminder,
     };
   }
 

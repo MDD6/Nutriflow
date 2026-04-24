@@ -985,28 +985,34 @@ class PatientDashboardService {
   }
 
   buildChecklist(patientProfile, todayMeals, waterMl) {
+    
     const challengeItems = patientProfile.challengeLinks
-      .slice(0, 2)
       .map((link) => ({
-        label: link.challenge.target,
-        done: link.progress >= 70,
+        id: link.challengeId,
+        label: link.challenge.target, 
+        done: link.progress >= 100,   
+        isChallenge: true,
       }));
+      
     const fallbackItems = [
       {
         label: 'Registrar pelo menos 3 refeicoes no dia',
         done: todayMeals.length >= 3,
+        isChallenge: false,
       },
       {
         label: 'Manter agua acima de 2 litros',
         done: waterMl >= 2000,
+        isChallenge: false,
       },
       {
         label: 'Atualizar medidas para a proxima consulta',
         done: Boolean(patientProfile.lastAssessmentAt),
+        isChallenge: false,
       },
     ];
 
-    return [...challengeItems, ...fallbackItems].slice(0, 3);
+    return [...challengeItems, ...fallbackItems].slice(0, 4);
   }
 
   getVariationLabel(snapshots) {
@@ -1147,6 +1153,11 @@ class PatientDashboardService {
     }
 
     return date;
+  }
+  async completeChallenge(patientUser, challengeId) {
+    const patientProfile = await this.requirePatientProfile(patientUser.id);
+    await this.patientDashboardRepository.completeChallenge(patientProfile.id, challengeId);
+    return { message: 'Desafio concluído com sucesso! 🎉' };
   }
 }
 

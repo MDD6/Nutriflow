@@ -257,6 +257,14 @@ class PatientDashboardRepository {
       });
     });
   }
+  async completeChallenge(patientProfileId, challengeId) {
+    return this.prisma.challengeParticipant.update({
+      where: {
+        challengeId_patientProfileId: { challengeId, patientProfileId }
+      },
+      data: { progress: 100 }
+    });
+  }
 }
 
 module.exports = {

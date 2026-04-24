@@ -71,6 +71,7 @@ function renderHeader() {
   document.querySelectorAll('[data-nutritionist-name]').forEach(el => el.textContent = currentUser.name);
   document.querySelectorAll('[data-nutritionist-initial]').forEach(el => el.textContent = getInitials(currentUser.name));
   document.querySelector('[data-sidebar-date]').textContent = formatCoreSidebarDate();
+  document.querySelector('[data-header-greeting]').textContent = `Olá, ${currentUser.name}`;
 }
 
 function renderPatientsList() {

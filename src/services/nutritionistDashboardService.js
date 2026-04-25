@@ -235,9 +235,10 @@ function calculateNutritionFromItems(items, foods) {
 }
 
 class NutritionistDashboardService {
-  constructor(nutritionistDashboardRepository, userRepository) {
+  constructor(nutritionistDashboardRepository, userRepository, chatRealtimeService = null) {
     this.nutritionistDashboardRepository = nutritionistDashboardRepository;
     this.userRepository = userRepository;
+    this.chatRealtimeService = chatRealtimeService;
   }
 
   async getDashboard(nutritionist) {
@@ -481,6 +482,27 @@ class NutritionistDashboardService {
     return this.toConversationDto(patientProfile);
   }
 
+  async getConversationStreamContext(nutritionist, patientProfileId) {
+    const normalizedPatientProfileId = String(patientProfileId || '').trim();
+
+    if (!normalizedPatientProfileId) {
+      throw new AppError('Informe o paciente para abrir a conversa em tempo real.', 400);
+    }
+
+    const patientProfile = await this.nutritionistDashboardRepository.findPatientProfile(
+      nutritionist.id,
+      normalizedPatientProfileId,
+    );
+
+    if (!patientProfile) {
+      throw new AppError('Paciente nao encontrado para este nutricionista.', 404);
+    }
+
+    return {
+      patientProfileId: patientProfile.id,
+    };
+  }
+
   async sendMessage(nutritionist, payload) {
     const patientProfileId = String(payload.patientId || '').trim();
     const content = String(payload.content || '').trim();
@@ -507,6 +529,11 @@ class NutritionistDashboardService {
       nutritionistId: nutritionist.id,
       content,
       sentAt: new Date(),
+    });
+
+    this.chatRealtimeService?.publishChatUpdated(patientProfile.id, {
+      senderRole: 'NUTRITIONIST',
+      messageId: chatMessage.id,
     });
 
     return {

@@ -11,7 +11,8 @@ class SessionService {
     const header = request.headers.authorization || '';
 
     if (!header.startsWith('Bearer ')) {
-      return null;
+      const queryToken = String(request.query?.token || '').trim();
+      return queryToken || null;
     }
 
     return header.slice('Bearer '.length).trim();

@@ -407,16 +407,12 @@
         </div>
 
         <div id="mealItemsList" class="mt-3 grid gap-2"></div>
-        <div class="grid gap-4 md:grid-cols-3 mt-4">
-          <label class="nf-field"><span>Calorias (kcal)</span><input id="mealCaloriesInput" type="number" class="bg-nutriflow-50" readonly value="0" required /></label>
-        </div>
-
         <div class="grid gap-4 md:grid-cols-3">
-          <label class="nf-field"><span>Calorias (kcal)</span><input id="mealCaloriesInput" type="number" class="bg-nutriflow-50" readonly value="0" required /></label>
-          <label class="nf-field"><span>Proteina (g)</span><input id="mealProteinInput" type="number" class="bg-nutriflow-50" readonly value="0" required /></label>
-          <label class="nf-field"><span>Carboidrato (g)</span><input id="mealCarbsInput" type="number" class="bg-nutriflow-50" readonly value="0" required /></label>
-          <label class="nf-field"><span>Gordura (g)</span><input id="mealFatsInput" type="number" class="bg-nutriflow-50" readonly value="0" required /></label>
-          <label class="nf-field"><span>Fibra (g)</span><input id="mealFiberInput" type="number" class="bg-nutriflow-50" readonly value="0" required /></label>
+          <label class="nf-field"><span>Calorias (kcal)</span><input id="mealCaloriesInput" type="number" min="0" max="2500" class="bg-white" value="0" required /></label>
+          <label class="nf-field"><span>Proteina (g)</span><input id="mealProteinInput" type="number" min="0" max="250" class="bg-white" value="0" required /></label>
+          <label class="nf-field"><span>Carboidrato (g)</span><input id="mealCarbsInput" type="number" min="0" max="350" class="bg-white" value="0" required /></label>
+          <label class="nf-field"><span>Gordura (g)</span><input id="mealFatsInput" type="number" min="0" max="180" class="bg-white" value="0" required /></label>
+          <label class="nf-field"><span>Fibra (g)</span><input id="mealFiberInput" type="number" min="0" max="80" class="bg-white" value="0" required /></label>
           <label class="nf-field"><span>Agua (ml)</span><input id="mealWaterInput" type="number" min="0" max="2000" step="10" value="0" required title="A água geralmente é inserida manualmente" /></label>
         </div>
 

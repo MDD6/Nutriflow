@@ -20,6 +20,12 @@ const MEAL_NUMERIC_LIMITS = {
   waterMl: { label: 'Agua (ml)', min: 0, max: 2000, defaultValue: 0 },
 };
 
+const MEAL_ITEM_LIMITS = {
+  maxItems: 20,
+  minQuantity: 1,
+  maxQuantity: 2000,
+};
+
 const WEEKLY_WEIGHT_LIMITS = {
   min: 20,
   max: 350,
@@ -146,6 +152,77 @@ function parseProfileMetric(value, options) {
   }
 
   return Number(parsed.toFixed(2));
+}
+
+function parseMealItems(items) {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  const parsedItems = items
+    .map((item) => ({
+      foodId: normalizeText(item?.foodId),
+      quantity: Number(item?.quantity),
+    }))
+    .filter((item) => item.foodId || Number.isFinite(item.quantity));
+
+  if (parsedItems.length > MEAL_ITEM_LIMITS.maxItems) {
+    throw new AppError(`Selecione no maximo ${MEAL_ITEM_LIMITS.maxItems} alimentos por refeicao.`, 400);
+  }
+
+  for (const item of parsedItems) {
+    if (!item.foodId) {
+      throw new AppError('Selecione um alimento em todos os itens da refeicao.', 400);
+    }
+
+    if (!Number.isFinite(item.quantity)
+      || item.quantity < MEAL_ITEM_LIMITS.minQuantity
+      || item.quantity > MEAL_ITEM_LIMITS.maxQuantity) {
+      throw new AppError(
+        `A quantidade dos alimentos deve ficar entre ${MEAL_ITEM_LIMITS.minQuantity}g e ${MEAL_ITEM_LIMITS.maxQuantity}g.`,
+        400,
+      );
+    }
+  }
+
+  return parsedItems.map((item) => ({
+    foodId: item.foodId,
+    quantity: Number(item.quantity.toFixed(1)),
+  }));
+}
+
+function calculateMealNutritionFromItems(items, foods) {
+  const foodsById = new Map(foods.map((food) => [food.id, food]));
+
+  return items.reduce((result, item) => {
+    const food = foodsById.get(item.foodId);
+
+    if (!food) {
+      throw new AppError('Um ou mais alimentos selecionados nao foram encontrados.', 400);
+    }
+
+    const factor = item.quantity / 100;
+    result.totals.calories += Math.round(food.calories * factor);
+    result.totals.protein += Math.round(food.protein * factor);
+    result.totals.carbs += Math.round(food.carbs * factor);
+    result.totals.fats += Math.round(food.fat * factor);
+    result.totals.fiber += Math.round(Number(food.fiber || 0) * factor);
+    result.items.push({
+      foodId: item.foodId,
+      quantity: item.quantity,
+    });
+
+    return result;
+  }, {
+    totals: {
+      calories: 0,
+      protein: 0,
+      carbs: 0,
+      fats: 0,
+      fiber: 0,
+    },
+    items: [],
+  });
 }
 
 function clampPercentage(value) {
@@ -429,9 +506,10 @@ function buildWeightTimeline(patientProfile) {
 }
 
 class PatientDashboardService {
-  constructor(patientDashboardRepository, userRepository) {
+  constructor(patientDashboardRepository, userRepository, chatRealtimeService = null) {
     this.patientDashboardRepository = patientDashboardRepository;
     this.userRepository = userRepository;
+    this.chatRealtimeService = chatRealtimeService;
   }
 
   async getDashboard(patientUser) {
@@ -461,6 +539,14 @@ class PatientDashboardService {
     return {
       setupRequired: false,
       chat: this.toChatDto(patientProfile),
+    };
+  }
+
+  async getChatStreamContext(patientUser) {
+    const patientProfile = await this.requirePatientProfile(patientUser.id);
+
+    return {
+      patientProfileId: patientProfile.id,
     };
   }
 
@@ -564,20 +650,28 @@ class PatientDashboardService {
       name,
       patientProfile,
     });
+    const foods = await this.patientDashboardRepository.getAllFoods();
 
     if (!updatedProfile) {
       return {
         message: 'Perfil atualizado com sucesso.',
-        dashboard: this.toSetupDto({
-          ...patientUser,
-          name,
-        }),
+        dashboard: {
+          ...this.toSetupDto({
+            ...patientUser,
+            name,
+          }),
+          foods,
+          challenges: [],
+        },
       };
     }
 
     return {
       message: 'Perfil atualizado com sucesso.',
-      dashboard: this.toDashboardDto(updatedProfile),
+      dashboard: {
+        ...this.toDashboardDto(updatedProfile),
+        foods,
+      },
     };
   }
 
@@ -587,22 +681,50 @@ class PatientDashboardService {
     const title = parseMealTitle(payload.title);
     const description = parseMealDescription(payload.description, mealType);
     const loggedAt = this.parseDateOrNow(payload.loggedAt);
+    const items = parseMealItems(payload.items);
+    let nutritionTotals = null;
 
-    const items = Array.isArray(payload.items) ? payload.items : [];
+    if (items.length) {
+      nutritionTotals = calculateMealNutritionFromItems(
+        items,
+        await this.patientDashboardRepository.findFoodsByIds(items.map((item) => item.foodId)),
+      ).totals;
+    }
+
+    const calories = parseBoundedInteger(
+      payload.calories ?? nutritionTotals?.calories,
+      MEAL_NUMERIC_LIMITS.calories,
+    );
+    const protein = parseBoundedInteger(
+      payload.protein ?? nutritionTotals?.protein,
+      MEAL_NUMERIC_LIMITS.protein,
+    );
+    const carbs = parseBoundedInteger(
+      payload.carbs ?? nutritionTotals?.carbs,
+      MEAL_NUMERIC_LIMITS.carbs,
+    );
+    const fats = parseBoundedInteger(
+      payload.fats ?? nutritionTotals?.fats,
+      MEAL_NUMERIC_LIMITS.fats,
+    );
+    const fiber = parseBoundedInteger(
+      payload.fiber ?? nutritionTotals?.fiber,
+      MEAL_NUMERIC_LIMITS.fiber,
+    );
 
     const mealEntry = await this.patientDashboardRepository.createMealEntry({
       patientProfileId: patientProfile.id,
       mealType,
       title,
       description,
-      calories: parseBoundedInteger(payload.calories, MEAL_NUMERIC_LIMITS.calories),
-      protein: parseBoundedInteger(payload.protein, MEAL_NUMERIC_LIMITS.protein),
-      carbs: parseBoundedInteger(payload.carbs, MEAL_NUMERIC_LIMITS.carbs),
-      fats: parseBoundedInteger(payload.fats, MEAL_NUMERIC_LIMITS.fats),
-      fiber: parseBoundedInteger(payload.fiber, MEAL_NUMERIC_LIMITS.fiber),
+      calories,
+      protein,
+      carbs,
+      fats,
+      fiber,
       waterMl: parseBoundedInteger(payload.waterMl, MEAL_NUMERIC_LIMITS.waterMl),
       loggedAt,
-      items, 
+      items,
     });
 
     return {
@@ -662,6 +784,11 @@ class PatientDashboardService {
       nutritionistId: patientProfile.nutritionistId,
       content,
       sentAt: new Date(),
+    });
+
+    this.chatRealtimeService?.publishChatUpdated(patientProfile.id, {
+      senderRole: 'PATIENT',
+      messageId: chatMessage.id,
     });
 
     return {
@@ -835,6 +962,7 @@ class PatientDashboardService {
           : 'Nenhum plano alimentar ativo no momento.',
         observationNote: latestAssessment?.notes || activePlan?.notes || 'Sem observacoes clinicas registradas ate o momento.',
       },
+      challenges: this.toChallengesDto(patientProfile.challengeLinks),
       meals: todayMeals.map((meal) => this.toMealEntryDto(meal)),
       history: dailySummaries
         .filter((summary) => summary.calories > 0)
@@ -985,15 +1113,14 @@ class PatientDashboardService {
   }
 
   buildChecklist(patientProfile, todayMeals, waterMl) {
-    
-    const challengeItems = patientProfile.challengeLinks
+    const challengeItems = this.toChallengesDto(patientProfile.challengeLinks)
       .map((link) => ({
-        id: link.challengeId,
-        label: link.challenge.target, 
-        done: link.progress >= 100,   
+        id: link.id,
+        label: link.target || link.title,
+        done: link.done,
         isChallenge: true,
       }));
-      
+
     const fallbackItems = [
       {
         label: 'Registrar pelo menos 3 refeicoes no dia',
@@ -1087,6 +1214,22 @@ class PatientDashboardService {
       carbs: mealEntry.carbs,
       fats: mealEntry.fats,
     };
+  }
+
+  toChallengesDto(challengeLinks = []) {
+    return [...challengeLinks]
+      .sort((left, right) => {
+        const leftDate = new Date(left.challenge?.createdAt || left.createdAt).getTime();
+        const rightDate = new Date(right.challenge?.createdAt || right.createdAt).getTime();
+        return rightDate - leftDate;
+      })
+      .map((link) => ({
+        id: link.challengeId,
+        title: link.challenge?.title || 'Desafio nutricional',
+        target: link.challenge?.target || '',
+        progress: clampPercentage(link.progress),
+        done: link.progress >= 100,
+      }));
   }
 
   toChatMessageDto(message, patientName, nutritionistName) {

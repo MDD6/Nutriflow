@@ -18,6 +18,8 @@ const state = {
 
 let patientChatSyncIntervalId = null;
 let patientChatSyncInFlight = false;
+let patientChatEventSource = null;
+let patientChatStreamConnected = false;
 
 const chatMessages = document.getElementById('chatMessages');
 const chatForm = document.getElementById('chatForm');
@@ -119,6 +121,23 @@ function getSessionToken() {
   return localStorage.getItem('nutriflow.token');
 }
 
+function resolveRealtimeUrl(path) {
+  const normalizedPath = String(path || '').trim();
+
+  if (!normalizedPath) {
+    return '';
+  }
+
+  const apiHelper = window.NutriFlowApi;
+  const candidateOrigin = apiHelper?.getCandidateOrigins?.()[0] || '';
+
+  if (typeof apiHelper?.resolveUrl === 'function') {
+    return apiHelper.resolveUrl(normalizedPath, candidateOrigin);
+  }
+
+  return normalizedPath;
+}
+
 function persistCurrentUser(user) {
   if (!user) {
     return;
@@ -129,6 +148,7 @@ function persistCurrentUser(user) {
 }
 
 function clearSessionAndRedirect() {
+  stopPatientRealtimeStream();
   stopPatientRealtimeChat();
   localStorage.removeItem('nutriflow.token');
   localStorage.removeItem('nutriflow.user');
@@ -274,7 +294,12 @@ function resetMealEntryForm() {
   setMealFormError('');
 
   const list = document.getElementById('mealItemsList');
-  if (list) list.innerHTML = ''; // Limpa a lista ao abrir o modal
+  if (list) {
+    list.innerHTML = '';
+  }
+
+  ensureMealItemsRow();
+  updateMealTotals();
 }
 
 function applyMealTemplate(templateKey) {
@@ -330,15 +355,22 @@ function applyMealTemplate(templateKey) {
 // --- LÓGICA DINÂMICA DE ALIMENTOS DO PACIENTE ---
 
 // Simula a busca do alimento (o back-end precisa retornar state.dashboard.foods igual no nutri)
+function getAvailableFoods() {
+  return Array.isArray(state.dashboard?.foods) ? state.dashboard.foods : [];
+}
+
 function getFoodByIdForPatient(foodId) {
-  const foods = state.dashboard?.foods || [];
+  const foods = getAvailableFoods();
   return foods.find((food) => food.id === foodId) || null;
 }
 
 function buildFoodOptionsForPatient(selectedFoodId = '') {
-  const foods = state.dashboard?.foods || [];
-  if (!foods.length) return '<option value="">Base de alimentos vazia</option>';
-  
+  const foods = getAvailableFoods();
+
+  if (!foods.length) {
+    return '<option value="">Base de alimentos vazia</option>';
+  }
+
   return '<option value="">Selecione um alimento</option>' + foods.map((food) => `
     <option value="${food.id}" ${food.id === selectedFoodId ? 'selected' : ''}>${escapeHtml(food.name)}</option>
   `).join('');
@@ -362,15 +394,29 @@ function updateMealTotals() {
     acc.protein += (food.protein || 0) * factor;
     acc.carbs += (food.carbs || 0) * factor;
     acc.fats += (food.fat || food.fats || 0) * factor;
-    acc.fiber += (food.fiber || 0) * factor; // Assumindo que o banco tem fibra
+    acc.fiber += (food.fiber || 0) * factor;
     return acc;
   }, { calories: 0, protein: 0, carbs: 0, fats: 0, fiber: 0 });
 
-  mealCaloriesInput.value = Math.round(totals.calories);
-  mealProteinInput.value = Math.round(totals.protein);
-  mealCarbsInput.value = Math.round(totals.carbs);
-  mealFatsInput.value = Math.round(totals.fats);
-  mealFiberInput.value = Math.round(totals.fiber);
+  if (mealCaloriesInput) {
+    mealCaloriesInput.value = String(Math.round(totals.calories));
+  }
+
+  if (mealProteinInput) {
+    mealProteinInput.value = String(Math.round(totals.protein));
+  }
+
+  if (mealCarbsInput) {
+    mealCarbsInput.value = String(Math.round(totals.carbs));
+  }
+
+  if (mealFatsInput) {
+    mealFatsInput.value = String(Math.round(totals.fats));
+  }
+
+  if (mealFiberInput) {
+    mealFiberInput.value = String(Math.round(totals.fiber));
+  }
 }
 
 function addMealItemRow(item = {}) {
@@ -381,11 +427,11 @@ function addMealItemRow(item = {}) {
   row.className = 'grid gap-2 rounded-lg border border-white bg-white p-2 shadow-sm grid-cols-[1fr_100px_auto]';
   row.dataset.mealItemRow = 'true';
   row.innerHTML = `
-    <select class="rounded-lg border border-nutriflow-200 px-3 py-2 text-sm font-bold" data-meal-food required>
+    <select class="rounded-lg border border-nutriflow-200 px-3 py-2 text-sm font-bold" data-meal-food>
       ${buildFoodOptionsForPatient(item.foodId || '')}
     </select>
     <div class="relative">
-      <input class="w-full rounded-lg border border-nutriflow-200 px-3 py-2 text-sm font-bold pr-6" data-meal-quantity type="number" min="1" step="1" value="${item.quantity || 100}" required />
+      <input class="w-full rounded-lg border border-nutriflow-200 px-3 py-2 text-sm font-bold pr-6" data-meal-quantity type="number" min="1" step="1" value="${item.quantity || 100}" />
       <span class="absolute right-2 top-2 text-xs text-nutriflow-500 font-bold">g</span>
     </div>
     <button class="rounded-lg border border-red-100 px-3 py-2 text-xs font-bold text-red-500 hover:bg-red-50" type="button" data-remove-meal-item>Excluir</button>
@@ -403,6 +449,16 @@ function addMealItemRow(item = {}) {
 
   list.appendChild(row);
   updateMealTotals();
+}
+
+function ensureMealItemsRow() {
+  const list = document.getElementById('mealItemsList');
+
+  if (!list || list.querySelector('[data-meal-item-row]')) {
+    return;
+  }
+
+  addMealItemRow();
 }
 
 document.getElementById('btnAddMealItem')?.addEventListener('click', () => addMealItemRow());
@@ -800,7 +856,16 @@ async function updatePatientProfile(payload) {
 }
 
 function applyDashboardState(payload) {
-  state.dashboard = payload || null;
+  const previousFoods = getAvailableFoods();
+  const previousChallenges = Array.isArray(state.dashboard?.challenges) ? state.dashboard.challenges : [];
+
+  state.dashboard = payload
+    ? {
+        ...payload,
+        foods: Array.isArray(payload.foods) ? payload.foods : previousFoods,
+        challenges: Array.isArray(payload.challenges) ? payload.challenges : previousChallenges,
+      }
+    : null;
   state.lastChatSignature = getChatSignature(payload?.chat);
 
   if (!payload?.patient) {
@@ -1511,8 +1576,19 @@ function stopPatientRealtimeChat() {
   patientChatSyncIntervalId = null;
 }
 
+function stopPatientRealtimeStream() {
+  if (!patientChatEventSource) {
+    patientChatStreamConnected = false;
+    return;
+  }
+
+  patientChatEventSource.close();
+  patientChatEventSource = null;
+  patientChatStreamConnected = false;
+}
+
 function startPatientRealtimeChat() {
-  if (patientChatSyncIntervalId || !getSessionToken() || isSetupRequired()) {
+  if (patientChatSyncIntervalId || !getSessionToken() || isSetupRequired() || patientChatStreamConnected) {
     return;
   }
 
@@ -1521,13 +1597,47 @@ function startPatientRealtimeChat() {
   }, 3500);
 }
 
+function startPatientRealtimeStream() {
+  if (patientChatEventSource || !getSessionToken() || isSetupRequired() || typeof window.EventSource !== 'function') {
+    return false;
+  }
+
+  const streamUrl = resolveRealtimeUrl(`/api/patient/chat/stream?token=${encodeURIComponent(getSessionToken())}`);
+
+  if (!streamUrl) {
+    return false;
+  }
+
+  const eventSource = new window.EventSource(streamUrl);
+  patientChatEventSource = eventSource;
+
+  eventSource.addEventListener('connected', () => {
+    patientChatStreamConnected = true;
+    stopPatientRealtimeChat();
+  });
+
+  eventSource.addEventListener('chat-updated', () => {
+    void syncPatientRealtimeChat({ forceRender: true });
+  });
+
+  eventSource.onerror = () => {
+    stopPatientRealtimeStream();
+    startPatientRealtimeChat();
+  };
+
+  return true;
+}
+
 function syncPatientRealtimeAvailability() {
   if (!getSessionToken() || isSetupRequired()) {
+    stopPatientRealtimeStream();
     stopPatientRealtimeChat();
     return;
   }
 
-  startPatientRealtimeChat();
+  if (!startPatientRealtimeStream()) {
+    startPatientRealtimeChat();
+  }
 }
 
 function setMealButtonsLoading(isLoading) {
@@ -1842,7 +1952,10 @@ function bindEvents() {
   window.addEventListener('focus', () => {
     void syncPatientRealtimeChat({ forceRender: true });
   });
-  window.addEventListener('beforeunload', stopPatientRealtimeChat);
+  window.addEventListener('beforeunload', () => {
+    stopPatientRealtimeStream();
+    stopPatientRealtimeChat();
+  });
   bindNavigationState();
 }
 
@@ -1935,16 +2048,20 @@ async function handlePatientSettingsSubmit(e) {
 
 function renderChallenges() {
   const container = document.getElementById('activeChallengesList');
-  const challenges = state.dashboard?.clinical?.checklist?.filter(item => item.isChallenge) || [];
+  const challenges = Array.isArray(state.dashboard?.challenges)
+    ? state.dashboard.challenges
+    : (state.dashboard?.clinical?.checklist?.filter((item) => item.isChallenge) || []);
 
-  if (!container) return;
+  if (!container) {
+    return;
+  }
 
   if (!challenges.length) {
     container.innerHTML = '<p class="text-xs text-nutriflow-500 italic">Nenhum desafio ativo no momento.</p>';
     return;
   }
 
-  container.innerHTML = challenges.map(item => `
+  container.innerHTML = challenges.map((item) => `
     <div class="flex items-center justify-between p-3 rounded-2xl bg-white border border-nutriflow-100 shadow-sm">
       <div class="flex items-center gap-3">
         <button type="button" 
@@ -1953,9 +2070,14 @@ function renderChallenges() {
                 ${item.done ? 'disabled' : ''}>
           ${item.done ? '<span class="text-white text-xs">✓</span>' : ''}
         </button>
-        <span class="text-sm font-semibold ${item.done ? 'text-nutriflow-400 line-through' : 'text-nutriflow-950'}">${escapeHtml(item.label)}</span>
+        <div>
+          <p class="text-sm font-semibold ${item.done ? 'text-nutriflow-400 line-through' : 'text-nutriflow-950'}">${escapeHtml(item.title || item.label || 'Desafio')}</p>
+          <p class="text-xs text-nutriflow-500">${escapeHtml(item.target || item.label || '')}</p>
+        </div>
       </div>
-      ${item.done ? '<span class="text-[10px] font-bold text-nutriflow-400 uppercase">Feito!</span>' : ''}
+      ${item.done
+        ? '<span class="text-[10px] font-bold text-nutriflow-400 uppercase">Feito!</span>'
+        : `<span class="text-[10px] font-bold uppercase tracking-[0.12em] text-nutriflow-500">${escapeHtml(String(item.progress ?? 0))}%</span>`}
     </div>
   `).join('');
 }

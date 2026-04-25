@@ -1,7 +1,8 @@
 class PatientDashboardController {
-  constructor(sessionService, patientDashboardService) {
+  constructor(sessionService, patientDashboardService, chatRealtimeService = null) {
     this.sessionService = sessionService;
     this.patientDashboardService = patientDashboardService;
+    this.chatRealtimeService = chatRealtimeService;
   }
 
   async getDashboard(request, response) {
@@ -14,6 +15,12 @@ class PatientDashboardController {
     const patient = await this.sessionService.requirePatient(request);
     const result = await this.patientDashboardService.getChat(patient);
     response.status(200).json(result);
+  }
+
+  async openChatStream(request, response) {
+    const patient = await this.sessionService.requirePatient(request);
+    const context = await this.patientDashboardService.getChatStreamContext(patient);
+    this.chatRealtimeService.subscribeToPatientProfile(request, response, context.patientProfileId);
   }
 
   async createMealEntry(request, response) {

@@ -18,6 +18,7 @@
   "scripts": {
     "start": "node index.js",
     "dev": "node --watch index.js",
+    "postinstall": "prisma generate",
     "db:push": "prisma db push",
     "prisma:generate": "prisma generate",
     "test": "node --check index.js"

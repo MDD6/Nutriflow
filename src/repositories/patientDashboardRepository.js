@@ -51,6 +51,16 @@ class PatientDashboardRepository {
     });
   }
 
+  findFoodsByIds(foodIds) {
+    return this.prisma.food.findMany({
+      where: {
+        id: {
+          in: foodIds,
+        },
+      },
+    });
+  }
+
   async createMealEntry(data) {
     return this.prisma.$transaction(async (tx) => {
       const mealEntry = await tx.mealEntry.create({

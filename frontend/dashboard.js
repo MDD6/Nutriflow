@@ -18,6 +18,8 @@ const state = {
 
 let patientChatSyncIntervalId = null;
 let patientChatSyncInFlight = false;
+let patientChatEventSource = null;
+let patientChatStreamConnected = false;
 
 const chatMessages = document.getElementById('chatMessages');
 const chatForm = document.getElementById('chatForm');
@@ -119,6 +121,23 @@ function getSessionToken() {
   return localStorage.getItem('nutriflow.token');
 }
 
+function resolveRealtimeUrl(path) {
+  const normalizedPath = String(path || '').trim();
+
+  if (!normalizedPath) {
+    return '';
+  }
+
+  const apiHelper = window.NutriFlowApi;
+  const candidateOrigin = apiHelper?.getCandidateOrigins?.()[0] || '';
+
+  if (typeof apiHelper?.resolveUrl === 'function') {
+    return apiHelper.resolveUrl(normalizedPath, candidateOrigin);
+  }
+
+  return normalizedPath;
+}
+
 function persistCurrentUser(user) {
   if (!user) {
     return;
@@ -129,6 +148,7 @@ function persistCurrentUser(user) {
 }
 
 function clearSessionAndRedirect() {
+  stopPatientRealtimeStream();
   stopPatientRealtimeChat();
   localStorage.removeItem('nutriflow.token');
   localStorage.removeItem('nutriflow.user');
@@ -1556,8 +1576,19 @@ function stopPatientRealtimeChat() {
   patientChatSyncIntervalId = null;
 }
 
+function stopPatientRealtimeStream() {
+  if (!patientChatEventSource) {
+    patientChatStreamConnected = false;
+    return;
+  }
+
+  patientChatEventSource.close();
+  patientChatEventSource = null;
+  patientChatStreamConnected = false;
+}
+
 function startPatientRealtimeChat() {
-  if (patientChatSyncIntervalId || !getSessionToken() || isSetupRequired()) {
+  if (patientChatSyncIntervalId || !getSessionToken() || isSetupRequired() || patientChatStreamConnected) {
     return;
   }
 
@@ -1566,13 +1597,47 @@ function startPatientRealtimeChat() {
   }, 3500);
 }
 
+function startPatientRealtimeStream() {
+  if (patientChatEventSource || !getSessionToken() || isSetupRequired() || typeof window.EventSource !== 'function') {
+    return false;
+  }
+
+  const streamUrl = resolveRealtimeUrl(`/api/patient/chat/stream?token=${encodeURIComponent(getSessionToken())}`);
+
+  if (!streamUrl) {
+    return false;
+  }
+
+  const eventSource = new window.EventSource(streamUrl);
+  patientChatEventSource = eventSource;
+
+  eventSource.addEventListener('connected', () => {
+    patientChatStreamConnected = true;
+    stopPatientRealtimeChat();
+  });
+
+  eventSource.addEventListener('chat-updated', () => {
+    void syncPatientRealtimeChat({ forceRender: true });
+  });
+
+  eventSource.onerror = () => {
+    stopPatientRealtimeStream();
+    startPatientRealtimeChat();
+  };
+
+  return true;
+}
+
 function syncPatientRealtimeAvailability() {
   if (!getSessionToken() || isSetupRequired()) {
+    stopPatientRealtimeStream();
     stopPatientRealtimeChat();
     return;
   }
 
-  startPatientRealtimeChat();
+  if (!startPatientRealtimeStream()) {
+    startPatientRealtimeChat();
+  }
 }
 
 function setMealButtonsLoading(isLoading) {
@@ -1887,7 +1952,10 @@ function bindEvents() {
   window.addEventListener('focus', () => {
     void syncPatientRealtimeChat({ forceRender: true });
   });
-  window.addEventListener('beforeunload', stopPatientRealtimeChat);
+  window.addEventListener('beforeunload', () => {
+    stopPatientRealtimeStream();
+    stopPatientRealtimeChat();
+  });
   bindNavigationState();
 }
 

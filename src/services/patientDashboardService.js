@@ -506,9 +506,10 @@ function buildWeightTimeline(patientProfile) {
 }
 
 class PatientDashboardService {
-  constructor(patientDashboardRepository, userRepository) {
+  constructor(patientDashboardRepository, userRepository, chatRealtimeService = null) {
     this.patientDashboardRepository = patientDashboardRepository;
     this.userRepository = userRepository;
+    this.chatRealtimeService = chatRealtimeService;
   }
 
   async getDashboard(patientUser) {
@@ -538,6 +539,14 @@ class PatientDashboardService {
     return {
       setupRequired: false,
       chat: this.toChatDto(patientProfile),
+    };
+  }
+
+  async getChatStreamContext(patientUser) {
+    const patientProfile = await this.requirePatientProfile(patientUser.id);
+
+    return {
+      patientProfileId: patientProfile.id,
     };
   }
 
@@ -775,6 +784,11 @@ class PatientDashboardService {
       nutritionistId: patientProfile.nutritionistId,
       content,
       sentAt: new Date(),
+    });
+
+    this.chatRealtimeService?.publishChatUpdated(patientProfile.id, {
+      senderRole: 'PATIENT',
+      messageId: chatMessage.id,
     });
 
     return {

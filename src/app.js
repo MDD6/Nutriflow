@@ -23,6 +23,7 @@ const { TokenService } = require('./services/tokenService');
 const { PatientDashboardService } = require('./services/patientDashboardService');
 const { NutritionistDashboardService } = require('./services/nutritionistDashboardService');
 const { AdminService } = require('./services/adminService');
+const { ChatRealtimeService } = require('./services/chatRealtimeService');
 
 const { createAuthRoutes } = require('./routes/authRoutes');
 const { createPatientRoutes } = require('./routes/patientRoutes');
@@ -97,22 +98,33 @@ function createDependencies(appConfig, overrides = {}) {
   const passwordService = new PasswordService();
   const tokenService = new TokenService(appConfig.tokenSecret);
   const sessionService = new SessionService(tokenService, userRepository);
+  const chatRealtimeService = new ChatRealtimeService();
 
   const authService = new AuthService(userRepository, passwordService, tokenService);
-  const patientDashboardService = new PatientDashboardService(patientDashboardRepository, userRepository);
+  const patientDashboardService = new PatientDashboardService(
+    patientDashboardRepository,
+    userRepository,
+    chatRealtimeService,
+  );
   const nutritionistDashboardService = new NutritionistDashboardService(
     nutritionistDashboardRepository,
     userRepository,
+    chatRealtimeService,
   );
   const adminService = new AdminService(adminRepository);
 
   return {
     prisma,
     authController: new AuthController(authService),
-    patientDashboardController: new PatientDashboardController(sessionService, patientDashboardService),
+    patientDashboardController: new PatientDashboardController(
+      sessionService,
+      patientDashboardService,
+      chatRealtimeService,
+    ),
     nutritionistDashboardController: new NutritionistDashboardController(
       sessionService,
       nutritionistDashboardService,
+      chatRealtimeService,
     ),
     adminController: new AdminController(sessionService, adminService),
   };

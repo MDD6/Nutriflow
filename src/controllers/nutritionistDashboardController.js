@@ -1,7 +1,8 @@
 class NutritionistDashboardController {
-  constructor(sessionService, nutritionistDashboardService) {
+  constructor(sessionService, nutritionistDashboardService, chatRealtimeService = null) {
     this.sessionService = sessionService;
     this.nutritionistDashboardService = nutritionistDashboardService;
+    this.chatRealtimeService = chatRealtimeService;
   }
 
   async getDashboard(request, response) {
@@ -79,6 +80,15 @@ class NutritionistDashboardController {
     const nutritionist = await this.sessionService.requireNutritionist(request);
     const result = await this.nutritionistDashboardService.getConversation(nutritionist, request.query.patientId);
     response.status(200).json(result);
+  }
+
+  async openConversationStream(request, response) {
+    const nutritionist = await this.sessionService.requireNutritionist(request);
+    const context = await this.nutritionistDashboardService.getConversationStreamContext(
+      nutritionist,
+      request.query.patientId,
+    );
+    this.chatRealtimeService.subscribeToPatientProfile(request, response, context.patientProfileId);
   }
 
   async sendMessage(request, response) {

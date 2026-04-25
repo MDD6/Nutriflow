@@ -6,6 +6,7 @@ function createNutritionistRoutes(nutritionistDashboardController) {
 
   router.get('/dashboard', asyncHandler(nutritionistDashboardController.getDashboard.bind(nutritionistDashboardController)));
   router.get('/conversation', asyncHandler(nutritionistDashboardController.getConversation.bind(nutritionistDashboardController)));
+  router.get('/conversation/stream', asyncHandler(nutritionistDashboardController.openConversationStream.bind(nutritionistDashboardController)));
   
   router.post('/meal-plans', asyncHandler(nutritionistDashboardController.createMealPlan.bind(nutritionistDashboardController)));
   router.post('/assessments', asyncHandler(nutritionistDashboardController.createAssessment.bind(nutritionistDashboardController)));

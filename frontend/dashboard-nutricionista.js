@@ -23,8 +23,26 @@ const state = {
   selectedPatientId: null,
   activeFilterId: null, // Novo: Guarda se estamos filtrando a tela por um paciente
   activeChallengeId: null, // Para adicionar pacientes a desafios
-  mealPlans: [], assessments: [], appointments: [], challenges: [], messages: [], foods: [], reminders: []
+  mealPlans: [], assessments: [], appointments: [], challenges: [], messages: [], foods: [], reminders: [],
+  chatPatientId: null,
+  currentConversation: null,
+  isSendingChatMessage: false,
+  lastConversationSignature: '',
 };
+
+let nutritionistConversationEventSource = null;
+let nutritionistConversationPollIntervalId = null;
+let nutritionistConversationSyncInFlight = false;
+let nutritionistConversationStreamConnected = false;
+
+const chatContainer = document.getElementById('floatingChat');
+const chatMessages = document.getElementById('chatMessages');
+const chatForm = document.getElementById('chatForm');
+const chatInput = document.getElementById('chatInput');
+const chatSubmitButton = document.getElementById('chatSubmitBtn');
+const chatPatientSelect = document.getElementById('chatPatientSelect');
+const toggleChatButton = document.getElementById('btnToggleChat');
+const closeChatButton = document.getElementById('btnCloseChat');
 
 const APPOINTMENT_STATUS_LABELS = {
   agendada: 'Agendada',
@@ -37,6 +55,106 @@ const toast = document.getElementById('nutritionistToast');
 const toastController = createToastController(toast, { duration: 3000 });
 function showToast(message) { toastController.show(message); }
 function ensureNutritionistAccess() { return session.ensureAuthenticated(); }
+
+function resolveRealtimeUrl(path) {
+  const normalizedPath = String(path || '').trim();
+
+  if (!normalizedPath) {
+    return '';
+  }
+
+  const apiHelper = window.NutriFlowApi;
+  const candidateOrigin = apiHelper?.getCandidateOrigins?.()[0] || '';
+
+  if (typeof apiHelper?.resolveUrl === 'function') {
+    return apiHelper.resolveUrl(normalizedPath, candidateOrigin);
+  }
+
+  return normalizedPath;
+}
+
+function getConversationSignature(conversation) {
+  const messages = Array.isArray(conversation?.messages) ? conversation.messages : [];
+  const latestMessage = messages[messages.length - 1] || null;
+
+  return JSON.stringify({
+    patientId: conversation?.patient?.id || '',
+    count: messages.length,
+    latestId: latestMessage?.id || '',
+    latestRole: latestMessage?.senderRole || '',
+    latestTime: latestMessage?.timeLabel || '',
+  });
+}
+
+function getActiveChatPatient() {
+  return state.patients.find((patient) => patient.id === state.chatPatientId) || null;
+}
+
+function setChatComposerEnabled(isEnabled) {
+  if (chatInput) {
+    chatInput.disabled = !isEnabled || state.isSendingChatMessage;
+  }
+
+  if (chatSubmitButton) {
+    chatSubmitButton.disabled = !isEnabled || state.isSendingChatMessage;
+    chatSubmitButton.classList.toggle('opacity-50', !isEnabled || state.isSendingChatMessage);
+    chatSubmitButton.classList.toggle('cursor-not-allowed', !isEnabled || state.isSendingChatMessage);
+    chatSubmitButton.textContent = state.isSendingChatMessage ? 'Enviando...' : 'Enviar';
+  }
+}
+
+function renderChatPlaceholder(message) {
+  if (!chatMessages) {
+    return;
+  }
+
+  chatMessages.innerHTML = `<p class="text-center text-xs text-nutriflow-500 mt-10">${escapeHtml(message)}</p>`;
+}
+
+function renderConversation() {
+  const patient = getActiveChatPatient();
+  const conversation = state.currentConversation;
+
+  if (!patient || !conversation) {
+    renderChatPlaceholder('Selecione um paciente para iniciar.');
+    setChatComposerEnabled(false);
+    return;
+  }
+
+  const messages = Array.isArray(conversation.messages) ? conversation.messages : [];
+
+  if (!messages.length) {
+    renderChatPlaceholder(`Nenhuma mensagem ainda com ${patient.name}.`);
+  } else if (chatMessages) {
+    const nutritionistName = state.currentUser?.name || 'Nutricionista';
+
+    chatMessages.innerHTML = messages.map((message) => {
+      const isNutritionistMessage = message.senderRole === 'NUTRITIONIST';
+
+      return `
+        <div class="chat-row${isNutritionistMessage ? ' is-user' : ''}">
+          ${isNutritionistMessage ? '' : `<div class="chat-avatar">${escapeHtml(getInitials(patient.name))}</div>`}
+          <div class="chat-bubble${isNutritionistMessage ? ' is-user' : ''}">
+            <p class="${isNutritionistMessage ? 'text-xs font-semibold uppercase tracking-[0.14em] text-white/60' : 'text-xs font-semibold uppercase tracking-[0.14em] text-nutriflow-500'}">
+              ${escapeHtml(message.senderName || (isNutritionistMessage ? nutritionistName : patient.name))} - ${escapeHtml(message.timeLabel || 'agora')}
+            </p>
+            <p class="mt-2 text-sm leading-7">${escapeHtml(message.content)}</p>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    window.requestAnimationFrame(() => {
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    });
+  }
+
+  if (chatInput) {
+    chatInput.placeholder = `Responder ${patient.name}...`;
+  }
+
+  setChatComposerEnabled(true);
+}
 
 // BUSCANDO DADOS 
 async function fetchDatabaseData() {
@@ -54,6 +172,15 @@ async function fetchDatabaseData() {
     if (state.patients.length > 0 && !state.selectedPatientId) {
       state.selectedPatientId = state.patients[0].id;
     }
+
+    if (state.chatPatientId && !state.patients.some((patient) => patient.id === state.chatPatientId)) {
+      state.chatPatientId = null;
+      state.currentConversation = null;
+      state.lastConversationSignature = '';
+      stopNutritionistConversationRealtime();
+      stopNutritionistConversationPolling();
+    }
+
     renderAll();
   } catch (error) { showToast('Erro ao conectar ao banco de dados.'); }
 }
@@ -64,6 +191,7 @@ function renderAll() {
   renderSelectedPatient();
   renderGeneralLists();
   populatePatientSelects();
+  renderConversation();
 }
 
 function renderHeader() {
@@ -107,6 +235,9 @@ function renderPatientsList() {
       if (!e.target.closest('button')) {
         state.selectedPatientId = patient.id;
         state.activeFilterId = patient.id; // Ativa o filtro para este paciente!
+        if (chatContainer && !chatContainer.classList.contains('chat-hidden')) {
+          void selectChatPatient(patient.id, { silent: true });
+        }
         renderAll(); // Re-renderiza a tela para aplicar o filtro
       }
     });
@@ -375,9 +506,220 @@ function populatePatientSelects() {
       else if (id === 'challengePatient') el.innerHTML = '<option value="">Todos os pacientes (Geral)</option>' + options;
       else el.innerHTML = options;
       
-      if (state.selectedPatientId && id !== 'chatPatientSelect' && id !== 'challengePatient' && id !== 'addPartPatient') el.value = state.selectedPatientId;
+      if (id === 'chatPatientSelect') {
+        el.value = state.chatPatientId || '';
+      } else if (state.selectedPatientId && id !== 'challengePatient' && id !== 'addPartPatient') {
+        el.value = state.selectedPatientId;
+      }
     }
   });
+}
+
+async function fetchConversation(patientId, options = {}) {
+  const normalizedPatientId = String(patientId || '').trim();
+
+  if (!normalizedPatientId) {
+    state.currentConversation = null;
+    state.lastConversationSignature = '';
+    renderConversation();
+    return null;
+  }
+
+  if (nutritionistConversationSyncInFlight && !options.force) {
+    return state.currentConversation;
+  }
+
+  nutritionistConversationSyncInFlight = true;
+
+  try {
+    const payload = await apiRequest(`/api/nutritionist/conversation?patientId=${encodeURIComponent(normalizedPatientId)}`);
+    const nextSignature = getConversationSignature(payload);
+
+    if (options.forceRender || nextSignature !== state.lastConversationSignature) {
+      state.currentConversation = payload;
+      state.lastConversationSignature = nextSignature;
+      renderConversation();
+    } else {
+      state.currentConversation = payload;
+    }
+
+    return payload;
+  } catch (error) {
+    if (!options.silent) {
+      showToast(error.message || 'Nao foi possivel carregar a conversa.');
+    }
+    return null;
+  } finally {
+    nutritionistConversationSyncInFlight = false;
+  }
+}
+
+function stopNutritionistConversationPolling() {
+  if (!nutritionistConversationPollIntervalId) {
+    return;
+  }
+
+  window.clearInterval(nutritionistConversationPollIntervalId);
+  nutritionistConversationPollIntervalId = null;
+}
+
+function startNutritionistConversationPolling() {
+  if (nutritionistConversationPollIntervalId || !state.chatPatientId) {
+    return;
+  }
+
+  nutritionistConversationPollIntervalId = window.setInterval(() => {
+    void fetchConversation(state.chatPatientId, { forceRender: true, silent: true });
+  }, 3500);
+}
+
+function stopNutritionistConversationRealtime() {
+  if (!nutritionistConversationEventSource) {
+    nutritionistConversationStreamConnected = false;
+    return;
+  }
+
+  nutritionistConversationEventSource.close();
+  nutritionistConversationEventSource = null;
+  nutritionistConversationStreamConnected = false;
+}
+
+function startNutritionistConversationRealtime() {
+  if (!state.chatPatientId || nutritionistConversationEventSource || typeof window.EventSource !== 'function') {
+    return false;
+  }
+
+  const token = session.getToken();
+
+  if (!token) {
+    return false;
+  }
+
+  const streamUrl = resolveRealtimeUrl(`/api/nutritionist/conversation/stream?token=${encodeURIComponent(token)}&patientId=${encodeURIComponent(state.chatPatientId)}`);
+
+  if (!streamUrl) {
+    return false;
+  }
+
+  const eventSource = new window.EventSource(streamUrl);
+  nutritionistConversationEventSource = eventSource;
+
+  eventSource.addEventListener('connected', () => {
+    nutritionistConversationStreamConnected = true;
+    stopNutritionistConversationPolling();
+  });
+
+  eventSource.addEventListener('chat-updated', () => {
+    void fetchConversation(state.chatPatientId, {
+      forceRender: true,
+      silent: true,
+    });
+  });
+
+  eventSource.onerror = () => {
+    stopNutritionistConversationRealtime();
+    startNutritionistConversationPolling();
+  };
+
+  return true;
+}
+
+function syncNutritionistConversationRealtime() {
+  stopNutritionistConversationRealtime();
+  stopNutritionistConversationPolling();
+
+  if (!state.chatPatientId) {
+    return;
+  }
+
+  if (!startNutritionistConversationRealtime()) {
+    startNutritionistConversationPolling();
+  }
+}
+
+async function selectChatPatient(patientId, options = {}) {
+  const normalizedPatientId = String(patientId || '').trim() || null;
+
+  state.chatPatientId = normalizedPatientId;
+  state.currentConversation = null;
+  state.lastConversationSignature = '';
+
+  if (chatPatientSelect) {
+    chatPatientSelect.value = normalizedPatientId || '';
+  }
+
+  syncNutritionistConversationRealtime();
+
+  if (!normalizedPatientId) {
+    renderConversation();
+    return;
+  }
+
+  await fetchConversation(normalizedPatientId, {
+    forceRender: true,
+    silent: options.silent === true,
+  });
+}
+
+function openChat() {
+  if (!chatContainer) {
+    return;
+  }
+
+  chatContainer.classList.remove('chat-hidden');
+  chatContainer.classList.add('chat-visible');
+
+  if (!state.chatPatientId && state.selectedPatientId) {
+    void selectChatPatient(state.selectedPatientId, { silent: true });
+  } else {
+    renderConversation();
+  }
+}
+
+function closeChat() {
+  if (!chatContainer) {
+    return;
+  }
+
+  chatContainer.classList.add('chat-hidden');
+  chatContainer.classList.remove('chat-visible');
+}
+
+async function handleChatSubmit(event) {
+  event.preventDefault();
+
+  if (!state.chatPatientId || !chatInput || state.isSendingChatMessage) {
+    return;
+  }
+
+  const content = chatInput.value.trim();
+
+  if (!content) {
+    showToast('Digite uma mensagem para enviar.');
+    return;
+  }
+
+  state.isSendingChatMessage = true;
+  setChatComposerEnabled(true);
+
+  try {
+    const result = await apiRequest('/api/nutritionist/messages', {
+      method: 'POST',
+      body: JSON.stringify({
+        patientId: state.chatPatientId,
+        content,
+      }),
+    });
+
+    chatInput.value = '';
+    await fetchConversation(state.chatPatientId, { forceRender: true, silent: true });
+    showToast(result.message || 'Mensagem enviada ao paciente.');
+  } catch (error) {
+    showToast(error.message || 'Nao foi possivel enviar a mensagem.');
+  } finally {
+    state.isSendingChatMessage = false;
+    setChatComposerEnabled(Boolean(state.chatPatientId));
+  }
 }
 
 // FUNÇÕES GLOBAIS DE AÇÃO (Excluir, Duplicar, Adicionar Participante)
@@ -480,6 +822,16 @@ function bindButtons() {
     btn.addEventListener('click', (e) => { e.preventDefault(); closeModal(e.target.dataset.close); });
   });
   document.getElementById('logoutButton')?.addEventListener('click', () => { session.clear(); window.location.href = 'index.html'; });
+  toggleChatButton?.addEventListener('click', openChat);
+  closeChatButton?.addEventListener('click', closeChat);
+  chatPatientSelect?.addEventListener('change', async (event) => {
+    await selectChatPatient(event.target.value, { silent: false });
+  });
+  chatForm?.addEventListener('submit', handleChatSubmit);
+  window.addEventListener('beforeunload', () => {
+    stopNutritionistConversationRealtime();
+    stopNutritionistConversationPolling();
+  });
 }
 
 // INTEGRAÇÕES REAIS

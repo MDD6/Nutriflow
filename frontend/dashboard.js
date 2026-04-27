@@ -1186,6 +1186,25 @@ function renderWeightChart(labels, values) {
   }
 }
 
+
+function calculateWeightVariation(values = []) {
+  if (!values.length || values.length < 2) {
+    return '--';
+  }
+
+  const first = values[0];
+  const last = values[values.length - 1];
+
+  const diff = (last - first).toFixed(1);
+
+  if (diff > 0) return `+${diff}kg`;
+  if (diff < 0) return `${diff}kg`;
+  return '0kg';
+}
+
+
+
+
 function renderWeight() {
   const weight = state.dashboard?.weight || {
     labels: [],
@@ -1200,7 +1219,8 @@ function renderWeight() {
     history: [],
   };
 
-  setTextContent(document.getElementById('weightVariationValue'), weight.variationLabel || '--');
+  const variation = calculateWeightVariation(weight.values || []);
+  setTextContent(document.getElementById('weightVariationValue'), variation);
   setTextContent(document.getElementById('currentWeightValue'), weight.currentLabel || '--');
   setTextContent(document.getElementById('targetWeightValue'), weight.targetLabel || '--');
   setTextContent(document.getElementById('paceValue'), weight.paceLabel || '--');

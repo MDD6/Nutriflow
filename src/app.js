@@ -95,6 +95,7 @@ function createDependencies(appConfig, overrides = {}) {
   const adminRepository = new AdminRepository(prisma);
 
   const passwordService = new PasswordService();
+  console.log('TOKEN SECRET NO APP:', appConfig.tokenSecret);
   const tokenService = new TokenService(appConfig.tokenSecret);
   const sessionService = new SessionService(tokenService, userRepository);
 

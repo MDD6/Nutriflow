@@ -735,6 +735,7 @@ class PatientDashboardService {
     const mealConsistencyTarget = 4;
     const dailySummaries = this.buildDailySummaries(patientProfile.mealEntries, calorieTarget);
     const weightTimeline = buildWeightTimeline(patientProfile);
+    const weightVariation = this.calculateWeightVariation(weightTimeline);
     const calorieProgress = calculateTargetProgress(todayTotals.calories, calorieTarget);
     const proteinProgress = calculateTargetProgress(todayTotals.protein, proteinTarget);
     const mealProgress = calculateTargetProgress(todayMeals.length, mealConsistencyTarget);
@@ -846,13 +847,14 @@ class PatientDashboardService {
       weight: {
         labels: weightTimeline.slice(-5).map((entry) => formatShortDate(entry.recordedAt)),
         values: weightTimeline.slice(-5).map((entry) => entry.weight),
-        variationLabel: this.getVariationLabel(weightTimeline),
+        variationLabel: weightVariation.variation,
+        variationPercentage: weightVariation.percentage,
+        trendLabel: weightVariation.trend,
         currentLabel: patientProfile.currentWeight ? `${patientProfile.currentWeight.toFixed(1)}kg` : '--',
         targetLabel: patientProfile.currentWeight ? `${getTargetWeight(patientProfile.currentWeight, patientProfile.objective).toFixed(1)}kg` : '--',
         paceLabel: patientProfile.currentWeight ? getPaceLabel(patientProfile.objective) : '--',
         initialLabel: weightTimeline.length ? `${weightTimeline[0].weight.toFixed(1)}kg` : '--',
         weeklyAverageLabel: this.getWeeklyAverageLabel(weightTimeline),
-        trendLabel: this.getWeightTrendLabel(weightTimeline),
         history: this.toWeightHistoryDto(weightTimeline),
       },
       chat: this.toChatDto(patientProfile),
@@ -1010,6 +1012,37 @@ class PatientDashboardService {
     const lastWeight = snapshots[snapshots.length - 1].weight;
     return formatSignedWeight(lastWeight - firstWeight);
   }
+
+calculateWeightVariation(entries) {
+  if (!entries || entries.length < 2) {
+    return {
+      variation: '--',
+      percentage: '--',
+      trend: 'Dados insuficientes',
+    };
+  }
+
+  const first = entries[0].weight;
+  const last = entries[entries.length - 1].weight;
+
+  const diff = last - first;
+  const percentage = first > 0 ? ((diff / first) * 100) : 0;
+
+  let trend = 'Estavel';
+  if (diff > 0.2) trend = 'Em alta';
+  if (diff < -0.2) trend = 'Em queda';
+
+  return {
+    variation: formatSignedWeight(diff),
+    percentage: `${percentage.toFixed(1)}%`,
+    trend,
+  };
+}
+
+
+
+
+
 
   getWeeklyAverageLabel(entries) {
     if (entries.length < 2) {

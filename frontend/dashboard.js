@@ -1815,3 +1815,18 @@ async function handlePatientSettingsSubmit(e) {
 }
 
 init();
+
+
+// TESTE DA API
+console.log("CHAMANDO API...");
+
+fetch('/api/patient/dashboard', {
+  headers: {
+    'Authorization': 'Bearer ' + localStorage.getItem('nutriflow.token')
+  }
+})
+  .then(res => res.json())
+  .then(data => {
+    console.log("DADOS DA API:", data);
+  })
+  .catch(err => console.error("ERRO:", err));

@@ -1,5 +1,5 @@
 require('dotenv/config');
-
+console.log('TOKEN_SECRET ENV:', process.env.TOKEN_SECRET);
 const path = require('path');
 
 const config = {

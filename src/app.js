@@ -89,14 +89,17 @@ function createFrontendRouteAliasMiddleware() {
 function createDependencies(appConfig, overrides = {}) {
   const prisma = overrides.prisma || createPrismaClient(appConfig.databaseUrl);
 
-  const userRepository = new UserRepository(prisma);
+  const userRepository =
+  overrides.userRepository || new UserRepository(prisma);
   const patientDashboardRepository = new PatientDashboardRepository(prisma);
   const nutritionistDashboardRepository = new NutritionistDashboardRepository(prisma);
   const adminRepository = new AdminRepository(prisma);
 
-  const passwordService = new PasswordService();
+ const passwordService =
+  overrides.passwordService || new PasswordService();
   console.log('TOKEN SECRET NO APP:', appConfig.tokenSecret);
-  const tokenService = new TokenService(appConfig.tokenSecret);
+ const tokenService =
+  overrides.tokenService || new TokenService(appConfig.tokenSecret);
   const sessionService = new SessionService(tokenService, userRepository);
 
   const authService = new AuthService(userRepository, passwordService, tokenService);
@@ -124,7 +127,12 @@ function createApp(options = {}) {
     ...config,
     ...(options.config || {}),
   };
-  const dependencies = createDependencies(appConfig, options);
+  const dependencies = createDependencies(appConfig, {
+  prisma: options.prisma,
+  userRepository: options.userRepository,
+  passwordService: options.passwordService,
+  tokenService: options.tokenService,
+});
   const app = express();
   const frontendDir = appConfig.frontendDir;
 

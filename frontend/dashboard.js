@@ -1220,18 +1220,169 @@ function renderPlan() {
   }
 
   container.innerHTML = `
-    <div class="rounded-[24px] border border-[#dbe9d0] bg-[#f6fbf1] p-4">
+    <div class="rounded-[24px] border border-[#dbe9d0] bg-[#f6fbf1] p-4 cursor-pointer transition hover:-translate-y-0.5" data-open-plan-details>
       <p class="text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-600">Plano atual</p>
       <p class="mt-2 text-lg font-semibold tracking-[-0.03em] text-nutriflow-950">${escapeHtml(plan.title)}</p>
+      <p class="mt-2 text-sm leading-6 text-nutriflow-700">Clique para visualizar os alimentos e nutrientes do plano.</p>
     </div>
     ${plan.sections.map((section) => `
-      <article class="plan-row">
+      <article class="plan-row rounded-[24px] border border-transparent p-4 transition hover:border-nutriflow-200 hover:bg-nutriflow-50 cursor-pointer" data-open-plan-details>
         <p class="text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">${escapeHtml(section.slotLabel)}</p>
         <h3 class="mt-3 text-lg font-semibold tracking-[-0.03em] text-nutriflow-950">${escapeHtml(section.title)}</h3>
         <p class="mt-2 text-sm leading-7 text-nutriflow-700">${escapeHtml(section.description)}</p>
       </article>
     `).join('')}
   `;
+
+  container.querySelectorAll('[data-open-plan-details]').forEach((button) => {
+    button.addEventListener('click', () => {
+      renderPatientPlanModal(plan);
+      openPatientPlanModal();
+    });
+  });
+}
+
+function renderPatientPlanModal(plan) {
+  const modal = document.getElementById('viewPatientPlanModal');
+  const itemsContainer = document.getElementById('viewPatientPlanItems');
+  const planTitle = document.getElementById('viewPatientPlanTitle');
+  const planBrief = document.getElementById('viewPatientPlanBrief');
+  const planTotals = document.getElementById('viewPatientPlanTotals');
+
+  if (!modal || !itemsContainer || !planTitle || !planBrief || !planTotals) {
+    return;
+  }
+
+  const items = Array.isArray(plan.rawItems) ? plan.rawItems : [];
+  const groupedItems = items.reduce((acc, item) => {
+    const section = String(item.mealTime || 'Refeicao');
+    if (!acc[section]) {
+      acc[section] = [];
+    }
+    acc[section].push(item);
+    return acc;
+  }, {});
+
+  const totals = items.reduce((acc, item) => {
+    const factor = item.quantity / 100;
+    const food = item.food || {};
+    const calories = Number.isFinite(food.calories) ? Math.round(food.calories * factor) : Number.isFinite(item.calories) ? item.calories : 0;
+    const protein = Number.isFinite(food.protein) ? Math.round(food.protein * factor) : Number.isFinite(item.protein) ? item.protein : 0;
+    const carbs = Number.isFinite(food.carbs) ? Math.round(food.carbs * factor) : Number.isFinite(item.carbs) ? item.carbs : 0;
+    const fats = Number.isFinite(food.fat || food.fats) ? Math.round((food.fat || food.fats) * factor) : Number.isFinite(item.fats) ? item.fats : 0;
+    const fiber = Number.isFinite(food.fiber) ? Math.round(food.fiber * factor) : Number.isFinite(item.fiber) ? item.fiber : 0;
+
+    acc.calories += calories;
+    acc.protein += protein;
+    acc.carbs += carbs;
+    acc.fats += fats;
+    acc.fiber += fiber;
+    return acc;
+  }, { calories: 0, protein: 0, carbs: 0, fats: 0, fiber: 0 });
+
+  planTitle.textContent = plan.title || 'Plano alimentar';
+  planBrief.textContent = `Total de ${items.length} alimento(s) no plano.`;
+  planTotals.innerHTML = `
+    <div class="flex flex-wrap justify-center gap-4">
+      <div class="flex-1 min-w-[140px] max-w-[160px] rounded-[28px] border border-[#dbe9d0] bg-[#f7f9f2] p-5 text-center shadow-sm">
+        <p class="text-xs uppercase tracking-[0.16em] text-nutriflow-500">Calorias</p>
+        <p class="mt-3 text-2xl font-bold tracking-[-0.03em] text-nutriflow-950">${totals.calories.toLocaleString('pt-BR')}</p>
+        <p class="text-xs text-nutriflow-500 mt-1">kcal</p>
+      </div>
+      <div class="flex-1 min-w-[140px] max-w-[160px] rounded-[28px] border border-[#dbe9d0] bg-[#f7f9f2] p-5 text-center shadow-sm">
+        <p class="text-xs uppercase tracking-[0.16em] text-nutriflow-500">Proteína</p>
+        <p class="mt-3 text-2xl font-bold tracking-[-0.03em] text-nutriflow-950">${totals.protein.toLocaleString('pt-BR')}</p>
+        <p class="text-xs text-nutriflow-500 mt-1">g</p>
+      </div>
+      <div class="flex-1 min-w-[140px] max-w-[160px] rounded-[28px] border border-[#dbe9d0] bg-[#f7f9f2] p-5 text-center shadow-sm">
+        <p class="text-xs uppercase tracking-[0.16em] text-nutriflow-500">Carb.</p>
+        <p class="mt-3 text-2xl font-bold tracking-[-0.03em] text-nutriflow-950">${totals.carbs.toLocaleString('pt-BR')}</p>
+        <p class="text-xs text-nutriflow-500 mt-1">g</p>
+      </div>
+      <div class="flex-1 min-w-[140px] max-w-[160px] rounded-[28px] border border-[#dbe9d0] bg-[#f7f9f2] p-5 text-center shadow-sm">
+        <p class="text-xs uppercase tracking-[0.16em] text-nutriflow-500">Gord.</p>
+        <p class="mt-3 text-2xl font-bold tracking-[-0.03em] text-nutriflow-950">${totals.fats.toLocaleString('pt-BR')}</p>
+        <p class="text-xs text-nutriflow-500 mt-1">g</p>
+      </div>
+      <div class="flex-1 min-w-[140px] max-w-[160px] rounded-[28px] border border-[#dbe9d0] bg-[#f7f9f2] p-5 text-center shadow-sm">
+        <p class="text-xs uppercase tracking-[0.16em] text-nutriflow-500">Fibra</p>
+        <p class="mt-3 text-2xl font-bold tracking-[-0.03em] text-nutriflow-950">${totals.fiber.toLocaleString('pt-BR')}</p>
+        <p class="text-xs text-nutriflow-500 mt-1">g</p>
+      </div>
+    </div>
+  `;
+
+  itemsContainer.innerHTML = Object.keys(groupedItems).length ? Object.entries(groupedItems).map(([mealTime, mealItems]) => {
+    return `
+      <div class="rounded-[24px] border border-nutriflow-200 bg-white p-4">
+        <div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p class="text-xs uppercase tracking-[0.16em] text-nutriflow-500">${escapeHtml(mealTime)}</p>
+            <p class="mt-2 text-lg font-semibold text-nutriflow-950">${mealItems.length} alimento(s)</p>
+          </div>
+          <p class="text-sm text-nutriflow-600">${mealItems.map((item) => `${Number(item.quantity).toLocaleString('pt-BR')}g`).join(' • ')}</p>
+        </div>
+        <div class="mt-4 grid gap-3">
+          <div class="hidden sm:grid grid-cols-[1.8fr_repeat(5,minmax(110px,1fr))] gap-2 text-xs uppercase tracking-[0.12em] text-nutriflow-500 pb-2 border-b border-nutriflow-200">
+            <span>Alimento</span>
+            <span class="text-right">Kcal</span>
+            <span class="text-right">Prot.</span>
+            <span class="text-right">Carb.</span>
+            <span class="text-right">Gord.</span>
+            <span class="text-right">Fibra</span>
+          </div>
+          ${mealItems.map((item) => {
+            const foodName = typeof item.food === 'string' ? item.food : item.food?.name || 'Alimento';
+            const quantity = Number(item.quantity || 0).toLocaleString('pt-BR');
+            const calories = Number.isFinite(item.calories) ? item.calories : Number.isFinite(item.food?.calories) ? Math.round(item.food.calories * (item.quantity / 100)) : 0;
+            const protein = Number.isFinite(item.protein) ? item.protein : Number.isFinite(item.food?.protein) ? Math.round(item.food.protein * (item.quantity / 100)) : 0;
+            const carbs = Number.isFinite(item.carbs) ? item.carbs : Number.isFinite(item.food?.carbs) ? Math.round(item.food.carbs * (item.quantity / 100)) : 0;
+            const fats = Number.isFinite(item.fats) ? item.fats : Number.isFinite(item.food?.fat || item.food?.fats) ? Math.round((item.food?.fat || item.food?.fats) * (item.quantity / 100)) : 0;
+            const fiber = Number.isFinite(item.fiber) ? item.fiber : Number.isFinite(item.food?.fiber) ? Math.round(item.food.fiber * (item.quantity / 100)) : 0;
+
+            return `
+              <div class="grid gap-2 rounded-2xl border border-[#e4f2dc] bg-[#f8fdf5] p-4 sm:grid-cols-[1.8fr_repeat(5,minmax(110px,1fr))] items-center">
+                <div>
+                  <p class="font-semibold text-nutriflow-950">${escapeHtml(foodName)}</p>
+                  <p class="text-xs text-nutriflow-600">${quantity} g</p>
+                </div>
+                <p class="text-sm font-semibold text-nutriflow-950 text-right">${calories} kcal</p>
+                <p class="text-sm font-semibold text-nutriflow-950 text-right">${protein} g</p>
+                <p class="text-sm font-semibold text-nutriflow-950 text-right">${carbs} g</p>
+                <p class="text-sm font-semibold text-nutriflow-950 text-right">${fats} g</p>
+                <p class="text-sm font-semibold text-nutriflow-950 text-right">${fiber} g</p>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+  }).join('') : '<p class="text-sm text-nutriflow-600">Nenhum alimento detalhado no plano.</p>';
+}
+
+function openPatientPlanModal() {
+  const modal = document.getElementById('viewPatientPlanModal');
+  if (!modal) {
+    return;
+  }
+
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+  document.body.classList.add('modal-open');
+}
+
+function closePatientPlanModal() {
+  const modal = document.getElementById('viewPatientPlanModal');
+  if (!modal) {
+    return;
+  }
+
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+
+  if (!document.querySelector('.nf-modal-overlay:not(.hidden)')) {
+    document.body.classList.remove('modal-open');
+  }
 }
 
 function renderWeightChart(labels, values) {

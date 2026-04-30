@@ -53,6 +53,16 @@ class NutritionistDashboardRepository {
     });
   }
 
+  findFoodsByNames(names) {
+    return this.prisma.food.findMany({
+      where: {
+        name: {
+          in: names,
+        },
+      },
+    });
+  }
+
   countManagedPatients(nutritionistId) {
     return this.prisma.patientProfile.count({
       where: { nutritionistId },
@@ -584,6 +594,37 @@ class NutritionistDashboardRepository {
 
   async createMealPlan(data) {
     return this.prisma.$transaction(async (tx) => {
+      // Criar novos foods se necessário
+      const foodIds = [];
+      for (const food of data.newFoods || []) {
+        if (food.id.startsWith('temp-')) {
+          const existing = await tx.food.findFirst({ where: { name: food.name } });
+          if (existing) {
+            foodIds.push(existing.id);
+          } else {
+            const newFood = await tx.food.create({
+              data: {
+                name: food.name,
+                calories: food.calories,
+                protein: food.protein,
+                carbs: food.carbs,
+                fat: food.fat,
+                fiber: food.fiber,
+              },
+            });
+            foodIds.push(newFood.id);
+          }
+        } else {
+          foodIds.push(food.id);
+        }
+      }
+
+      // Mapear foodIds para items
+      const itemsWithIds = (data.items || []).map((item, index) => ({
+        ...item,
+        foodId: foodIds[index] || item.foodId,
+      }));
+
       const mealPlan = await tx.mealPlan.create({
         data: {
           patientProfileId: data.patientProfileId,
@@ -595,11 +636,12 @@ class NutritionistDashboardRepository {
           protein: data.protein,
           carbs: data.carbs,
           fats: data.fats,
+          fiber: data.fiber,
           notes: data.notes,
           status: data.status,
-          items: data.items?.length
+          items: itemsWithIds.length
             ? {
-                create: data.items.map((item) => ({
+                create: itemsWithIds.map((item) => ({
                   foodId: item.foodId,
                   quantity: item.quantity,
                   mealTime: item.mealTime,

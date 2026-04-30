@@ -78,6 +78,7 @@ model MealPlan {
   protein          Int
   carbs            Int
   fats             Int
+  fiber            Int            @default(0)
   notes            String
   status           String
   createdAt        DateTime       @default(now())

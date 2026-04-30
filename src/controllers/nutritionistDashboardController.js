@@ -11,6 +11,7 @@ class NutritionistDashboardController {
   }
 
   async createMealPlan(request, response) {
+    console.log('Controller createMealPlan called');
     const nutritionist = await this.sessionService.requireNutritionist(request);
     const result = await this.nutritionistDashboardService.createMealPlan(nutritionist, request.body || {});
     response.status(201).json(result);

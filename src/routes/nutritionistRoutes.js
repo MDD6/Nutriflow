@@ -7,7 +7,10 @@ function createNutritionistRoutes(nutritionistDashboardController) {
   router.get('/dashboard', asyncHandler(nutritionistDashboardController.getDashboard.bind(nutritionistDashboardController)));
   router.get('/conversation', asyncHandler(nutritionistDashboardController.getConversation.bind(nutritionistDashboardController)));
   
-  router.post('/meal-plans', asyncHandler(nutritionistDashboardController.createMealPlan.bind(nutritionistDashboardController)));
+  router.post('/meal-plans', asyncHandler((request, response) => {
+    console.log('Route /meal-plans called');
+    return nutritionistDashboardController.createMealPlan(request, response);
+  }));
   router.post('/assessments', asyncHandler(nutritionistDashboardController.createAssessment.bind(nutritionistDashboardController)));
   router.post('/challenges', asyncHandler(nutritionistDashboardController.createChallenge.bind(nutritionistDashboardController)));
   router.post('/appointments', asyncHandler(nutritionistDashboardController.createAppointment.bind(nutritionistDashboardController))); // Nova Rota

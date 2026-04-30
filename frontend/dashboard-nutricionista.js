@@ -23,7 +23,7 @@ const state = {
   selectedPatientId: null,
   activeFilterId: null, // Novo: Guarda se estamos filtrando a tela por um paciente
   activeChallengeId: null, // Para adicionar pacientes a desafios
-  mealPlans: [], assessments: [], appointments: [], challenges: [], messages: [], foods: [], reminders: []
+  mealPlans: [], assessments: [], appointments: [], challenges: [], messages: [], foods: [], reminders: [], selectedMealPlan: null
 };
 
 const APPOINTMENT_STATUS_LABELS = {
@@ -169,6 +169,84 @@ function renderPatientProfileModal(patient) {
   }
 }
 
+function renderMealPlanModal(plan) {
+  if (!plan) return;
+
+  const titleEl = document.getElementById('viewMealPlanTitle');
+  const datesEl = document.getElementById('viewMealPlanDates');
+  const macrosEl = document.getElementById('viewMealPlanMacros');
+  const statusSelect = document.getElementById('viewMealPlanStatusSelect');
+  const patientEl = document.getElementById('viewMealPlanPatient');
+  const createdAtEl = document.getElementById('viewMealPlanCreatedAt');
+  const itemsList = document.getElementById('viewMealPlanItems');
+
+  if (!titleEl || !datesEl || !macrosEl || !statusSelect || !patientEl || !createdAtEl || !itemsList) {
+    showToast('Erro ao abrir o modal de visualização do plano. Atualize a página e tente novamente.');
+    return;
+  }
+
+  titleEl.textContent = plan.title || 'Plano Alimentar';
+  datesEl.textContent = `${new Date(plan.startDate).toLocaleDateString()} → ${new Date(plan.endDate).toLocaleDateString()}`;
+  macrosEl.innerHTML = `
+    <div class="grid gap-3 text-sm font-semibold text-nutriflow-950">
+      <div>${plan.calories || 0} kcal</div>
+      <div class="grid grid-cols-2 gap-2 text-xs text-nutriflow-700">
+        <span>Proteína: ${plan.protein || 0}g</span>
+        <span>Carboidrato: ${plan.carbs || 0}g</span>
+        <span>Gordura: ${plan.fats || 0}g</span>
+        <span>Fibra: ${plan.fiber || 0}g</span>
+      </div>
+    </div>
+  `;
+  statusSelect.value = plan.status === 'Inativo' ? 'Inativo' : 'Ativo';
+  statusSelect.onchange = () => {
+    if (state.selectedMealPlan) {
+      state.selectedMealPlan.status = statusSelect.value;
+    }
+  };
+  patientEl.textContent = plan.patientProfileId || 'N/A';
+  createdAtEl.textContent = new Date(plan.createdAt).toLocaleString();
+
+  itemsList.innerHTML = plan.items?.length ? plan.items.map(item => {
+    const foodName = typeof item.food === 'string' ? item.food : item.food?.name || 'Alimento desconhecido';
+    const quantity = Number.isFinite(item.quantity) ? item.quantity : 0;
+    const calories = Number.isFinite(item.calories) ? item.calories : 0;
+    const protein = Number.isFinite(item.protein) ? item.protein : 0;
+    const carbs = Number.isFinite(item.carbs) ? item.carbs : 0;
+    const fats = Number.isFinite(item.fats) ? item.fats : 0;
+    const fiber = Number.isFinite(item.fiber) ? item.fiber : 0;
+
+    return `
+      <div class="rounded-xl border border-nutriflow-200 p-4 bg-white">
+        <div class="flex justify-between items-start mb-2">
+          <div>
+            <p class="text-sm font-bold text-nutriflow-950">${escapeHtml(foodName)}</p>
+            <p class="text-xs text-nutriflow-600">${escapeHtml(item.mealTime || 'Refeição')} • ${quantity}g</p>
+          </div>
+          <p class="text-sm font-semibold text-nutriflow-950">${calories} kcal</p>
+        </div>
+        <div class="flex flex-wrap gap-4 text-xs text-nutriflow-700">
+          <span>Prot: ${protein}g</span>
+          <span>Carb: ${carbs}g</span>
+          <span>Gord: ${fats}g</span>
+          <span>Fibra: ${fiber}g</span>
+        </div>
+      </div>
+    `;
+  }).join('') : '<p class="text-sm text-nutriflow-500">Nenhum item cadastrado.</p>';
+}
+
+window.openMealPlanDetails = async function(planId) {
+  try {
+    const plan = await apiRequest(`/api/plano-alimentar/${planId}`);
+    state.selectedMealPlan = plan;
+    renderMealPlanModal(plan);
+    openModal('viewMealPlan');
+  } catch (err) {
+    showToast(err.message || 'Não foi possível carregar o plano.');
+  }
+};
+
 // RENDERIZAÇÃO DAS LISTAS COM FILTRO E BOTÕES DE AÇÃO
 const MEAL_PLAN_MEAL_TIMES = [
   'Cafe da manha',
@@ -183,15 +261,7 @@ function getFoodById(foodId) {
   return state.foods.find((food) => food.id === foodId) || null;
 }
 
-function buildFoodOptions(selectedFoodId = '') {
-  if (!state.foods.length) {
-    return '<option value="">Base de alimentos vazia</option>';
-  }
 
-  return '<option value="">Selecione um alimento</option>' + state.foods.map((food) => `
-    <option value="${food.id}" ${food.id === selectedFoodId ? 'selected' : ''}>${escapeHtml(food.name)}</option>
-  `).join('');
-}
 
 function buildMealTimeOptions(selectedMealTime = 'Almoco') {
   return MEAL_PLAN_MEAL_TIMES.map((mealTime) => `
@@ -203,39 +273,45 @@ function getMealPlanItemsPayload(options = {}) {
   const allowIncomplete = options.allowIncomplete === true;
 
   return Array.from(document.querySelectorAll('[data-meal-plan-item-row]')).map((row) => {
-    const foodId = row.querySelector('[data-plan-food]')?.value || '';
+    const name = row.querySelector('[data-plan-food-name]')?.value || '';
     const quantity = Number(row.querySelector('[data-plan-quantity]')?.value || 0);
-    const mealTime = row.querySelector('[data-plan-meal-time]')?.value || 'Refeicao';
+    const caloriesPer100 = Number(row.querySelector('[data-plan-calories-per-100]')?.value || 0);
+    const proteinPer100 = Number(row.querySelector('[data-plan-protein-per-100]')?.value || 0);
+    const carbsPer100 = Number(row.querySelector('[data-plan-carbs-per-100]')?.value || 0);
+    const fatPer100 = Number(row.querySelector('[data-plan-fat-per-100]')?.value || 0);
+    const fiberPer100 = Number(row.querySelector('[data-plan-fiber-per-100]')?.value || 0);
+    const mealTime = row.querySelector('[data-plan-meal-time]')?.value || 'Almoco';
 
-    return { foodId, quantity, mealTime };
-  }).filter((item) => allowIncomplete || (item.foodId && Number.isFinite(item.quantity) && item.quantity > 0));
+    return { name, quantity, caloriesPer100, proteinPer100, carbsPer100, fatPer100, fiberPer100, mealTime };
+  }).filter((item) => allowIncomplete || (item.name && Number.isFinite(item.quantity) && item.quantity > 0));
 }
 
 function updateMealPlanTotals() {
   const totals = getMealPlanItemsPayload({ allowIncomplete: true }).reduce((accumulator, item) => {
-    const food = getFoodById(item.foodId);
-
-    if (!food || !Number.isFinite(item.quantity)) {
+    if (!Number.isFinite(item.quantity) || !Number.isFinite(item.caloriesPer100)) {
       return accumulator;
     }
 
     const factor = item.quantity / 100;
-    accumulator.calories += Math.round(food.calories * factor);
-    accumulator.protein += Math.round(food.protein * factor);
-    accumulator.carbs += Math.round(food.carbs * factor);
-    accumulator.fats += Math.round(food.fat * factor);
+    accumulator.calories += Math.round(item.caloriesPer100 * factor);
+    accumulator.protein += Math.round(item.proteinPer100 * factor);
+    accumulator.carbs += Math.round(item.carbsPer100 * factor);
+    accumulator.fats += Math.round(item.fatPer100 * factor);
+    accumulator.fiber += Math.round(item.fiberPer100 * factor * 10) / 10;
     return accumulator;
   }, {
     calories: 0,
     protein: 0,
     carbs: 0,
     fats: 0,
+    fiber: 0,
   });
 
   document.getElementById('mealPlanCalories').value = totals.calories;
   document.getElementById('mealPlanProtein').value = totals.protein;
   document.getElementById('mealPlanCarbs').value = totals.carbs;
   document.getElementById('mealPlanFats').value = totals.fats;
+  document.getElementById('mealPlanFiber').value = totals.fiber;
 }
 
 function addMealPlanItemRow(item = {}) {
@@ -244,17 +320,26 @@ function addMealPlanItemRow(item = {}) {
   if (!list) return;
 
   const row = document.createElement('div');
-  row.className = 'grid gap-2 rounded-lg border border-white bg-white p-2 shadow-sm md:grid-cols-[1.1fr_120px_1fr_auto]';
+  row.className = 'rounded-[28px] border border-[rgba(188,210,179,0.45)] bg-white/95 p-4 shadow-[0_18px_38px_rgba(18,29,21,0.08)]';
   row.dataset.mealPlanItemRow = 'true';
   row.innerHTML = `
-    <select class="rounded-lg border border-nutriflow-200 px-3 py-2 text-sm font-bold" data-plan-food required>
-      ${buildFoodOptions(item.foodId || '')}
-    </select>
-    <input class="rounded-lg border border-nutriflow-200 px-3 py-2 text-sm font-bold" data-plan-quantity type="number" min="1" max="2000" step="1" value="${item.quantity || 100}" required />
-    <select class="rounded-lg border border-nutriflow-200 px-3 py-2 text-sm font-bold" data-plan-meal-time required>
-      ${buildMealTimeOptions(item.mealTime || 'Almoco')}
-    </select>
-    <button class="rounded-lg border border-red-100 px-3 py-2 text-xs font-bold text-red-500" type="button" data-remove-plan-item>Remover</button>
+    <div class="grid gap-3 md:grid-cols-[1.5fr_0.9fr]">
+      <input class="rounded-2xl border border-[rgba(188,210,179,0.65)] bg-[rgba(246,250,244,0.95)] px-4 py-3 text-sm font-semibold text-[#1c2618] placeholder:text-[#8b997e]" data-plan-food-name type="text" placeholder="Nome do alimento" value="${item.name || ''}" required />
+      <select class="rounded-2xl border border-[rgba(188,210,179,0.65)] bg-[rgba(246,250,244,0.95)] px-4 py-3 text-sm font-semibold text-[#1c2618]" data-plan-meal-time required>
+        ${buildMealTimeOptions(item.mealTime || 'Almoco')}
+      </select>
+    </div>
+    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_0.85fr]">
+      <input class="rounded-2xl border border-[rgba(188,210,179,0.65)] bg-[rgba(246,250,244,0.95)] px-4 py-3 text-sm font-semibold text-[#1c2618]" data-plan-quantity type="number" min="1" max="2000" step="1" placeholder="Qtd(g)" value="${item.quantity || 100}" required />
+      <input class="rounded-2xl border border-[rgba(188,210,179,0.65)] bg-[rgba(246,250,244,0.95)] px-4 py-3 text-sm font-semibold text-[#1c2618]" data-plan-calories-per-100 type="number" min="0" step="0.1" placeholder="Kcal/100g" value="${item.caloriesPer100 || ''}" required />
+      <input class="rounded-2xl border border-[rgba(188,210,179,0.65)] bg-[rgba(246,250,244,0.95)] px-4 py-3 text-sm font-semibold text-[#1c2618]" data-plan-protein-per-100 type="number" min="0" step="0.1" placeholder="Prot/100g" value="${item.proteinPer100 || ''}" required />
+      <input class="rounded-2xl border border-[rgba(188,210,179,0.65)] bg-[rgba(246,250,244,0.95)] px-4 py-3 text-sm font-semibold text-[#1c2618]" data-plan-carbs-per-100 type="number" min="0" step="0.1" placeholder="Carb/100g" value="${item.carbsPer100 || ''}" required />
+    </div>
+    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_0.9fr] items-end">
+      <input class="rounded-2xl border border-[rgba(188,210,179,0.65)] bg-[rgba(246,250,244,0.95)] px-4 py-3 text-sm font-semibold text-[#1c2618]" data-plan-fat-per-100 type="number" min="0" step="0.1" placeholder="Gord/100g" value="${item.fatPer100 || ''}" required />
+      <input class="rounded-2xl border border-[rgba(188,210,179,0.65)] bg-[rgba(246,250,244,0.95)] px-4 py-3 text-sm font-semibold text-[#1c2618]" data-plan-fiber-per-100 type="number" min="0" step="0.1" placeholder="Fib/100g" value="${item.fiberPer100 || ''}" required />
+      <button class="w-full rounded-full border border-[#f5d3d3] bg-[#fff5f5] px-4 py-3 text-sm font-semibold text-[#bf3b3b] transition hover:bg-[#feecec]" type="button" data-remove-plan-item>Remover</button>
+    </div>
   `;
 
   row.querySelectorAll('select, input').forEach((field) => {
@@ -303,6 +388,7 @@ function renderGeneralLists() {
         <p class="text-xs font-semibold text-nutriflow-600">${plan.calories} kcal - ${plan.protein}g prot - ${plan.carbs || 0}g carb - ${plan.fats || 0}g gord</p>
         <p class="mt-1 text-xs text-nutriflow-500">${plan.items?.length ? `${plan.items.length} alimentos cadastrados` : 'Sem alimentos detalhados'}</p>
         <div class="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition">
+           <button onclick="window.openMealPlanDetails('${plan.id}')" title="Ver Plano" class="p-1 text-nutriflow-500 hover:text-nutriflow-900">👁️</button>
            <button onclick="window.duplicatePlan('${plan.id}')" title="Reaproveitar Plano" class="p-1 text-nutriflow-500 hover:text-nutriflow-900">📋</button>
            <button onclick="window.deleteResource('meal-plans', '${plan.id}')" title="Excluir" class="p-1 text-red-400 hover:text-red-600">🗑️</button>
         </div>
@@ -505,6 +591,14 @@ document.getElementById('mealPlanForm')?.addEventListener('submit', async (e) =>
     return;
   }
 
+  // Validação adicional: verificar se todos os itens têm nome
+  for (const item of items) {
+    if (!item.name || item.name.trim() === '') {
+      showToast('Preencha o nome de todos os alimentos.');
+      return;
+    }
+  }
+
   const payload = {
     patientId: document.getElementById('mealPlanPatient').value,
     title: document.getElementById('mealPlanTitle').value,
@@ -513,10 +607,16 @@ document.getElementById('mealPlanForm')?.addEventListener('submit', async (e) =>
     startDate: new Date().toISOString(),
     endDate: new Date(Date.now() + 30*24*60*60*1000).toISOString()
   };
+
+  console.log('Payload enviado:', JSON.stringify(payload, null, 2));
+
   try {
     await apiRequest('/api/nutritionist/meal-plans', { method: 'POST', body: JSON.stringify(payload) });
     showToast('Plano salvo!'); closeModal('mealPlan'); await fetchDatabaseData();
-  } catch(err) { showToast('Erro ao salvar plano.'); }
+  } catch(err) {
+    console.error('Erro ao salvar plano:', err);
+    showToast('Erro ao salvar plano: ' + (err.message || 'Verifique os dados e tente novamente.'));
+  }
 });
 
 document.getElementById('assessmentForm')?.addEventListener('submit', async (e) => {

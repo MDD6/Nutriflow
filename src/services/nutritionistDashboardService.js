@@ -161,25 +161,37 @@ function buildWeightTimeline(patientProfile) {
 }
 
 function parseMealPlanItems(items) {
+  console.log('parseMealPlanItems input:', items);
   if (!Array.isArray(items)) {
     return [];
   }
 
   const parsedItems = items
-    .map((item) => ({
-      foodId: String(item.foodId || '').trim(),
-      mealTime: normalizeText(item.mealTime) || 'Refeicao',
-      quantity: Number(item.quantity),
-    }))
-    .filter((item) => item.foodId || Number.isFinite(item.quantity));
+    .map((item) => {
+      const parsed = {
+        name: String(item.name || '').trim(),
+        mealTime: normalizeText(item.mealTime) || 'Refeicao',
+        quantity: Number(item.quantity),
+        caloriesPer100: Number(item.caloriesPer100 || 0),
+        proteinPer100: Number(item.proteinPer100 || 0),
+        carbsPer100: Number(item.carbsPer100 || 0),
+        fatPer100: Number(item.fatPer100 || 0),
+        fiberPer100: Number(item.fiberPer100 || 0),
+      };
+      console.log('parsed item:', parsed);
+      return parsed;
+    })
+    .filter((item) => item.name || Number.isFinite(item.quantity));
+
+  console.log('filtered items:', parsedItems);
 
   if (parsedItems.length > 40) {
     throw new AppError('O plano pode ter no maximo 40 alimentos.', 400);
   }
 
   for (const item of parsedItems) {
-    if (!item.foodId) {
-      throw new AppError('Selecione o alimento em todos os itens do plano.', 400);
+    if (!item.name) {
+      throw new AppError('Informe o nome do alimento em todos os itens do plano.', 400);
     }
 
     if (!Number.isFinite(item.quantity) || item.quantity <= 0 || item.quantity > 2000) {
@@ -194,18 +206,33 @@ function parseMealPlanItems(items) {
 }
 
 function calculateNutritionFromItems(items, foods) {
-  const foodsById = new Map(foods.map((food) => [food.id, food]));
+  const foodsByName = new Map(foods.map((food) => [food.name.toLowerCase(), food]));
   const totals = {
     calories: 0,
     protein: 0,
     carbs: 0,
     fats: 0,
+    fiber: 0,
   };
-  const detailedItems = items.map((item) => {
-    const food = foodsById.get(item.foodId);
+  const detailedItems = [];
+  const newFoods = [];
+
+  for (const item of items) {
+    let food = foodsByName.get(item.name.toLowerCase());
 
     if (!food) {
-      throw new AppError('Um ou mais alimentos do plano nao foram encontrados.', 400);
+      // Criar novo food
+      food = {
+        id: `temp-${item.name.toLowerCase().replace(/\s+/g, '-')}`,
+        name: item.name,
+        calories: item.caloriesPer100,
+        protein: item.proteinPer100,
+        carbs: item.carbsPer100,
+        fat: item.fatPer100,
+        fiber: item.fiberPer100,
+      };
+      newFoods.push(food);
+      foodsByName.set(item.name.toLowerCase(), food);
     }
 
     const factor = item.quantity / 100;
@@ -214,24 +241,28 @@ function calculateNutritionFromItems(items, foods) {
       protein: Math.round(food.protein * factor),
       carbs: Math.round(food.carbs * factor),
       fats: Math.round(food.fat * factor),
+      fiber: Math.round(food.fiber * factor),
     };
 
     totals.calories += calculated.calories;
     totals.protein += calculated.protein;
     totals.carbs += calculated.carbs;
     totals.fats += calculated.fats;
+    totals.fiber += calculated.fiber;
 
-    return {
-      ...item,
-      food,
-      calculated,
-    };
-  });
+    detailedItems.push({
+      foodId: food.id,
+      quantity: item.quantity,
+      mealTime: item.mealTime,
+      calories: calculated.calories,
+      protein: calculated.protein,
+      carbs: calculated.carbs,
+      fats: calculated.fats,
+      fiber: calculated.fiber,
+    });
+  }
 
-  return {
-    totals,
-    items: detailedItems,
-  };
+  return { totals, items: detailedItems, newFoods };
 }
 
 class NutritionistDashboardService {
@@ -256,6 +287,7 @@ class NutritionistDashboardService {
   }
 
   async createMealPlan(nutritionist, payload) {
+    console.log('createMealPlan called with payload:', payload);
     const patientProfileId = String(payload.patientId || '').trim();
     const title = String(payload.title || '').trim();
     const notes = String(payload.notes || '').trim();
@@ -283,7 +315,7 @@ class NutritionistDashboardService {
     const nutrition = items.length
       ? calculateNutritionFromItems(
           items,
-          await this.nutritionistDashboardRepository.findFoodsByIds(items.map((item) => item.foodId)),
+          await this.nutritionistDashboardRepository.findFoodsByNames(items.map((item) => item.name)),
         )
       : null;
     const totals = nutrition?.totals || {
@@ -291,6 +323,7 @@ class NutritionistDashboardService {
       protein: Math.max(0, Math.round(toNumber(payload.protein))),
       carbs: Math.max(0, Math.round(toNumber(payload.carbs))),
       fats: Math.max(0, Math.round(toNumber(payload.fats))),
+      fiber: Math.max(0, Math.round(toNumber(payload.fiber))),
     };
 
     const mealPlan = await this.nutritionistDashboardRepository.createMealPlan({
@@ -303,6 +336,7 @@ class NutritionistDashboardService {
       protein: totals.protein,
       carbs: totals.carbs,
       fats: totals.fats,
+      fiber: totals.fiber,
       notes: notes || (items.length ? 'Macros calculados automaticamente pela base de alimentos.' : ''),
       status,
       items: nutrition?.items.map((item) => ({
@@ -310,6 +344,7 @@ class NutritionistDashboardService {
         quantity: item.quantity,
         mealTime: item.mealTime,
       })) || [],
+      newFoods: nutrition?.newFoods || [],
     });
 
     return {

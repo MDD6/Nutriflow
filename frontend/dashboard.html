@@ -467,6 +467,28 @@
     </div>
   </div>
 
+  <div id="viewPatientPlanModal" class="nf-modal-overlay hidden">
+    <div class="nf-modal-card">
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Plano alimentar</p>
+          <h3 id="viewPatientPlanTitle" class="mt-2 text-2xl font-bold tracking-[-0.05em]">Detalhes do plano</h3>
+          <p id="viewPatientPlanBrief" class="mt-2 text-sm text-nutriflow-700">Visualize os alimentos e nutrientes do seu roteiro.</p>
+        </div>
+        <button class="nf-modal-close" type="button" onclick="closePatientPlanModal()">x</button>
+      </div>
+
+      <div class="mt-6 grid gap-4">
+        <div id="viewPatientPlanTotals" class="grid gap-3 sm:grid-cols-5"></div>
+        <div id="viewPatientPlanItems" class="grid gap-4"></div>
+      </div>
+
+      <div class="mt-4 flex justify-end gap-3">
+        <button class="rounded-2xl border border-nutriflow-200 bg-white px-4 py-3 text-sm font-semibold text-nutriflow-900" type="button" onclick="closePatientPlanModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
   <div id="patientToast" class="nf-toast hidden"></div>
   
   <script src="ui.js"></script>

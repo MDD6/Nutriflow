@@ -86,16 +86,41 @@
             <h2 class="text-lg font-bold mb-4">Últimas Avaliações</h2>
             <div id="latestAssessments" class="space-y-3"></div>
           </article>
-          <article class="dashboard-surface rounded-[24px] p-5">
+          <article class="dashboard-surface rounded-[24px] p-5 flex flex-col h-[620px]">
             <div class="flex justify-between items-center mb-4">
               <h2 class="text-lg font-bold">Agenda</h2>
-              <button id="btnOpenAppointment" class="text-xs bg-nutriflow-200 px-3 py-1 rounded-md font-bold">Agendar</button>
+              <div class="flex gap-2">
+                <button id="btnTabAgenda" onclick="window.switchAgendaTab('atual')" class="text-[10px] bg-nutriflow-950 text-white px-2 py-1 rounded-md font-bold transition">Atual</button>
+                <button id="btnTabHistorico" onclick="window.switchAgendaTab('historico')" class="text-[10px] bg-nutriflow-100 text-nutriflow-900 px-2 py-1 rounded-md font-bold transition">Histórico</button>
+                <button id="btnOpenAppointment" class="text-xs bg-nutriflow-950 text-white px-3 py-1 rounded-md font-bold hover:bg-nutriflow-800 transition">Agendar</button>
+              </div>
             </div>
-            <div class="mb-3 rounded-xl border border-amber-200 bg-amber-50/70 p-3">
-              <p class="text-[11px] font-bold uppercase tracking-[0.14em] text-amber-700">Lembretes</p>
-              <div id="appointmentRemindersList" class="mt-2 space-y-2"></div>
+            
+            <div class="flex-1 overflow-y-auto pr-2 space-y-6 custom-scrollbar">
+              <div id="tabContentAtual">
+                <div id="section24h" class="hidden mb-6">
+                  <p class="text-[12px] font-black uppercase tracking-[0.15em] text-orange-600 mb-3 flex items-center gap-2">
+                    <span class="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></span>
+                    Próximas 24 horas
+                  </p>
+                  <div id="appointmentRemindersList" class="space-y-4">
+                    </div>
+                  <div class="border-b border-nutriflow-100 my-6"></div>
+                </div>
+
+                <div>
+                  <p class="text-[11px] font-bold uppercase tracking-[0.14em] text-nutriflow-400 mb-3">Próximas Consultas</p>
+                  <div id="appointmentsList" class="space-y-4">
+                    </div>
+                </div>
+              </div>
+
+              <div id="tabContentHistorico" class="hidden">
+                <p class="text-[11px] font-bold uppercase tracking-[0.14em] text-emerald-700 mb-3">Concluídas / Faltas</p>
+                <div id="historyList" class="space-y-4">
+                  </div>
+              </div>
             </div>
-            <div id="appointmentsList" class="space-y-3"></div>
           </article>
         </section>
         
@@ -277,6 +302,46 @@
       </form>
     </div>
   </div>
+
+  <div id="rescheduleModal" class="nf-modal-overlay hidden">
+  <div class="nf-modal-card !max-w-md">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-xl font-bold">Remarcar Consulta</h3>
+      <button class="nf-modal-close" data-close="reschedule">x</button>
+    </div>
+    <div class="grid gap-4">
+      <label class="nf-field">
+        <span>Nova Data e Hora</span>
+        <input id="rescheduleDate" type="datetime-local" class="font-bold" />
+      </label>
+      <button id="btnConfirmReschedule" class="w-full bg-nutriflow-950 text-white py-3 rounded-xl font-bold">Confirmar Alteração</button>
+    </div>
+  </div>
+</div>
+
+<div id="deleteConfirmModal" class="nf-modal-overlay hidden">
+  <div class="nf-modal-card !max-w-sm text-center">
+    <div class="flex justify-center mb-4 text-red-500">
+      <span class="text-5xl">⚠️</span>
+    </div>
+    <h3 class="text-xl font-bold mb-2">Excluir Consulta?</h3>
+    <p class="text-sm text-nutriflow-600 mb-6">Esta ação não pode ser desfeita. Deseja mesmo remover este agendamento?</p>
+    <div class="flex gap-3">
+      <button class="flex-1 border py-2 rounded-xl font-bold" data-close="deleteConfirm">Cancelar</button>
+      <button id="btnConfirmDelete" class="flex-1 bg-red-600 text-white py-2 rounded-xl font-bold hover:bg-red-700">Excluir</button>
+    </div>
+  </div>
+</div>
+
+<div id="editAppointmentModal" class="nf-modal-overlay hidden">
+  <div class="nf-modal-card !max-w-md">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-xl font-bold">Editar Agendamento</h3>
+      <button class="nf-modal-close" data-close="editAppointment">x</button>
+    </div>
+    <div id="editAppointmentContent" class="grid gap-3"></div>
+  </div>
+</div>
 
   <div id="nutritionistToast" class="nf-toast hidden"></div>
   

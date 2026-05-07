@@ -583,56 +583,50 @@ class NutritionistDashboardRepository {
   }
 
   async createMealPlan(data) {
-    return this.prisma.$transaction(async (tx) => {
-      const mealPlan = await tx.mealPlan.create({
-        data: {
-          patientProfileId: data.patientProfileId,
-          nutritionistId: data.nutritionistId,
-          title: data.title,
-          startDate: data.startDate,
-          endDate: data.endDate,
-          calories: data.calories,
-          protein: data.protein,
-          carbs: data.carbs,
-          fats: data.fats,
-          notes: data.notes,
-          status: data.status,
-          items: data.items?.length
-            ? {
-                create: data.items.map((item) => ({
-                  foodId: item.foodId,
-                  quantity: item.quantity,
-                  mealTime: item.mealTime,
-                })),
-              }
-            : undefined,
-        },
-      });
+  const existing = await this.prisma.mealPlan.findFirst({
+    where: {
+      title: data.title,
+      patientProfileId: data.patientProfileId,
+    },
+    include: {
+      patientProfile: { include: { user: true } },
+      items: { include: { food: true }, orderBy: { createdAt: 'asc' } },
+    },
+  });
 
-      await tx.patientProfile.update({
-        where: { id: data.patientProfileId },
-        data: {
-          currentPlanTitle: data.title,
-          status: data.status === 'Atrasado' ? 'Atrasado' : 'Ativo',
-        },
-      });
-
-      return tx.mealPlan.findUnique({
-        where: { id: mealPlan.id },
-        include: {
-          patientProfile: {
-            include: {
-              user: true,
-            },
-          },
-          items: {
-            include: { food: true },
-            orderBy: { createdAt: 'asc' },
-          },
-        },
-      });
-    });
+  if (existing) {
+    return existing; // já existe, não cria cópia
   }
+
+  return this.prisma.mealPlan.create({
+    data: {
+      patientProfileId: data.patientProfileId,
+      nutritionistId: data.nutritionistId,
+      title: data.title,
+      startDate: data.startDate,
+      endDate: data.endDate,
+      calories: data.calories,
+      protein: data.protein,
+      carbs: data.carbs,
+      fats: data.fats,
+      notes: data.notes,
+      status: data.status,
+      items: data.items?.length
+        ? {
+            create: data.items.map((item) => ({
+              foodId: item.foodId,
+              quantity: item.quantity,
+              mealTime: item.mealTime,
+            })),
+          }
+        : undefined,
+    },
+    include: {
+      patientProfile: { include: { user: true } },
+      items: { include: { food: true }, orderBy: { createdAt: 'asc' } },
+    },
+  });
+}
 
   async createAssessment(data) {
     return this.prisma.$transaction(async (tx) => {

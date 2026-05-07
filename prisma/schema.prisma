@@ -87,6 +87,34 @@ model MealPlan {
   items            MealPlanItem[]
 }
 
+model Food {
+  id         String   @id @default(uuid())
+  name       String   @unique
+  calories   Int
+  protein    Int
+  carbs      Int
+  fat        Int
+  fiber      Int      @default(0)   // campo novo
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  logs       FoodLog[]
+  mealPlanItems MealPlanItem[]
+  mealEntryItems MealEntryItem[]
+}
+
+model MealPlanItem {
+  id         String   @id @default(uuid())
+  mealPlanId String
+  foodId     String
+  quantity   Float
+  mealTime   String
+  createdAt  DateTime @default(now())
+  mealPlan   MealPlan @relation(fields: [mealPlanId], references: [id], onDelete: Cascade)
+  food       Food     @relation(fields: [foodId], references: [id], onDelete: Cascade)
+
+  @@index([mealPlanId])
+}
+
 model Assessment {
   id               String         @id @default(uuid())
   patientProfileId String
@@ -114,68 +142,6 @@ model PatientMessage {
   createdAt        DateTime       @default(now())
   patientProfile   PatientProfile @relation(fields: [patientProfileId], references: [id], onDelete: Cascade)
   nutritionist     User           @relation("NutritionistMessages", fields: [nutritionistId], references: [id], onDelete: Cascade)
-}
-
-model MealEntry {
-  id               String         @id @default(uuid())
-  patientProfileId String
-  mealType         String
-  title            String
-  description      String
-  calories         Int
-  protein          Int
-  carbs            Int
-  fats             Int
-  fiber            Int            @default(0)
-  waterMl          Int            @default(0)
-  loggedAt         DateTime
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
-  patientProfile   PatientProfile @relation(fields: [patientProfileId], references: [id], onDelete: Cascade)
-  items MealEntryItem[]
-
-  @@index([patientProfileId])
-  @@index([patientProfileId, loggedAt])
-}
-
-model Food {
-  id         String         @id @default(uuid())
-  name       String         @unique
-  calories   Int
-  protein    Int
-  carbs      Int
-  fat        Int
-  createdAt  DateTime       @default(now())
-  updatedAt  DateTime       @updatedAt
-  logs       FoodLog[]
-  mealPlanItems MealPlanItem[]
-  mealEntryItems MealEntryItem[]
-}
-
-model FoodLog {
-  id        String   @id @default(uuid())
-  userId    String
-  foodId    String
-  quantity  Float
-  loggedAt  DateTime
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  food      Food     @relation(fields: [foodId], references: [id], onDelete: Cascade)
-
-  @@index([userId, loggedAt])
-}
-
-model MealPlanItem {
-  id         String   @id @default(uuid())
-  mealPlanId String
-  foodId     String
-  quantity   Float
-  mealTime   String
-  createdAt  DateTime @default(now())
-  mealPlan   MealPlan @relation(fields: [mealPlanId], references: [id], onDelete: Cascade)
-  food       Food     @relation(fields: [foodId], references: [id], onDelete: Cascade)
-
-  @@index([mealPlanId])
 }
 
 model Appointment {
@@ -251,6 +217,29 @@ model Goal {
   patientProfile PatientProfile @relation(fields: [patientProfileId], references: [id], onDelete: Cascade)
 }
 
+model MealEntry {
+  id               String         @id @default(uuid())
+  patientProfileId String
+  mealType         String
+  title            String
+  description      String
+  calories         Int
+  protein          Int
+  carbs            Int
+  fats             Int
+  fiber            Int            @default(0)
+  waterMl          Int            @default(0)
+  loggedAt         DateTime
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  patientProfile   PatientProfile @relation(fields: [patientProfileId], references: [id], onDelete: Cascade)
+  items MealEntryItem[]
+
+  @@index([patientProfileId])
+  @@index([patientProfileId, loggedAt])
+}
+
+
 model MealEntryItem {
   id          String    @id @default(uuid())
   quantity    Float
@@ -262,4 +251,19 @@ model MealEntryItem {
   food        Food      @relation(fields: [foodId], references: [id])
 
   @@index([mealEntryId])
+}
+
+
+
+model FoodLog {
+  id        String   @id @default(uuid())
+  userId    String
+  foodId    String
+  quantity  Float
+  loggedAt  DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  food      Food     @relation(fields: [foodId], references: [id], onDelete: Cascade)
+
+  @@index([userId, loggedAt])
 }

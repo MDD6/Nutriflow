@@ -1458,6 +1458,7 @@ function renderDashboard() {
   renderChat();
   renderClinical();
   renderChallenges()
+  renderPatientAgenda();
 }
 
 async function refreshDashboard() {
@@ -1932,6 +1933,153 @@ async function handlePatientSettingsSubmit(e) {
     btn.textContent = 'Salvar Perfil';
   }
 } 
+
+function parseBackendDate(dateStr) {
+    if (!dateStr) return new Date(0);
+    
+    const months = {
+        'Jan': 0, 'Fev': 1, 'Mar': 2, 'Abr': 3, 'Mai': 4, 'Jun': 5,
+        'Jul': 6, 'Ago': 7, 'Set': 8, 'Out': 9, 'Nov': 10, 'Dez': 11
+    };
+
+    try {
+        const parts = dateStr.replace(',', '').split(' - ');
+        const datePart = parts[0].split(' '); 
+        const timePart = parts[1].split(':'); 
+
+        const day = parseInt(datePart[0]);
+        const month = months[datePart[1]];
+        const year = new Date().getFullYear(); 
+        const hours = parseInt(timePart[0]);
+        const minutes = parseInt(timePart[1]);
+
+        return new Date(year, month, day, hours, minutes);
+    } catch (e) {
+        console.error("Falha ao processar data da agenda:", dateStr);
+        return new Date(0);
+    }
+}
+
+function renderPatientAppointmentItem(app, isHighPriority = false) {
+    const safeType = escapeHtml(app.type || "Consulta");
+    const displayDate = app.date || "Data a definir";
+    const statusClean = app.status ? app.status.toLowerCase() : 'agendada';
+    const isFinalizado = statusClean === 'confirmada' || statusClean === 'faltou';
+
+    const [dataPart, horaPart] = displayDate.includes(' - ') ? displayDate.split(' - ') : [displayDate, '--:--'];
+
+    let statusBadge = '';
+    if (statusClean === 'confirmada') {
+        statusBadge = `<span class="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-[9px] font-black uppercase rounded-full border border-emerald-100">✓ Realizada</span>`;
+    } else if (statusClean === 'faltou') {
+        statusBadge = `<span class="px-2 py-0.5 bg-rose-50 text-rose-600 text-[9px] font-black uppercase rounded-full border border-rose-100">✕ Não compareceu</span>`;
+    }
+
+    const priorityClass = isHighPriority 
+        ? 'border-l-4 border-orange-500 bg-orange-50/30' 
+        : 'border-l-4 border-nutriflow-100 bg-white';
+
+    return `
+        <div class="border rounded-2xl p-4 shadow-sm transition-all ${priorityClass}">
+            <div class="flex justify-between items-start mb-3">
+                <div>
+                    <div class="flex items-center gap-2 mb-1">
+                        <p class="text-[10px] font-black text-nutriflow-400 uppercase tracking-tighter">${safeType}</p>
+                        ${isFinalizado ? statusBadge : ''}
+                    </div>
+                    <h4 class="text-base font-extrabold text-nutriflow-950">Consulta com Nutricionista</h4>
+                </div>
+                <div class="text-[10px] font-bold text-nutriflow-400 bg-nutriflow-50 px-2 py-1 rounded-lg uppercase">
+                    ${statusClean === 'agendada' ? 'Confirmada' : statusClean}
+                </div>
+            </div>
+
+            <div class="bg-nutriflow-50/50 rounded-xl p-3 border border-nutriflow-100">
+                <div class="flex items-center gap-4">
+                    <div class="bg-white p-2 rounded-lg shadow-sm border border-nutriflow-100 text-center min-w-[60px]">
+                         <p class="text-[18px] font-black text-nutriflow-900 leading-none">${horaPart}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold text-nutriflow-500 uppercase">📅 ${dataPart}</p>
+                        <p class="text-[10px] text-nutriflow-400 font-medium mt-0.5 italic">Prepare seu diário para a consulta</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function renderPatientAgenda() {
+    const agora = new Date();
+    const limite24h = new Date(agora.getTime() + (24 * 60 * 60 * 1000));
+    
+    let allApps = [...(state.dashboard?.appointments || [])];
+
+    allApps.sort((a, b) => parseBackendDate(a.date) - parseBackendDate(b.date));
+
+    const list24h = [];
+    const listGeral = [];
+    const listHistorico = [];
+
+    allApps.forEach(app => {
+        const status = app.status ? app.status.toLowerCase() : 'agendada';
+        if (status === 'confirmada' || status === 'faltou') {
+            listHistorico.push(app);
+            return;
+        }
+
+        const dateObj = parseBackendDate(app.date);
+        if (dateObj >= agora && dateObj <= limite24h) {
+            list24h.push(app);
+        } else {
+            listGeral.push(app);
+        }
+    });
+
+    const cont24 = document.getElementById('patientAppointment24hList');
+    const sec24 = document.getElementById('patientSection24h');
+    if (cont24) {
+        if (list24h.length > 0) {
+            sec24?.classList.remove('hidden');
+            cont24.innerHTML = list24h.map(a => renderPatientAppointmentItem(a, true)).join('');
+        } else {
+            sec24?.classList.add('hidden');
+        }
+    }
+
+    const contGeral = document.getElementById('patientAppointmentsList');
+    if (contGeral) {
+        contGeral.innerHTML = listGeral.length 
+            ? listGeral.map(a => renderPatientAppointmentItem(a, false)).join('')
+            : '<p class="text-xs text-nutriflow-400 italic p-4 text-center bg-nutriflow-50/50 rounded-2xl border border-dashed">Nenhuma nova consulta agendada.</p>';
+    }
+
+    const contHist = document.getElementById('patientHistoryList');
+    if (contHist) {
+        contHist.innerHTML = listHistorico.length 
+            ? listHistorico.map(a => renderPatientAppointmentItem(a, false)).join('')
+            : '<p class="text-xs text-nutriflow-400 italic p-4 text-center">Ainda não há histórico de consultas.</p>';
+    }
+}
+
+window.switchPatientAgendaTab = function(tab) {
+    const btnAtual = document.getElementById('btnTabAgenda');
+    const btnHist = document.getElementById('btnTabHistorico');
+    const contentAtual = document.getElementById('patientTabContentAtual');
+    const contentHist = document.getElementById('patientTabContentHistorico');
+
+    if (tab === 'atual') {
+        contentAtual?.classList.remove('hidden');
+        contentHist?.classList.add('hidden');
+        if(btnAtual) btnAtual.className = "text-[10px] bg-nutriflow-950 text-white px-3 py-2 rounded-xl font-black transition uppercase";
+        if(btnHist) btnHist.className = "text-[10px] bg-nutriflow-100 text-nutriflow-900 px-3 py-2 rounded-xl font-black transition uppercase";
+    } else {
+        contentAtual?.classList.add('hidden');
+        contentHist?.classList.remove('hidden');
+        if(btnHist) btnHist.className = "text-[10px] bg-nutriflow-950 text-white px-3 py-2 rounded-xl font-black transition uppercase";
+        if(btnAtual) btnAtual.className = "text-[10px] bg-nutriflow-100 text-nutriflow-900 px-3 py-2 rounded-xl font-black transition uppercase";
+    }
+};
 
 function renderChallenges() {
   const container = document.getElementById('activeChallengesList');

@@ -731,25 +731,31 @@ class PatientDashboardService {
     const activePlan = getActivePlan(patientProfile);
     const latestAssessment = getLatestAssessment(patientProfile);
     const nextAppointment = getNextAppointment(patientProfile);
+    
+    const allAppointments = Array.isArray(patientProfile.appointments) ? patientProfile.appointments : [];
+
     const todayMeals = patientProfile.mealEntries
       .filter((meal) => sameDay(meal.loggedAt, new Date()))
       .sort((left, right) => new Date(left.loggedAt) - new Date(right.loggedAt));
+    
     const todayTotals = sumMeals(todayMeals);
     const calorieTarget = activePlan?.calories || 0;
     const proteinTarget = activePlan?.protein || 0;
     const carbTarget = activePlan?.carbs || 0;
     const fatTarget = activePlan?.fats || 0;
     const mealConsistencyTarget = 4;
+    
     const dailySummaries = this.buildDailySummaries(patientProfile.mealEntries, calorieTarget);
     const weightTimeline = buildWeightTimeline(patientProfile);
     const calorieProgress = calculateTargetProgress(todayTotals.calories, calorieTarget);
     const proteinProgress = calculateTargetProgress(todayTotals.protein, proteinTarget);
     const mealProgress = calculateTargetProgress(todayMeals.length, mealConsistencyTarget);
+    
     const adherencePercent = activePlan
       ? clampPercentage((calorieProgress + proteinProgress + mealProgress) / 3)
       : 0;
-    const goalItems = [];
 
+    const goalItems = [];
     if (activePlan) {
       goalItems.push(
         {
@@ -864,6 +870,7 @@ class PatientDashboardService {
         history: this.toWeightHistoryDto(weightTimeline),
       },
       chat: this.toChatDto(patientProfile),
+      appointments: allAppointments.map(app => this.toAppointmentDto(app)),
       clinical: {
         nextAppointment: nextAppointment
           ? {
@@ -874,6 +881,15 @@ class PatientDashboardService {
         checklist: this.buildChecklist(patientProfile, todayMeals, todayTotals.waterMl),
         insight: latestAssessment?.notes || activePlan?.notes || 'Sem insights disponiveis no momento.',
       },
+    };
+  }
+
+  toAppointmentDto(appointment) {
+    return {
+      id: appointment.id,
+      date: formatHistoryDate(appointment.scheduledAt) + " - " + formatTime(appointment.scheduledAt),
+      type: appointment.type,
+      status: appointment.status
     };
   }
 

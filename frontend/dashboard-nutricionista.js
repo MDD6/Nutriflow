@@ -662,7 +662,7 @@ window.openEditAppointmentModal = function(id) {
   if(!app) return;
   currentEditingId = id;
   document.getElementById('editAppointmentContent').innerHTML = `
-    <p class="text-sm font-bold mb-2">Paciente: ${app.patient}</p>
+    <p class="text-sm font-bold mb-2">Paciente: ${escapeHtml(app.patient)}</p>
     <label class="nf-field">
       <span>Mudar Status</span>
       <select id="editStatusField" class="font-bold">

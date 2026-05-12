@@ -287,77 +287,89 @@ function resetMealPlanBuilder(plan = null) {
   updateMealPlanTotals();
 }
 
+function parseBackendDate(dateStr) {
+  if (!dateStr) return new Date(0);
+  const months = {
+      'Jan': 0, 'Fev': 1, 'Mar': 2, 'Abr': 3, 'Mai': 4, 'Jun': 5,
+      'Jul': 6, 'Ago': 7, 'Set': 8, 'Out': 9, 'Nov': 10, 'Dez': 11
+  };
+  try {
+      const [datePart, timePart] = dateStr.split(' - ');
+      const [day, monthStr, year] = datePart.split(' ');
+      const [hours, minutes] = timePart.split(':');
+      return new Date(year, months[monthStr], day, hours, minutes);
+  } catch (e) {
+      console.error("Erro no parsing da data:", dateStr);
+      return new Date(0);
+  }
+}
+
 function renderGeneralLists() {
-    const pId = state.activeFilterId;
-    const agora = new Date();
-    const limite24h = new Date(agora.getTime() + (24 * 60 * 60 * 1000));
+  const pId = state.activeFilterId;
+  const agora = new Date();
+  const limite24h = new Date(agora.getTime() + (24 * 60 * 60 * 1000));
 
-    let allApps = [...state.appointments];
-    if (pId) allApps = allApps.filter(a => a.patientId === pId);
+  let allApps = [...state.appointments];
+  if (pId) allApps = allApps.filter(a => a.patientId === pId);
 
-    allApps.sort((a, b) => {
-        const parse = (s) => s ? new Date(`${s.split(' - ')[0].split('/').reverse().join('-')}T${s.split(' - ')[1]}`) : new Date(0);
-        return parse(a.date) - parse(b.date);
-    });
+  allApps.sort((a, b) => parseBackendDate(a.date) - parseBackendDate(b.date));
 
-    const list24h = [];
-    const listGeral = [];
-    const listHistorico = [];
+  const list24h = [];
+  const listGeral = [];
+  const listHistorico = [];
 
-    allApps.forEach(app => {
-        const status = app.status ? app.status.toLowerCase() : 'agendada';
-        if (status === 'confirmada' || status === 'faltou') {
-            listHistorico.push(app);
-            return;
-        }
+  allApps.forEach(app => {
+      const status = app.status ? app.status.toLowerCase() : 'agendada';
+      if (status === 'confirmada' || status === 'faltou') {
+          listHistorico.push(app);
+          return;
+      }
 
-        if (!app.date) { listGeral.push(app); return; }
+      const dateObj = parseBackendDate(app.date);
+      if (dateObj >= agora && dateObj <= limite24h) {
+          list24h.push(app);
+      } else {
+          listGeral.push(app);
+      }
+  });
 
-        const [d, h] = app.date.split(' - ');
-        const dateObj = new Date(`${d.split('/').reverse().join('-')}T${h}`);
+  const cont24 = document.getElementById('appointmentRemindersList');
+  const sec24 = document.getElementById('section24h');
+  if (cont24) {
+      if (list24h.length > 0) {
+          sec24?.classList.remove('hidden');
+          cont24.innerHTML = list24h.map(a => renderAppointmentItem(a, true)).join('');
+      } else {
+          sec24?.classList.add('hidden');
+      }
+  }
 
-        if (dateObj >= agora && dateObj <= limite24h) {
-            list24h.push(app);
-        } else {
-            listGeral.push(app);
-        }
-    });
+  const contGeral = document.getElementById('appointmentsList');
+  if (contGeral) {
+      contGeral.innerHTML = listGeral.length 
+          ? listGeral.map(a => renderAppointmentItem(a, false)).join('')
+          : '<p class="text-xs text-nutriflow-400 italic p-4">Nenhuma consulta agendada.</p>';
+  }
 
-    const cont24 = document.getElementById('appointmentRemindersList');
-    const sec24 = document.getElementById('section24h');
-    if (cont24) {
-        if (list24h.length > 0) {
-            sec24?.classList.remove('hidden');
-            cont24.innerHTML = list24h.map(a => renderAppointmentItem(a, true)).join('');
-        } else {
-            sec24?.classList.add('hidden');
-        }
-    }
-
-    const contGeral = document.getElementById('appointmentsList');
-    if (contGeral) {
-        contGeral.innerHTML = listGeral.length 
-            ? listGeral.map(a => renderAppointmentItem(a, false)).join('')
-            : '<p class="text-xs text-nutriflow-400 italic p-4">Nenhuma consulta agendada.</p>';
-    }
-
-    const contHist = document.getElementById('historyList');
-    if (contHist) {
-        contHist.innerHTML = listHistorico.map(a => renderAppointmentItem(a, false)).join('');
-    }
+  const contHist = document.getElementById('historyList');
+  if (contHist) {
+      contHist.innerHTML = listHistorico.length 
+          ? listHistorico.map(a => renderAppointmentItem(a, false)).join('')
+          : '<p class="text-xs text-nutriflow-400 italic p-4">Histórico vazio.</p>';
+  }
 
   const plans = pId ? state.mealPlans.filter(p => p.patientId === pId) : state.mealPlans;
   const plansContainer = document.getElementById('latestMealPlans');
   if (plansContainer) {
-    plansContainer.innerHTML = plans.length ? plans.map(plan => `
-      <div class="bg-white border rounded-xl p-3 shadow-sm relative group">
-        <p class="text-xs font-bold text-nutriflow-500 uppercase">${plan.patient}</p>
-        <p class="text-sm font-bold text-nutriflow-950 mt-1 pr-12">${plan.title}</p>
-        <div class="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition">
-           <button onclick="window.deleteResource('meal-plans', '${plan.id}')" class="p-1 text-red-400">🗑️</button>
-        </div>
-      </div>
-    `).join('') : '<p class="text-xs p-2">Nenhum plano.</p>';
+      plansContainer.innerHTML = plans.length ? plans.map(plan => `
+          <div class="bg-white border rounded-xl p-3 shadow-sm relative group">
+              <p class="text-xs font-bold text-nutriflow-500 uppercase">${escapeHtml(plan.patient)}</p>
+              <p class="text-sm font-bold text-nutriflow-950 mt-1 pr-12">${escapeHtml(plan.title)}</p>
+              <div class="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition">
+                  <button onclick="window.deleteResource('meal-plans', '${plan.id}')" class="p-1 text-red-400" title="Excluir Plano">🗑️</button>
+              </div>
+          </div>
+      `).join('') : '<p class="text-xs p-2">Nenhum plano.</p>';
   }
 
   const asss = pId ? state.assessments.filter(a => a.patientId === pId) : state.assessments;
@@ -380,13 +392,6 @@ function renderGeneralLists() {
       </div>
     `).join('') : '<p class="text-xs p-2">Nenhum desafio.</p>';
   }
-  renderOtherDashboardResources(pId);
-}
-
-function renderOtherDashboardResources(pId) {
-    const plans = pId ? state.mealPlans.filter(p => p.patientId === pId) : state.mealPlans;
-    const pCont = document.getElementById('latestMealPlans');
-    if (pCont) pCont.innerHTML = plans.map(p => `<div class="bg-white border p-3 rounded-xl mb-2"><p class="text-xs font-bold">${p.title}</p></div>`).join('');
 }
 
 function populatePatientSelects() {
@@ -403,7 +408,6 @@ function populatePatientSelects() {
   });
 }
 
-// FUNÇÕES GLOBAIS DE AÇÃO (Excluir, Duplicar, Adicionar Participante)
 window.deleteResource = async function(resourceType, id) {
   if(!confirm('Tem certeza que deseja excluir este item permanentemente?')) return;
   try {
@@ -459,7 +463,6 @@ window.rescheduleAppointment = async function(appointmentId) {
   }
 };
 
-// MODAIS
 function openModal(modalId) {
   document.querySelectorAll('.nf-modal-overlay').forEach(m => { m.classList.add('hidden'); m.classList.remove('flex'); });
   const modal = document.getElementById(`${modalId}Modal`);
@@ -505,7 +508,6 @@ function bindButtons() {
   document.getElementById('logoutButton')?.addEventListener('click', () => { session.clear(); window.location.href = 'index.html'; });
 }
 
-// INTEGRAÇÕES REAIS
 document.getElementById('linkPatientForm')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const email = document.getElementById('linkPatientEmail').value;
@@ -557,7 +559,6 @@ document.getElementById('assessmentForm')?.addEventListener('submit', async (e) 
   } catch(err) { showToast('Erro ao salvar avaliação.'); }
 });
 
-// AQUI É A AGENDA SALVANDO DE VERDADE
 document.getElementById('appointmentForm')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const payload = {
@@ -596,63 +597,61 @@ document.getElementById('addParticipantForm')?.addEventListener('submit', async 
 });
 
 function renderAppointmentItem(app, isHighPriority = false) {
+  const safePatientName = escapeHtml(app.patientName || app.patient || "Paciente");
+  const safeType = escapeHtml(app.type || "Consulta");
   const displayDate = app.date || "Data não definida";
   const statusClean = app.status ? app.status.toLowerCase() : 'agendada';
-  
   const isFinalizado = statusClean === 'confirmada' || statusClean === 'faltou';
-  
+
+  const [dataPart, horaPart] = displayDate.includes(' - ') ? displayDate.split(' - ') : [displayDate, ''];
+
   let statusBadge = '';
   if (statusClean === 'confirmada') {
-    statusBadge = `<span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[9px] font-black uppercase rounded-full border border-emerald-200">✓ Confirmada</span>`;
+      statusBadge = `<span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[9px] font-black uppercase rounded-full border border-emerald-200">✓ Confirmada</span>`;
   } else if (statusClean === 'faltou') {
-    statusBadge = `<span class="px-2 py-0.5 bg-rose-100 text-rose-700 text-[9px] font-black uppercase rounded-full border border-rose-200">✕ Faltou</span>`;
+      statusBadge = `<span class="px-2 py-0.5 bg-rose-100 text-rose-700 text-[9px] font-black uppercase rounded-full border border-rose-200">✕ Faltou</span>`;
   }
 
   const priorityClass = isHighPriority 
-    ? 'border-l-4 border-orange-500 bg-orange-50/40' 
-    : 'border-l-4 border-nutriflow-100 bg-white';
+      ? 'border-l-4 border-orange-500 bg-orange-50/40' 
+      : 'border-l-4 border-nutriflow-100 bg-white';
 
   return `
-    <div class="border rounded-2xl p-4 shadow-sm transition-all ${priorityClass}">
-      <div class="flex justify-between items-start mb-3">
-        <div>
-          <div class="flex items-center gap-2 mb-1">
-            <p class="text-[10px] font-black text-nutriflow-400 uppercase tracking-tighter">${app.type || 'Consulta'}</p>
-            ${isFinalizado ? statusBadge : ''} </div>
-          <h4 class="text-base font-extrabold text-nutriflow-950">${app.patientName || app.patient}</h4>
-        </div>
-        <button onclick="window.openDeleteAppointmentModal('${app.id}')" class="text-gray-300 hover:text-red-500 transition">
-          🗑️
-        </button>
-      </div>
-
-      <div class="bg-nutriflow-50 rounded-xl p-3 border border-nutriflow-100 mb-4">
-        <div class="flex items-center gap-3">
-          <span class="text-2xl">📅</span>
-          <div>
-            <p class="text-sm font-black text-nutriflow-900 leading-none">${displayDate.split(' - ')[1] || ''}</p>
-            <p class="text-base font-bold text-nutriflow-500 uppercase mt-1">${displayDate.split(' - ')[0] || displayDate}</p>
+      <div class="border rounded-2xl p-4 shadow-sm transition-all ${priorityClass}">
+          <div class="flex justify-between items-start mb-3">
+              <div>
+                  <div class="flex items-center gap-2 mb-1">
+                      <p class="text-[10px] font-black text-nutriflow-400 uppercase tracking-tighter">${safeType}</p>
+                      ${isFinalizado ? statusBadge : ''}
+                  </div>
+                  <h4 class="text-base font-extrabold text-nutriflow-950">${safePatientName}</h4>
+              </div>
+              <button onclick="window.openDeleteAppointmentModal('${app.id}')" class="text-gray-300 hover:text-red-500 transition" title="Excluir agendamento">
+                  🗑️
+              </button>
           </div>
-        </div>
-      </div>
 
-      <div class="flex gap-2">
-        ${!isFinalizado ? `
-          <button onclick="window.updateAppointmentStatus('${app.id}', 'confirmada')" class="flex-1 py-2 bg-emerald-600 text-white rounded-lg text-[10px] font-black uppercase hover:bg-emerald-700 transition">Confirmar</button>
-          <button onclick="window.openRescheduleModal('${app.id}')" class="flex-1 py-2 bg-white border border-nutriflow-200 text-nutriflow-700 rounded-lg text-[10px] font-black uppercase hover:bg-nutriflow-50 transition">Remarcar</button>
-          <button onclick="window.updateAppointmentStatus('${app.id}', 'faltou')" class="flex-1 py-2 bg-white border border-rose-100 text-rose-600 rounded-lg text-[10px] font-black uppercase hover:bg-rose-50 transition">Faltou</button>
-        ` : `
-          <button onclick="window.openEditAppointmentModal('${app.id}')" class="w-full py-2 bg-gray-100 text-gray-600 rounded-lg text-[10px] font-black uppercase hover:bg-gray-200 transition text-center">✏️ Alterar Status</button>
-        `}
+          <div class="bg-nutriflow-50 rounded-xl p-3 border border-nutriflow-100 mb-4">
+              <div class="flex items-center gap-3">
+                  <span class="text-2xl">📅</span>
+                  <div>
+                      <p class="text-lg font-black text-nutriflow-900 leading-none">${horaPart}</p>
+                      <p class="text-xs font-bold text-nutriflow-500 uppercase mt-1">${dataPart}</p>
+                  </div>
+              </div>
+          </div>
+
+          <div class="flex gap-2">
+              ${!isFinalizado ? `
+                  <button onclick="window.updateAppointmentStatus('${app.id}', 'confirmada')" class="flex-1 py-2 bg-emerald-600 text-white rounded-lg text-[10px] font-black uppercase hover:bg-emerald-700 transition">Confirmar</button>
+                  <button onclick="window.openRescheduleModal('${app.id}')" class="flex-1 py-2 bg-white border border-nutriflow-200 text-nutriflow-700 rounded-lg text-[10px] font-black uppercase hover:bg-nutriflow-50 transition">Remarcar</button>
+                  <button onclick="window.updateAppointmentStatus('${app.id}', 'faltou')" class="flex-1 py-2 bg-white border border-rose-100 text-rose-600 rounded-lg text-[10px] font-black uppercase hover:bg-rose-50 transition">Faltou</button>
+              ` : `
+                  <button onclick="window.openEditAppointmentModal('${app.id}')" class="w-full py-2 bg-gray-100 text-gray-600 rounded-lg text-[10px] font-black uppercase hover:bg-gray-200 transition text-center">✏️ Alterar Status</button>
+              `}
+          </div>
       </div>
-    </div>
   `;
-}
-
-function getStatusStyle(status) {
-  if (status === 'confirmada') return 'bg-emerald-100 text-emerald-700';
-  if (status === 'faltou') return 'bg-rose-100 text-rose-700';
-  return 'bg-blue-50 text-blue-600';
 }
 
 let currentEditingId = null;

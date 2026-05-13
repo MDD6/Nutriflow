@@ -3254,4 +3254,27 @@ main .dashboard-card:nth-of-type(5) {
     height: 140px;
     gap: 8px;
   }
+
+  /* Container principal do dashboard */
+.container {
+  max-width: 1200px;   /* aumenta a largura máxima */
+  margin: 0 auto;      /* centraliza na tela */
+  padding: 20px;       /* dá respiro interno */
+}
+
+/* Formulário de novo plano alimentar */
+form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;           /* espaçamento entre campos */
+}
+
+/* Títulos longos quebram linha automaticamente */
+.plan-title {
+  word-wrap: break-word;
+  white-space: normal;
+  font-size: 1.1rem;   /* ajusta tamanho da fonte */
+}
+
 }

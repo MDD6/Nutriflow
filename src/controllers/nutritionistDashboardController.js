@@ -16,6 +16,17 @@ class NutritionistDashboardController {
     response.status(201).json(result);
   }
 
+async updateMealPlan(request, response) {
+    const nutritionist = await this.sessionService.requireNutritionist(request);
+    const result = await this.nutritionistDashboardService.updateMealPlan(
+      nutritionist,
+      request.params.id,
+      request.body || {}
+    );
+    response.status(200).json(result);
+  }
+
+
   async createAssessment(request, response) {
     const nutritionist = await this.sessionService.requireNutritionist(request);
     const result = await this.nutritionistDashboardService.createAssessment(nutritionist, request.body || {});

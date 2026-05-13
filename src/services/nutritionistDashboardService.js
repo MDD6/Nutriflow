@@ -166,20 +166,31 @@ function parseMealPlanItems(items) {
   }
 
   const parsedItems = items
-    .map((item) => ({
-      foodId: String(item.foodId || '').trim(),
-      mealTime: normalizeText(item.mealTime) || 'Refeicao',
-      quantity: Number(item.quantity),
-    }))
-    .filter((item) => item.foodId || Number.isFinite(item.quantity));
+    .map((item) => {
+      const hasFoodId = item.foodId && String(item.foodId).trim();
+      const hasName = String(item.name || '').trim();
+      
+      return {
+        foodId: hasFoodId ? String(item.foodId).trim() : undefined,
+        name: hasName ? String(item.name).trim() : undefined,
+        mealTime: normalizeText(item.mealTime) || 'Refeicao',
+        quantity: Number(item.quantity),
+        caloriesPer100: Number(item.caloriesPer100 || 0),
+        proteinPer100: Number(item.proteinPer100 || 0),
+        carbsPer100: Number(item.carbsPer100 || 0),
+        fatPer100: Number(item.fatPer100 || 0),
+        fiberPer100: Number(item.fiberPer100 || 0),
+      };
+    })
+    .filter((item) => (item.foodId || item.name) && Number.isFinite(item.quantity));
 
   if (parsedItems.length > 40) {
     throw new AppError('O plano pode ter no maximo 40 alimentos.', 400);
   }
 
   for (const item of parsedItems) {
-    if (!item.foodId) {
-      throw new AppError('Selecione o alimento em todos os itens do plano.', 400);
+    if (!item.foodId && !item.name) {
+      throw new AppError('Informe o alimento em todos os itens do plano.', 400);
     }
 
     if (!Number.isFinite(item.quantity) || item.quantity <= 0 || item.quantity > 2000) {
@@ -194,18 +205,49 @@ function parseMealPlanItems(items) {
 }
 
 function calculateNutritionFromItems(items, foods) {
-  const foodsById = new Map(foods.map((food) => [food.id, food]));
+  const foodsById = new Map(foods.map((food) => [String(food.id), food]));
+  const foodsByName = new Map(foods.map((food) => [food.name.toLowerCase(), food]));
   const totals = {
     calories: 0,
     protein: 0,
     carbs: 0,
     fats: 0,
+    fiber: 0,
   };
-  const detailedItems = items.map((item) => {
-    const food = foodsById.get(item.foodId);
+  const detailedItems = [];
+  const newFoods = [];
+
+  for (const item of items) {
+    let food = null;
+
+    // Tentar buscar por ID primeiro (novo formato)
+    if (item.foodId) {
+      food = foodsById.get(String(item.foodId));
+    }
+
+    // Se não encontrou por ID, buscar por nome (compatibilidade com entrada manual)
+    if (!food && item.name) {
+      food = foodsByName.get(item.name.toLowerCase());
+    }
 
     if (!food) {
-      throw new AppError('Um ou mais alimentos do plano nao foram encontrados.', 400);
+      // Se ainda não encontrou e temos dados manuais, criar um novo alimento temporário
+      if (item.name) {
+        food = {
+          id: `temp-${item.name.toLowerCase().replace(/\s+/g, '-')}`,
+          name: item.name,
+          calories: item.caloriesPer100,
+          protein: item.proteinPer100,
+          carbs: item.carbsPer100,
+          fat: item.fatPer100,
+          fiber: item.fiberPer100,
+        };
+        newFoods.push(food);
+        foodsByName.set(item.name.toLowerCase(), food);
+      } else {
+        // Sem foodId nem nome, pular este item
+        continue;
+      }
     }
 
     const factor = item.quantity / 100;
@@ -214,24 +256,28 @@ function calculateNutritionFromItems(items, foods) {
       protein: Math.round(food.protein * factor),
       carbs: Math.round(food.carbs * factor),
       fats: Math.round(food.fat * factor),
+      fiber: Math.round(food.fiber * factor),
     };
 
     totals.calories += calculated.calories;
     totals.protein += calculated.protein;
     totals.carbs += calculated.carbs;
     totals.fats += calculated.fats;
+    totals.fiber += calculated.fiber;
 
-    return {
-      ...item,
-      food,
-      calculated,
-    };
-  });
+    detailedItems.push({
+      foodId: food.id,
+      quantity: item.quantity,
+      mealTime: item.mealTime,
+      calories: calculated.calories,
+      protein: calculated.protein,
+      carbs: calculated.carbs,
+      fats: calculated.fats,
+      fiber: calculated.fiber,
+    });
+  }
 
-  return {
-    totals,
-    items: detailedItems,
-  };
+  return { totals, items: detailedItems, newFoods };
 }
 
 class NutritionistDashboardService {
@@ -280,17 +326,28 @@ class NutritionistDashboardService {
 
     await this.nutritionistDashboardRepository.ensureDefaultFoods();
 
-    const nutrition = items.length
-      ? calculateNutritionFromItems(
-          items,
-          await this.nutritionistDashboardRepository.findFoodsByIds(items.map((item) => item.foodId)),
-        )
-      : null;
+    let nutrition = null;
+    if (items.length) {
+      // Buscar alimentos por IDs (novo formato) e por nomes (compatibilidade)
+      const foodIds = items.filter((item) => item.foodId).map((item) => item.foodId);
+      const foodNames = items.filter((item) => item.name).map((item) => item.name);
+
+      const foodsByIds = foodIds.length
+        ? await this.nutritionistDashboardRepository.findFoodsByIds(foodIds)
+        : [];
+      const foodsByNames = foodNames.length
+        ? await this.nutritionistDashboardRepository.findFoodsByNames(foodNames)
+        : [];
+
+      const allFoods = [...foodsByIds, ...foodsByNames];
+      nutrition = calculateNutritionFromItems(items, allFoods);
+    }
     const totals = nutrition?.totals || {
       calories: Math.max(0, Math.round(toNumber(payload.calories))),
       protein: Math.max(0, Math.round(toNumber(payload.protein))),
       carbs: Math.max(0, Math.round(toNumber(payload.carbs))),
       fats: Math.max(0, Math.round(toNumber(payload.fats))),
+      fiber: Math.max(0, Math.round(toNumber(payload.fiber))),
     };
 
     const mealPlan = await this.nutritionistDashboardRepository.createMealPlan({
@@ -303,6 +360,7 @@ class NutritionistDashboardService {
       protein: totals.protein,
       carbs: totals.carbs,
       fats: totals.fats,
+      fiber: totals.fiber,
       notes: notes || (items.length ? 'Macros calculados automaticamente pela base de alimentos.' : ''),
       status,
       items: nutrition?.items.map((item) => ({
@@ -310,6 +368,7 @@ class NutritionistDashboardService {
         quantity: item.quantity,
         mealTime: item.mealTime,
       })) || [],
+      newFoods: nutrition?.newFoods || [],
     });
 
     return {
@@ -317,6 +376,89 @@ class NutritionistDashboardService {
       mealPlan: this.toMealPlanDto(mealPlan),
     };
   }
+
+async updateMealPlan(nutritionist, mealPlanId, payload) {
+    const normalizedMealPlanId = String(mealPlanId || '').trim();
+    if (!normalizedMealPlanId) {
+      throw new AppError('Informe o ID do plano alimentar para atualizar.', 400);
+    }
+
+    const title = String(payload.title || '').trim();
+    const notes = String(payload.notes || '').trim();
+    const status = String(payload.status || 'Ativo').trim() || 'Ativo';
+    const startDate = this.parseDate(payload.startDate, 'Informe a data de inicio do plano.');
+    const endDate = this.parseDate(payload.endDate, 'Informe a data de fim do plano.');
+    const items = parseMealPlanItems(payload.items);
+
+    if (!title) {
+      throw new AppError('Informe o titulo do plano alimentar.', 400);
+    }
+
+    if (endDate < startDate) {
+      throw new AppError('A data final precisa ser maior ou igual a data inicial.', 400);
+    }
+
+    await this.nutritionistDashboardRepository.ensureDefaultFoods();
+
+    let nutrition = null;
+    if (items.length) {
+      // Buscar alimentos por IDs e por nomes
+      const foodIds = items.filter((item) => item.foodId).map((item) => item.foodId);
+      const foodNames = items.filter((item) => item.name).map((item) => item.name);
+
+      const foodsByIds = foodIds.length
+        ? await this.nutritionistDashboardRepository.findFoodsByIds(foodIds)
+        : [];
+      const foodsByNames = foodNames.length
+        ? await this.nutritionistDashboardRepository.findFoodsByNames(foodNames)
+        : [];
+
+      const allFoods = [...foodsByIds, ...foodsByNames];
+      nutrition = calculateNutritionFromItems(items, allFoods);
+    }
+
+    const totals = nutrition?.totals || {
+      calories: Math.max(0, Math.round(toNumber(payload.calories))),
+      protein: Math.max(0, Math.round(toNumber(payload.protein))),
+      carbs: Math.max(0, Math.round(toNumber(payload.carbs))),
+      fats: Math.max(0, Math.round(toNumber(payload.fats))),
+      fiber: Math.max(0, Math.round(toNumber(payload.fiber))),
+    };
+
+    // Aqui chamamos o repositório para fazer a atualização no banco de dados
+    const updatedPlan = await this.nutritionistDashboardRepository.updateMealPlan(
+      nutritionist.id, 
+      normalizedMealPlanId, 
+      {
+        title,
+        startDate,
+        endDate,
+        calories: totals.calories,
+        protein: totals.protein,
+        carbs: totals.carbs,
+        fats: totals.fats,
+        fiber: totals.fiber,
+        notes: notes || (items.length ? 'Macros calculados automaticamente pela base de alimentos.' : ''),
+        status,
+        items: nutrition?.items.map((item) => ({
+          foodId: item.foodId,
+          quantity: item.quantity,
+          mealTime: item.mealTime,
+        })) || [],
+        newFoods: nutrition?.newFoods || [],
+      }
+    );
+
+    if (!updatedPlan) {
+      throw new AppError('Plano alimentar nao encontrado para este nutricionista.', 404);
+    }
+
+    return {
+      message: 'Plano alimentar atualizado com sucesso.',
+      mealPlan: this.toMealPlanDto(updatedPlan),
+    };
+  }
+
 
   async createAssessment(nutritionist, payload) {
     const patientProfileId = String(payload.patientId || '').trim();
@@ -751,11 +893,12 @@ class NutritionistDashboardService {
     };
   }
 
-  toMealPlanDto(mealPlan) {
+ toMealPlanDto(mealPlan) {
     return {
       id: mealPlan.id,
       patientId: mealPlan.patientProfileId,
-      patient: mealPlan.patientProfile.user.name,
+      // 👇 Olha a mágica acontecendo nesta linha aqui:
+      patient: mealPlan.patientProfile?.user?.name || 'Paciente',
       title: mealPlan.title,
       calories: mealPlan.calories,
       protein: mealPlan.protein,

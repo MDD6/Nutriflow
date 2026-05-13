@@ -23,7 +23,8 @@ const state = {
   selectedPatientId: null,
   activeFilterId: null, // Novo: Guarda se estamos filtrando a tela por um paciente
   activeChallengeId: null, // Para adicionar pacientes a desafios
-  mealPlans: [], assessments: [], appointments: [], challenges: [], messages: [], foods: [], reminders: []
+  editingMealPlanId: null,
+  mealPlans: [], assessments: [], appointments: [], challenges: [], messages: [], foods: [], reminders: [], selectedMealPlan: null
 };
 
 const APPOINTMENT_STATUS_LABELS = {
@@ -48,6 +49,7 @@ async function fetchDatabaseData() {
     state.appointments = data.appointments || [];
     state.reminders = data.reminders || [];
     state.challenges = data.challenges || [];
+    state.foods = data.foods || [];
     state.messages = data.messages || [];
     state.foods = data.foods || [];
 
@@ -169,6 +171,89 @@ function renderPatientProfileModal(patient) {
   }
 }
 
+function renderMealPlanModal(plan) {
+  if (!plan) return;
+
+  const titleEl = document.getElementById('viewMealPlanTitle');
+  const datesEl = document.getElementById('viewMealPlanDates');
+  const macrosEl = document.getElementById('viewMealPlanMacros');
+  const statusSelect = document.getElementById('viewMealPlanStatusSelect');
+  const patientEl = document.getElementById('viewMealPlanPatient');
+  const createdAtEl = document.getElementById('viewMealPlanCreatedAt');
+  const itemsList = document.getElementById('viewMealPlanItems');
+
+  if (!titleEl || !datesEl || !macrosEl || !statusSelect || !patientEl || !createdAtEl || !itemsList) {
+    // 👇 Esta linha vai dedurar quem está faltando lá no Console (F12)
+    console.error("Faltam elementos no HTML! Veja quem está 'null':", {
+      titleEl, datesEl, macrosEl, statusSelect, patientEl, createdAtEl, itemsList
+    });
+    
+    showToast('Erro ao abrir o modal de visualização do plano. Atualize a página e tente novamente.');
+    return;
+  }
+
+  titleEl.textContent = plan.title || 'Plano Alimentar';
+  datesEl.textContent = `${new Date(plan.startDate).toLocaleDateString()} → ${new Date(plan.endDate).toLocaleDateString()}`;
+  macrosEl.innerHTML = `
+    <div class="grid gap-3 text-sm font-semibold text-nutriflow-950">
+      <div>${plan.calories || 0} kcal</div>
+      <div class="grid grid-cols-2 gap-2 text-xs text-nutriflow-700">
+        <span>Proteína: ${plan.protein || 0}g</span>
+        <span>Carboidrato: ${plan.carbs || 0}g</span>
+        <span>Gordura: ${plan.fats || 0}g</span>
+        <span>Fibra: ${plan.fiber || 0}g</span>
+      </div>
+    </div>
+  `;
+  statusSelect.value = plan.status === 'Inativo' ? 'Inativo' : 'Ativo';
+  statusSelect.onchange = () => {
+    if (state.selectedMealPlan) {
+      state.selectedMealPlan.status = statusSelect.value;
+    }
+  };
+  patientEl.textContent = plan.patientProfileId || 'N/A';
+  createdAtEl.textContent = new Date(plan.createdAt).toLocaleString();
+
+  itemsList.innerHTML = plan.items?.length ? plan.items.map(item => {
+    const foodName = typeof item.food === 'string' ? item.food : item.food?.name || 'Alimento desconhecido';
+    const quantity = Number.isFinite(item.quantity) ? item.quantity : 0;
+    const calories = Number.isFinite(item.calories) ? item.calories : 0;
+    const protein = Number.isFinite(item.protein) ? item.protein : 0;
+    const carbs = Number.isFinite(item.carbs) ? item.carbs : 0;
+    const fats = Number.isFinite(item.fats) ? item.fats : 0;
+    const fiber = Number.isFinite(item.fiber) ? item.fiber : 0;
+
+    return `
+      <div class="rounded-xl border border-nutriflow-200 p-4 bg-white">
+        <div class="flex justify-between items-start mb-2">
+          <div>
+            <p class="text-sm font-bold text-nutriflow-950">${escapeHtml(foodName)}</p>
+            <p class="text-xs text-nutriflow-600">${escapeHtml(item.mealTime || 'Refeição')} • ${quantity}g</p>
+          </div>
+          <p class="text-sm font-semibold text-nutriflow-950">${calories} kcal</p>
+        </div>
+        <div class="flex flex-wrap gap-4 text-xs text-nutriflow-700">
+          <span>Prot: ${protein}g</span>
+          <span>Carb: ${carbs}g</span>
+          <span>Gord: ${fats}g</span>
+          <span>Fibra: ${fiber}g</span>
+        </div>
+      </div>
+    `;
+  }).join('') : '<p class="text-sm text-nutriflow-500">Nenhum item cadastrado.</p>';
+}
+
+window.openMealPlanDetails = async function(planId) {
+  try {
+    const plan = await apiRequest(`/api/plano-alimentar/${planId}`);
+    state.selectedMealPlan = plan;
+    renderMealPlanModal(plan);
+    openModal('viewMealPlan');
+  } catch (err) {
+    showToast(err.message || 'Não foi possível carregar o plano.');
+  }
+};
+
 // RENDERIZAÇÃO DAS LISTAS COM FILTRO E BOTÕES DE AÇÃO
 const MEAL_PLAN_MEAL_TIMES = [
   'Cafe da manha',
@@ -183,15 +268,7 @@ function getFoodById(foodId) {
   return state.foods.find((food) => food.id === foodId) || null;
 }
 
-function buildFoodOptions(selectedFoodId = '') {
-  if (!state.foods.length) {
-    return '<option value="">Base de alimentos vazia</option>';
-  }
 
-  return '<option value="">Selecione um alimento</option>' + state.foods.map((food) => `
-    <option value="${food.id}" ${food.id === selectedFoodId ? 'selected' : ''}>${escapeHtml(food.name)}</option>
-  `).join('');
-}
 
 function buildMealTimeOptions(selectedMealTime = 'Almoco') {
   return MEAL_PLAN_MEAL_TIMES.map((mealTime) => `
@@ -199,43 +276,53 @@ function buildMealTimeOptions(selectedMealTime = 'Almoco') {
   `).join('');
 }
 
+function buildFoodOptions(selectedFoodId = '') {
+  return state.foods.map((food) => `
+    <option value="${food.id}" ${food.id === selectedFoodId ? 'selected' : ''}>${food.name}</option>
+  `).join('');
+}
+
 function getMealPlanItemsPayload(options = {}) {
   const allowIncomplete = options.allowIncomplete === true;
 
   return Array.from(document.querySelectorAll('[data-meal-plan-item-row]')).map((row) => {
-    const foodId = row.querySelector('[data-plan-food]')?.value || '';
+    const foodId = row.querySelector('[data-plan-food-id]')?.value || '';
     const quantity = Number(row.querySelector('[data-plan-quantity]')?.value || 0);
-    const mealTime = row.querySelector('[data-plan-meal-time]')?.value || 'Refeicao';
+    const mealTime = row.querySelector('[data-plan-meal-time]')?.value || 'Almoco';
 
     return { foodId, quantity, mealTime };
   }).filter((item) => allowIncomplete || (item.foodId && Number.isFinite(item.quantity) && item.quantity > 0));
 }
 
 function updateMealPlanTotals() {
-  const totals = getMealPlanItemsPayload({ allowIncomplete: true }).reduce((accumulator, item) => {
-    const food = getFoodById(item.foodId);
+  const items = getMealPlanItemsPayload({ allowIncomplete: true });
+  const totals = { calories: 0, protein: 0, carbs: 0, fats: 0, fiber: 0 };
 
-    if (!food || !Number.isFinite(item.quantity)) {
-      return accumulator;
-    }
+  for (const item of items) {
+    if (!item.foodId) continue;
+
+    const food = state.foods.find((f) => String(f.id) === String(item.foodId));
+    if (!food || !Number.isFinite(item.quantity)) continue;
 
     const factor = item.quantity / 100;
-    accumulator.calories += Math.round(food.calories * factor);
-    accumulator.protein += Math.round(food.protein * factor);
-    accumulator.carbs += Math.round(food.carbs * factor);
-    accumulator.fats += Math.round(food.fat * factor);
-    return accumulator;
-  }, {
-    calories: 0,
-    protein: 0,
-    carbs: 0,
-    fats: 0,
-  });
+    totals.calories += Math.round(food.calories * factor);
+    totals.protein += Math.round(food.protein * factor);
+    totals.carbs += Math.round(food.carbs * factor);
+    totals.fats += Math.round(food.fats * factor);
+    totals.fiber += Math.round(food.fiber * factor * 10) / 10;
+  }
 
-  document.getElementById('mealPlanCalories').value = totals.calories;
-  document.getElementById('mealPlanProtein').value = totals.protein;
-  document.getElementById('mealPlanCarbs').value = totals.carbs;
-  document.getElementById('mealPlanFats').value = totals.fats;
+  const caloriesEl = document.getElementById('mealPlanCalories');
+  const proteinEl = document.getElementById('mealPlanProtein');
+  const carbsEl = document.getElementById('mealPlanCarbs');
+  const fatsEl = document.getElementById('mealPlanFats');
+  const fiberEl = document.getElementById('mealPlanFiber');
+
+  if (caloriesEl) caloriesEl.value = totals.calories;
+  if (proteinEl) proteinEl.value = totals.protein;
+  if (carbsEl) carbsEl.value = totals.carbs;
+  if (fatsEl) fatsEl.value = totals.fats;
+  if (fiberEl) fiberEl.value = totals.fiber;
 }
 
 function addMealPlanItemRow(item = {}) {
@@ -244,17 +331,22 @@ function addMealPlanItemRow(item = {}) {
   if (!list) return;
 
   const row = document.createElement('div');
-  row.className = 'grid gap-2 rounded-lg border border-white bg-white p-2 shadow-sm md:grid-cols-[1.1fr_120px_1fr_auto]';
+  row.className = 'rounded-[28px] border border-[rgba(188,210,179,0.45)] bg-white/95 p-4 shadow-[0_18px_38px_rgba(18,29,21,0.08)]';
   row.dataset.mealPlanItemRow = 'true';
   row.innerHTML = `
-    <select class="rounded-lg border border-nutriflow-200 px-3 py-2 text-sm font-bold" data-plan-food required>
-      ${buildFoodOptions(item.foodId || '')}
-    </select>
-    <input class="rounded-lg border border-nutriflow-200 px-3 py-2 text-sm font-bold" data-plan-quantity type="number" min="1" max="2000" step="1" value="${item.quantity || 100}" required />
-    <select class="rounded-lg border border-nutriflow-200 px-3 py-2 text-sm font-bold" data-plan-meal-time required>
-      ${buildMealTimeOptions(item.mealTime || 'Almoco')}
-    </select>
-    <button class="rounded-lg border border-red-100 px-3 py-2 text-xs font-bold text-red-500" type="button" data-remove-plan-item>Remover</button>
+    <div class="grid gap-3 md:grid-cols-[2fr_1fr_0.8fr]">
+      <select class="rounded-2xl border border-[rgba(188,210,179,0.65)] bg-[rgba(246,250,244,0.95)] px-4 py-3 text-sm font-semibold text-[#1c2618]" data-plan-food-id required>
+        <option value="">Selecione o alimento</option>
+        ${buildFoodOptions(item.foodId || '')}
+      </select>
+      <select class="rounded-2xl border border-[rgba(188,210,179,0.65)] bg-[rgba(246,250,244,0.95)] px-4 py-3 text-sm font-semibold text-[#1c2618]" data-plan-meal-time required>
+        ${buildMealTimeOptions(item.mealTime || 'Almoco')}
+      </select>
+      <input class="rounded-2xl border border-[rgba(188,210,179,0.65)] bg-[rgba(246,250,244,0.95)] px-4 py-3 text-sm font-semibold text-[#1c2618]" data-plan-quantity type="number" min="1" max="2000" step="1" placeholder="Qtd(g)" value="${item.quantity || 100}" required />
+    </div>
+    <div class="flex justify-end mt-3">
+      <button class="rounded-full border border-[#f5d3d3] bg-[#fff5f5] px-4 py-2 text-sm font-semibold text-[#bf3b3b] transition hover:bg-[#feecec]" type="button" data-remove-plan-item>Remover</button>
+    </div>
   `;
 
   row.querySelectorAll('select, input').forEach((field) => {
@@ -303,6 +395,8 @@ function renderGeneralLists() {
         <p class="text-xs font-semibold text-nutriflow-600">${plan.calories} kcal - ${plan.protein}g prot - ${plan.carbs || 0}g carb - ${plan.fats || 0}g gord</p>
         <p class="mt-1 text-xs text-nutriflow-500">${plan.items?.length ? `${plan.items.length} alimentos cadastrados` : 'Sem alimentos detalhados'}</p>
         <div class="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition">
+           <button onclick="window.openMealPlanDetails('${plan.id}')" title="Ver Plano" class="p-1 text-nutriflow-500 hover:text-nutriflow-900">👁️</button>
+           <button onclick="window.editPlan('${plan.id}')" title="Editar Plano" class="p-1 text-nutriflow-500 hover:text-nutriflow-900">✏️</button>
            <button onclick="window.duplicatePlan('${plan.id}')" title="Reaproveitar Plano" class="p-1 text-nutriflow-500 hover:text-nutriflow-900">📋</button>
            <button onclick="window.deleteResource('meal-plans', '${plan.id}')" title="Excluir" class="p-1 text-red-400 hover:text-red-600">🗑️</button>
         </div>
@@ -393,8 +487,26 @@ window.deleteResource = async function(resourceType, id) {
 window.duplicatePlan = function(planId) {
   const plan = state.mealPlans.find(p => p.id === planId);
   if(!plan) return;
+  
+  state.editingMealPlanId = null; // Garante que vai salvar como um plano NOVO
+  
   document.getElementById('mealPlanTitle').value = plan.title + ' (Cópia)';
   if (plan.patientId) document.getElementById('mealPlanPatient').value = plan.patientId;
+  resetMealPlanBuilder(plan);
+  openModal('mealPlan');
+};
+
+// NOVA FUNÇÃO: Editar Plano
+window.editPlan = function(planId) {
+  const plan = state.mealPlans.find(p => p.id === planId);
+  if(!plan) return;
+
+  state.editingMealPlanId = planId; // Diz pro sistema: "Estamos editando ESTE plano"
+
+  document.getElementById('mealPlanTitle').value = plan.title; // Título original, sem "(Cópia)"
+  document.getElementById('mealPlanNotes').value = plan.notes || '';
+  if (plan.patientId) document.getElementById('mealPlanPatient').value = plan.patientId;
+  
   resetMealPlanBuilder(plan);
   openModal('mealPlan');
 };
@@ -458,6 +570,7 @@ window.openPatientProfile = function(patientId) {
 function bindButtons() {
   document.getElementById('btnOpenLinkPatient')?.addEventListener('click', () => openModal('linkPatient'));
   document.getElementById('btnOpenMealPlan')?.addEventListener('click', () => {
+    state.editingMealPlanId = null;
     document.getElementById('mealPlanForm').reset();
     if (state.selectedPatientId) document.getElementById('mealPlanPatient').value = state.selectedPatientId;
     resetMealPlanBuilder();
@@ -468,6 +581,7 @@ function bindButtons() {
   document.getElementById('btnOpenChallenge')?.addEventListener('click', () => { document.getElementById('challengeForm').reset(); openModal('challenge'); });
   
   document.getElementById('btnProfileNewPlan')?.addEventListener('click', () => {
+    state.editingMealPlanId = null;
     document.getElementById('mealPlanForm').reset();
     if (state.selectedPatientId) document.getElementById('mealPlanPatient').value = state.selectedPatientId;
     resetMealPlanBuilder();
@@ -500,9 +614,11 @@ document.getElementById('mealPlanForm')?.addEventListener('submit', async (e) =>
   e.preventDefault();
   const items = getMealPlanItemsPayload();
 
-  if (!items.length) {
-    showToast('Adicione pelo menos um alimento ao plano.');
-    return;
+  if (!items.length) { showToast('Adicione pelo menos um alimento ao plano.'); return; }
+  for (const item of items) {
+    if (!item.foodId || item.foodId.trim() === '') {
+      showToast('Selecione o alimento em todos os itens do plano.'); return;
+    }
   }
 
   const payload = {
@@ -513,10 +629,31 @@ document.getElementById('mealPlanForm')?.addEventListener('submit', async (e) =>
     startDate: new Date().toISOString(),
     endDate: new Date(Date.now() + 30*24*60*60*1000).toISOString()
   };
+
   try {
-    await apiRequest('/api/nutritionist/meal-plans', { method: 'POST', body: JSON.stringify(payload) });
-    showToast('Plano salvo!'); closeModal('mealPlan'); await fetchDatabaseData();
-  } catch(err) { showToast('Erro ao salvar plano.'); }
+    if (state.editingMealPlanId) {
+      // SE TIVER ID DE EDIÇÃO, FAZ UM PUT (ATUALIZAR)
+      await apiRequest(`/api/nutritionist/meal-plans/${state.editingMealPlanId}`, { 
+        method: 'PUT', // ou 'PATCH', dependendo de como está seu backend
+        body: JSON.stringify(payload) 
+      });
+      showToast('Plano atualizado com sucesso!');
+    } else {
+      // SE NÃO TIVER ID, É UM PLANO NOVO (POST)
+      await apiRequest('/api/nutritionist/meal-plans', { 
+        method: 'POST', 
+        body: JSON.stringify(payload) 
+      });
+      showToast('Novo plano salvo com sucesso!');
+    }
+    
+    state.editingMealPlanId = null; // Limpa a memória depois de salvar
+    closeModal('mealPlan'); 
+    await fetchDatabaseData();
+  } catch(err) {
+    console.error('Erro ao salvar plano:', err);
+    showToast('Erro ao salvar plano: ' + (err.message || 'Verifique os dados e tente novamente.'));
+  }
 });
 
 document.getElementById('assessmentForm')?.addEventListener('submit', async (e) => {

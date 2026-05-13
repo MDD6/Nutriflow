@@ -278,6 +278,54 @@
     </div>
   </div>
 
+<div id="viewMealPlanModal" class="nf-modal-overlay hidden">
+    <div class="nf-modal-card !max-w-3xl">
+      
+      <div class="flex justify-between items-start gap-4 mb-4">
+        <div>
+          <h3 id="viewMealPlanTitle" class="text-2xl font-extrabold text-nutriflow-950">Carregando...</h3>
+          <p id="viewMealPlanPatient" class="text-sm font-bold text-nutriflow-600">--</p>
+        </div>
+        <button class="nf-modal-close" data-close="viewMealPlan">x</button>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4 mb-6 bg-nutriflow-50 p-4 rounded-xl border border-nutriflow-200">
+        <div>
+          <p class="text-[10px] text-nutriflow-500 uppercase font-bold">Período</p>
+          <p id="viewMealPlanDates" class="text-sm font-bold text-nutriflow-950">--</p>
+        </div>
+        <div>
+          <p class="text-[10px] text-nutriflow-500 uppercase font-bold">Criado em</p>
+          <p id="viewMealPlanCreatedAt" class="text-sm font-bold text-nutriflow-950">--</p>
+        </div>
+        <div>
+          <p class="text-[10px] text-nutriflow-500 uppercase font-bold">Status</p>
+          <select id="viewMealPlanStatusSelect" class="border border-nutriflow-300 rounded-lg px-2 py-1 text-sm font-bold mt-1 bg-white outline-none w-full max-w-[120px]">
+            <option value="Ativo">Ativo</option>
+            <option value="Inativo">Inativo</option>
+          </select>
+        </div>
+        <div>
+          <p class="text-[10px] text-nutriflow-500 uppercase font-bold">Macros Totais</p>
+          <div id="viewMealPlanMacros" class="mt-1"></div>
+        </div>
+      </div>
+
+      <div>
+        <h3 class="text-sm font-bold uppercase tracking-[0.16em] text-nutriflow-600 mb-3">Refeições do Plano</h3>
+        <div id="viewMealPlanItems" class="space-y-3 max-h-80 overflow-y-auto pr-2">
+          </div>
+      </div>
+
+      <div class="flex justify-end gap-2 mt-6 border-t pt-4 border-nutriflow-100">
+        <button class="rounded-lg bg-nutriflow-950 px-6 py-2 text-sm font-bold text-white" type="button" data-close="viewMealPlan">Fechar</button>
+      </div>
+
+    </div>
+  </div>
+
+
+
   <div id="nutritionistToast" class="nf-toast hidden"></div>
   
   <script src="ui.js"></script>

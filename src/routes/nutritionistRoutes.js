@@ -8,6 +8,7 @@ function createNutritionistRoutes(nutritionistDashboardController) {
   router.get('/conversation', asyncHandler(nutritionistDashboardController.getConversation.bind(nutritionistDashboardController)));
   
   router.post('/meal-plans', asyncHandler(nutritionistDashboardController.createMealPlan.bind(nutritionistDashboardController)));
+  router.put('/meal-plans/:id', asyncHandler(nutritionistDashboardController.updateMealPlan.bind(nutritionistDashboardController)));
   router.post('/assessments', asyncHandler(nutritionistDashboardController.createAssessment.bind(nutritionistDashboardController)));
   router.post('/challenges', asyncHandler(nutritionistDashboardController.createChallenge.bind(nutritionistDashboardController)));
   router.post('/appointments', asyncHandler(nutritionistDashboardController.createAppointment.bind(nutritionistDashboardController))); // Nova Rota

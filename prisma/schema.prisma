@@ -1,3 +1,5 @@
+// prisma/schema.prisma
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,83 +10,93 @@ datasource db {
 }
 
 model User {
-  id           String   @id @default(uuid())
-  name         String
-  email        String   @unique
-  profile      String
-  passwordHash String
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  patientProfile       PatientProfile?       @relation("PatientUserProfile")
-  nutritionistProfile  NutritionistProfile?
-  managedPatients      PatientProfile[]      @relation("NutritionistPatients")
-  mealPlans            MealPlan[]            @relation("NutritionistMealPlans")
-  assessments          Assessment[]          @relation("NutritionistAssessments")
-  messages             PatientMessage[]      @relation("NutritionistMessages")
-  appointments         Appointment[]         @relation("NutritionistAppointments")
-  challenges           NutritionChallenge[]  @relation("NutritionistChallenges")
-  foodLogs             FoodLog[]
+  id                  String                @id @default(uuid())
+  name                String
+  email               String                @unique
+  profile             String
+  passwordHash        String
+  isActive            Boolean               @default(true)
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  
+  patientProfile      PatientProfile?       @relation("PatientUserProfile")
+  nutritionistProfile NutritionistProfile?
+  managedPatients     PatientProfile[]      @relation("NutritionistPatients")
+  mealPlans           MealPlan[]            @relation("NutritionistMealPlans")
+  assessments         Assessment[]          @relation("NutritionistAssessments")
+  messages            PatientMessage[]      @relation("NutritionistMessages")
+  appointments        Appointment[]         @relation("NutritionistAppointments")
+  challenges          NutritionChallenge[]  @relation("NutritionistChallenges")
+  foodLogs            FoodLog[]
 }
 
 model PatientProfile {
-  id                String                 @id @default(uuid())
-  userId            String                 @unique
-  nutritionistId    String
-  age               Int
-  objective         String
-  status            String
-  restrictions      String
-  lastMeal          String
-  currentWeight     Float
-  height            Float
-  bodyFat           Float
-  progress          Int
-  currentPlanTitle  String?
-  lastAssessmentAt  DateTime?
-  createdAt         DateTime               @default(now())
-  updatedAt         DateTime               @updatedAt
-  nutritionist      User                   @relation("NutritionistPatients", fields: [nutritionistId], references: [id], onDelete: Cascade)
-  user              User                   @relation("PatientUserProfile", fields: [userId], references: [id], onDelete: Cascade)
-  mealPlans         MealPlan[]
-  assessments       Assessment[]
-  messages          PatientMessage[]
-  appointments      Appointment[]
-  mealEntries       MealEntry[]
-  weightEntries     WeightEntry[]
-  progressSnapshots ProgressSnapshot[]
-  challengeLinks    ChallengeParticipant[]
-  goal              Goal?
+  id                 String                 @id @default(uuid())
+  userId             String                 @unique
+  nutritionistId     String
+  age                Int
+  objective          String
+  status             String
+  restrictions       String
+  lastMeal           String
+  currentWeight      Float
+  height             Float
+  bodyFat            Float
+  progress           Int
+  currentPlanTitle   String?
+  lastAssessmentAt   DateTime?
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  
+  nutritionist       User                   @relation("NutritionistPatients", fields: [nutritionistId], references: [id], onDelete: Cascade)
+  user               User                   @relation("PatientUserProfile", fields: [userId], references: [id], onDelete: Cascade)
+  mealPlans          MealPlan[]
+  assessments        Assessment[]
+  messages           PatientMessage[]
+  appointments       Appointment[]
+  mealEntries        MealEntry[]
+  weightEntries      WeightEntry[]
+  progressSnapshots  ProgressSnapshot[]
+  challengeLinks     ChallengeParticipant[]
+  goal               Goal?
 }
 
 model NutritionistProfile {
   id        String   @id @default(uuid())
-  userId     String   @unique
-  crn        String?
-  clinic     String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String   @unique
+  crn       String?
+  clinic    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+// ==========================================
+// MODELO MEALPLAN ADICIONADO E CORRIGIDO
+// ==========================================
 model MealPlan {
   id               String         @id @default(uuid())
+  title            String
   patientProfileId String
   nutritionistId   String
-  title            String
-  startDate        DateTime
-  endDate          DateTime
-  calories         Int
-  protein          Int
-  carbs            Int
-  fats             Int
-  notes            String
-  status           String
+  startDate        DateTime?
+  endDate          DateTime?
+  calories         Float?
+  protein          Float?
+  carbs            Float?
+  fats             Float?
+  fiber            Float?
+  notes            String?
+  status           String?
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
+
   patientProfile   PatientProfile @relation(fields: [patientProfileId], references: [id], onDelete: Cascade)
   nutritionist     User           @relation("NutritionistMealPlans", fields: [nutritionistId], references: [id], onDelete: Cascade)
   items            MealPlanItem[]
+
+  // Esta é a trava que impede a duplicação no banco de dados!
+  @@unique([patientProfileId, title])
 }
 
 model Assessment {
@@ -117,7 +129,7 @@ model PatientMessage {
 }
 
 model MealEntry {
-  id               String         @id @default(uuid())
+  id               String          @id @default(uuid())
   patientProfileId String
   mealType         String
   title            String
@@ -126,28 +138,31 @@ model MealEntry {
   protein          Int
   carbs            Int
   fats             Int
-  fiber            Int            @default(0)
-  waterMl          Int            @default(0)
+  fiber            Int             @default(0)
+  waterMl          Int             @default(0)
   loggedAt         DateTime
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
-  patientProfile   PatientProfile @relation(fields: [patientProfileId], references: [id], onDelete: Cascade)
-  items MealEntryItem[]
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  patientProfile   PatientProfile  @relation(fields: [patientProfileId], references: [id], onDelete: Cascade)
+  items            MealEntryItem[]
 
   @@index([patientProfileId])
   @@index([patientProfileId, loggedAt])
 }
 
 model Food {
-  id         String         @id @default(uuid())
-  name       String         @unique
-  calories   Int
-  protein    Int
-  carbs      Int
-  fat        Int
-  createdAt  DateTime       @default(now())
-  updatedAt  DateTime       @updatedAt
-  logs       FoodLog[]
+  id        String    @id @default(uuid())
+  name      String    @unique
+  calories  Float     // Corrigido de Int para Float
+  protein   Float    
+  carbs     Float    
+  fat       Float    
+  fiber     Float     @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  logs      FoodLog[]
+  
+  // Relacionamento adicionado para não quebrar o MealPlanItem e MealEntryItem
   mealPlanItems MealPlanItem[]
   mealEntryItems MealEntryItem[]
 }
@@ -192,24 +207,24 @@ model Appointment {
 }
 
 model NutritionChallenge {
-  id           String                 @id @default(uuid())
+  id             String                 @id @default(uuid())
   nutritionistId String
-  title        String
-  target       String
-  createdAt    DateTime               @default(now())
-  updatedAt    DateTime               @updatedAt
-  nutritionist User                   @relation("NutritionistChallenges", fields: [nutritionistId], references: [id], onDelete: Cascade)
-  participants ChallengeParticipant[]
+  title          String
+  target         String
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  nutritionist   User                   @relation("NutritionistChallenges", fields: [nutritionistId], references: [id], onDelete: Cascade)
+  participants   ChallengeParticipant[]
 }
 
 model ChallengeParticipant {
-  id                  String               @id @default(uuid())
-  challengeId         String
-  patientProfileId    String
-  progress            Int                  @default(0)
-  createdAt           DateTime             @default(now())
-  challenge           NutritionChallenge   @relation(fields: [challengeId], references: [id], onDelete: Cascade)
-  patientProfile      PatientProfile       @relation(fields: [patientProfileId], references: [id], onDelete: Cascade)
+  id               String             @id @default(uuid())
+  challengeId      String
+  patientProfileId String
+  progress         Int                @default(0)
+  createdAt        DateTime           @default(now())
+  challenge        NutritionChallenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  patientProfile   PatientProfile     @relation(fields: [patientProfileId], references: [id], onDelete: Cascade)
 
   @@unique([challengeId, patientProfileId])
 }
@@ -240,15 +255,15 @@ model WeightEntry {
 }
 
 model Goal {
-  id             String         @id @default(uuid())
-  patientProfileId String       @unique
-  targetCalories Int            @default(0)
-  targetProtein  Int            @default(0)
-  targetCarbs    Int            @default(0)
-  targetFat      Int            @default(0)
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-  patientProfile PatientProfile @relation(fields: [patientProfileId], references: [id], onDelete: Cascade)
+  id               String         @id @default(uuid())
+  patientProfileId String         @unique
+  targetCalories   Int            @default(0)
+  targetProtein    Int            @default(0)
+  targetCarbs      Int            @default(0)
+  targetFat        Int            @default(0)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  patientProfile   PatientProfile @relation(fields: [patientProfileId], references: [id], onDelete: Cascade)
 }
 
 model MealEntryItem {

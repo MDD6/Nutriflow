@@ -53,6 +53,16 @@ class NutritionistDashboardRepository {
     });
   }
 
+  findFoodsByNames(foodNames) {
+    return this.prisma.food.findMany({
+      where: {
+        name: {
+          in: foodNames,
+        },
+      },
+    });
+  }
+
   countManagedPatients(nutritionistId) {
     return this.prisma.patientProfile.count({
       where: { nutritionistId },
@@ -583,56 +593,140 @@ class NutritionistDashboardRepository {
   }
 
   async createMealPlan(data) {
-    return this.prisma.$transaction(async (tx) => {
-      const mealPlan = await tx.mealPlan.create({
-        data: {
-          patientProfileId: data.patientProfileId,
-          nutritionistId: data.nutritionistId,
-          title: data.title,
-          startDate: data.startDate,
-          endDate: data.endDate,
-          calories: data.calories,
-          protein: data.protein,
-          carbs: data.carbs,
-          fats: data.fats,
-          notes: data.notes,
-          status: data.status,
-          items: data.items?.length
-            ? {
-                create: data.items.map((item) => ({
-                  foodId: item.foodId,
-                  quantity: item.quantity,
-                  mealTime: item.mealTime,
-                })),
-              }
-            : undefined,
-        },
+    try {
+      // 1. Tenta criar o plano e atualizar o paciente em uma única transação atômica
+      return await this.prisma.$transaction(async (tx) => {
+        const newPlan = await tx.mealPlan.create({
+          data: {
+            patientProfileId: data.patientProfileId,
+            nutritionistId: data.nutritionistId,
+            title: data.title,
+            startDate: data.startDate,
+            endDate: data.endDate,
+            calories: data.calories,
+            protein: data.protein,
+            carbs: data.carbs,
+            fats: data.fats,
+            notes: data.notes,
+            status: data.status,
+            items: data.items?.length
+              ? {
+                  create: data.items.map((item) => ({
+                    foodId: item.foodId,
+                    quantity: item.quantity,
+                    mealTime: item.mealTime,
+                  })),
+                }
+              : undefined,
+          },
+          include: {
+            patientProfile: { include: { user: true } },
+            items: { include: { food: true }, orderBy: { createdAt: 'asc' } },
+          },
+        });
+
+        // 2. Restaura a atualização do perfil do paciente (evita o painel ficar desatualizado)
+        await tx.patientProfile.update({
+          where: { id: data.patientProfileId },
+          data: { 
+            currentPlanTitle: data.title,
+            status: data.status || 'ACTIVE' 
+          },
+        });
+
+        // 3. Retorna o plano e avisa que ele foi RECÉM-CRIADO (created: true)
+        return { mealPlan: newPlan, created: true };
       });
 
-      await tx.patientProfile.update({
-        where: { id: data.patientProfileId },
-        data: {
-          currentPlanTitle: data.title,
-          status: data.status === 'Atrasado' ? 'Atrasado' : 'Ativo',
-        },
-      });
-
-      return tx.mealPlan.findUnique({
-        where: { id: mealPlan.id },
-        include: {
-          patientProfile: {
-            include: {
-              user: true,
+    } catch (error) {
+      // 4. P2002 é o código de erro do Prisma quando a trava "@@unique" é barrada (plano já existe)
+      if (error.code === 'P2002') {
+        const existingPlan = await this.prisma.mealPlan.findUnique({
+          where: {
+            // Usa o índice único que criamos no schema.prisma
+            patientProfileId_title: {
+              patientProfileId: data.patientProfileId,
+              title: data.title,
             },
           },
-          items: {
-            include: { food: true },
-            orderBy: { createdAt: 'asc' },
+          include: {
+            patientProfile: { include: { user: true } },
+            items: { include: { food: true }, orderBy: { createdAt: 'asc' } },
           },
-        },
-      });
-    });
+        });
+        
+        // 5. Retorna o plano que já existia no banco e avisa que NÃO foi criado um novo (created: false)
+        return { mealPlan: existingPlan, created: false };
+      }
+      
+      // Se for outro erro de banco de dados, lança o erro para cima
+      throw error;
+    }
   }
+
+  
+// ==========================================
+  // MÉTODO DE ATUALIZAÇÃO DO PLANO (VERSÃO FINAL)
+  // ==========================================
+  async updateMealPlan(nutritionistId, mealPlanId, data) {
+    try {
+      // Usamos uma transação para garantir que os dados antigos são substituídos com segurança
+      return await this.prisma.$transaction(async (tx) => {
+        
+        // 1. Atualiza os dados gerais do plano e substitui a lista de alimentos
+        const updatedPlan = await tx.mealPlan.update({
+          where: { 
+            id: mealPlanId,
+            // nutritionistId: nutritionistId // (Opcional, caso queira dupla validação)
+          },
+          data: {
+            title: data.title,
+            startDate: data.startDate,
+            endDate: data.endDate,
+            calories: data.calories,
+            protein: data.protein,
+            carbs: data.carbs,
+            fats: data.fats,
+            notes: data.notes,
+            status: data.status,
+            // 2. Apaga os alimentos antigos e cria os novos que vieram da edição
+            items: {
+              deleteMany: {}, // Limpa os alimentos anteriores do plano
+              create: data.items?.length ? data.items.map((item) => ({
+                foodId: item.foodId,
+                quantity: item.quantity,
+                mealTime: item.mealTime,
+              })) : [],
+            }
+          },
+          include: {
+            patientProfile: { include: { user: true } },
+            items: { include: { food: true }, orderBy: { createdAt: 'asc' } },
+          },
+        });
+
+        // 3. Atualiza o perfil do paciente para refletir o nome do plano editado, se necessário
+        await tx.patientProfile.update({
+          where: { id: updatedPlan.patientProfileId },
+          data: { 
+            currentPlanTitle: data.title,
+            status: data.status || 'ACTIVE' 
+          },
+        });
+
+        return updatedPlan;
+      });
+
+    } catch (error) {
+      console.error("Erro no repositório ao atualizar plano:", error);
+      throw error;
+    }
+  }
+  // ==========================================
+
+
+
+
 
   async createAssessment(data) {
     return this.prisma.$transaction(async (tx) => {
@@ -779,6 +873,7 @@ class NutritionistDashboardRepository {
       });
     });
   }
+
   createAppointment(data) {
     return this.prisma.appointment.create({
       data: {

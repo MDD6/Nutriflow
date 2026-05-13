@@ -10,11 +10,13 @@ const { AuthController } = require('./controllers/authController');
 const { PatientDashboardController } = require('./controllers/patientDashboardController');
 const { NutritionistDashboardController } = require('./controllers/nutritionistDashboardController');
 const { AdminController } = require('./controllers/adminController');
+const { PlanoAlimentarController } = require('./controllers/planoAlimentarController');
 
 const { UserRepository } = require('./repositories/userRepository');
 const { PatientDashboardRepository } = require('./repositories/patientDashboardRepository');
 const { NutritionistDashboardRepository } = require('./repositories/nutritionistDashboardRepository');
 const { AdminRepository } = require('./repositories/adminRepository');
+const { PlanoAlimentarRepository } = require('./repositories/planoAlimentarRepository');
 
 const { AuthService } = require('./services/authService');
 const { SessionService } = require('./services/sessionService');
@@ -23,11 +25,13 @@ const { TokenService } = require('./services/tokenService');
 const { PatientDashboardService } = require('./services/patientDashboardService');
 const { NutritionistDashboardService } = require('./services/nutritionistDashboardService');
 const { AdminService } = require('./services/adminService');
+const { PlanoAlimentarService } = require('./services/planoAlimentarService');
 
 const { createAuthRoutes } = require('./routes/authRoutes');
 const { createPatientRoutes } = require('./routes/patientRoutes');
 const { createNutritionistRoutes } = require('./routes/nutritionistRoutes');
 const { createAdminRoutes } = require('./routes/adminRoutes');
+const { createPlanoAlimentarRoutes } = require('./routes/planoAlimentarRoutes');
 
 const FRONTEND_ROUTE_ALIASES = new Map([
   ['/home', '/index.html'],
@@ -93,6 +97,7 @@ function createDependencies(appConfig, overrides = {}) {
   const patientDashboardRepository = new PatientDashboardRepository(prisma);
   const nutritionistDashboardRepository = new NutritionistDashboardRepository(prisma);
   const adminRepository = new AdminRepository(prisma);
+  const planoAlimentarRepository = new PlanoAlimentarRepository(prisma);
 
   const passwordService = new PasswordService();
   const tokenService = new TokenService(appConfig.tokenSecret);
@@ -105,6 +110,7 @@ function createDependencies(appConfig, overrides = {}) {
     userRepository,
   );
   const adminService = new AdminService(adminRepository);
+  const planoAlimentarService = new PlanoAlimentarService(planoAlimentarRepository);
 
   return {
     prisma,
@@ -115,6 +121,7 @@ function createDependencies(appConfig, overrides = {}) {
       nutritionistDashboardService,
     ),
     adminController: new AdminController(sessionService, adminService),
+    planoAlimentarController: new PlanoAlimentarController(planoAlimentarService),
   };
 }
 
@@ -157,6 +164,7 @@ function createApp(options = {}) {
   app.use('/api/patient', createPatientRoutes(dependencies.patientDashboardController));
   app.use('/api/nutritionist', createNutritionistRoutes(dependencies.nutritionistDashboardController));
   app.use('/api/admin', createAdminRoutes(dependencies.adminController));
+  app.use('/api/plano-alimentar', createPlanoAlimentarRoutes(dependencies.planoAlimentarController));
 
   app.use(createFrontendRouteAliasMiddleware());
   app.use(express.static(frontendDir));

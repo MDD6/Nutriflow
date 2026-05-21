@@ -1234,6 +1234,44 @@ function renderPlan() {
   `;
 }
 
+function renderBodyMeasurements() {
+  const bodyMeasurements = state.dashboard?.bodyMeasurements || {
+    latest: [],
+    history: [],
+  };
+  const summaryContainer = document.getElementById('bodyMeasurementsSummary');
+  const historyContainer = document.getElementById('bodyMeasurementsHistoryList');
+
+  if (summaryContainer) {
+    summaryContainer.innerHTML = bodyMeasurements.latest.length
+      ? bodyMeasurements.latest.map((measurement) => `
+          <article class="rounded-[24px] border border-nutriflow-200 bg-white p-4">
+            <p class="text-xs font-bold uppercase tracking-[0.16em] text-nutriflow-500">${escapeHtml(measurement.label)}</p>
+            <p class="mt-3 text-2xl font-bold tracking-[-0.04em] text-nutriflow-950">${escapeHtml(measurement.valueLabel)}</p>
+            <p class="mt-2 text-xs font-medium text-nutriflow-600">Ultimo registro: ${escapeHtml(measurement.dateLabel)}</p>
+          </article>
+        `).join('')
+      : '<div class="rounded-[24px] border border-dashed border-nutriflow-200 bg-white px-4 py-5 text-sm text-nutriflow-600 sm:col-span-2 xl:col-span-3">Sua nutricionista ainda nao registrou medidas corporais por avaliacao.</div>';
+  }
+
+  if (historyContainer) {
+    historyContainer.innerHTML = bodyMeasurements.history.length
+      ? bodyMeasurements.history.map((group) => `
+          <div class="px-4 py-4">
+            <p class="text-xs font-bold uppercase tracking-[0.14em] text-nutriflow-500">${escapeHtml(group.dateLabel)}</p>
+            <div class="mt-3 flex flex-wrap gap-2">
+              ${group.items.map((measurement) => `
+                <span class="rounded-full border border-nutriflow-100 bg-nutriflow-50 px-3 py-2 text-xs font-bold text-nutriflow-950">
+                  ${escapeHtml(measurement.label)}: ${escapeHtml(measurement.valueLabel)}
+                </span>
+              `).join('')}
+            </div>
+          </div>
+        `).join('')
+      : '<div class="px-4 py-4 text-sm text-nutriflow-600">Nenhum historico de medidas corporais disponivel ainda.</div>';
+  }
+}
+
 function renderWeightChart(labels, values) {
   const svg = document.getElementById('weightChart');
   const labelsContainer = document.getElementById('weightChartLabels');
@@ -1454,6 +1492,7 @@ function renderDashboard() {
   renderMeals();
   renderHistory();
   renderPlan();
+  renderBodyMeasurements();
   renderWeight();
   renderChat();
   renderClinical();

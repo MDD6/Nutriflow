@@ -36,6 +36,9 @@ class PatientDashboardRepository {
         progressSnapshots: {
           orderBy: { recordedAt: 'asc' },
         },
+        bodyMeasurements: {
+          orderBy: { recordedAt: 'desc' },
+        },
         challengeLinks: {
           include: {
             challenge: true,
@@ -247,6 +250,9 @@ class PatientDashboardRepository {
           },
           progressSnapshots: {
             orderBy: { recordedAt: 'asc' },
+          },
+          bodyMeasurements: {
+            orderBy: { recordedAt: 'desc' },
           },
           challengeLinks: {
             include: {

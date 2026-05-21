@@ -1,3 +1,5 @@
+const { buildAssessmentMeasurements } = require('../utils/bodyMeasurements');
+
 const DEFAULT_FOODS = [
   { name: 'Arroz integral cozido', calories: 124, protein: 3, carbs: 26, fat: 1 },
   { name: 'Feijao carioca cozido', calories: 76, protein: 5, carbs: 14, fat: 1 },
@@ -109,6 +111,11 @@ class NutritionistDashboardRepository {
           bodyFat: 31.4,
           notes: 'Boa adesao e melhora no lanche da tarde.',
         },
+        measurements: [
+          { label: 'Cintura', unit: 'cm', value: 86.4 },
+          { label: 'Quadril', unit: 'cm', value: 109.2 },
+          { label: 'Braco', unit: 'cm', value: 31.8 },
+        ],
         appointment: {
           scheduledAt: daysFromNow(2, 16, 30),
           type: 'Retorno semanal',
@@ -184,6 +191,11 @@ class NutritionistDashboardRepository {
           bodyFat: 18.8,
           notes: 'Boa evolucao de carga, revisar distribuicao de carboidratos no pos-treino.',
         },
+        measurements: [
+          { label: 'Torax', unit: 'cm', value: 104.3 },
+          { label: 'Braco relaxado', unit: 'cm', value: 38.2 },
+          { label: 'Coxa', unit: 'cm', value: 61.5 },
+        ],
         appointment: {
           scheduledAt: daysFromNow(3, 11, 0),
           type: 'Ajuste de macros',
@@ -245,6 +257,11 @@ class NutritionistDashboardRepository {
           bodyFat: 27.2,
           notes: 'Melhor regularidade e sono mais estavel.',
         },
+        measurements: [
+          { label: 'Cintura', unit: 'cm', value: 78.1 },
+          { label: 'Abdomen', unit: 'cm', value: 84.6 },
+          { label: 'Quadril', unit: 'cm', value: 98.4 },
+        ],
         appointment: {
           scheduledAt: daysFromNow(4, 14, 15),
           type: 'Revisao de rotina',
@@ -306,6 +323,11 @@ class NutritionistDashboardRepository {
           bodyFat: 33.1,
           notes: 'Baixa frequencia de registros e necessidade de retomar rotina.',
         },
+        measurements: [
+          { label: 'Cintura', unit: 'cm', value: 103.8 },
+          { label: 'Abdomen', unit: 'cm', value: 108.9 },
+          { label: 'Quadril', unit: 'cm', value: 111.5 },
+        ],
         appointment: {
           scheduledAt: daysFromNow(6, 9, 0),
           type: 'Retomada de acompanhamento',
@@ -407,12 +429,31 @@ class NutritionistDashboardRepository {
           },
         });
 
-        await tx.assessment.create({
+        const assessment = await tx.assessment.create({
           data: {
             patientProfileId: profile.id,
             nutritionistId,
             ...seed.assessment,
           },
+        });
+
+        await tx.bodyMeasurement.createMany({
+          data: buildAssessmentMeasurements({
+            weight: seed.assessment.weight,
+            height: seed.assessment.height,
+            bodyFat: seed.assessment.bodyFat,
+            imc: seed.assessment.imc,
+            recordedAt: seed.assessment.date,
+            extraMeasurements: seed.measurements || [],
+          }).map((measurement) => ({
+            assessmentId: assessment.id,
+            patientProfileId: profile.id,
+            key: measurement.key,
+            label: measurement.label,
+            unit: measurement.unit,
+            value: measurement.value,
+            recordedAt: measurement.recordedAt,
+          })),
         });
 
         await tx.appointment.create({
@@ -510,6 +551,7 @@ class NutritionistDashboardRepository {
             appointments: { orderBy: { scheduledAt: 'asc' } },
             weightEntries: { orderBy: { recordedAt: 'asc' } },
             progressSnapshots: { orderBy: { recordedAt: 'asc' } },
+            bodyMeasurements: { orderBy: { recordedAt: 'desc' } },
             mealEntries: { orderBy: { loggedAt: 'desc' }, take: 15 },
             challengeLinks: {
               include: { challenge: true },
@@ -526,7 +568,13 @@ class NutritionistDashboardRepository {
           },
           orderBy: { createdAt: 'desc' },
         },
-        assessments: { include: { patientProfile: { include: { user: true } } }, orderBy: { date: 'desc' } },
+        assessments: {
+          include: {
+            patientProfile: { include: { user: true } },
+            bodyMeasurements: { orderBy: { recordedAt: 'desc' } },
+          },
+          orderBy: { date: 'desc' },
+        },
         messages: { include: { patientProfile: { include: { user: true } } }, orderBy: { sentAt: 'desc' } },
         appointments: { include: { patientProfile: { include: { user: true } } }, orderBy: { scheduledAt: 'asc' } },
         challenges: { include: { participants: { include: { patientProfile: { include: { user: true } } } } }, orderBy: { createdAt: 'desc' } },
@@ -547,6 +595,9 @@ class NutritionistDashboardRepository {
         },
         progressSnapshots: {
           orderBy: { recordedAt: 'asc' },
+        },
+        bodyMeasurements: {
+          orderBy: { recordedAt: 'desc' },
         },
       },
     });
@@ -649,6 +700,18 @@ class NutritionistDashboardRepository {
         },
       });
 
+      await tx.bodyMeasurement.createMany({
+        data: (data.measurements || []).map((measurement) => ({
+          assessmentId: assessment.id,
+          patientProfileId: data.patientProfileId,
+          key: measurement.key,
+          label: measurement.label,
+          unit: measurement.unit,
+          value: measurement.value,
+          recordedAt: measurement.recordedAt || data.date,
+        })),
+      });
+
       await tx.patientProfile.update({
         where: { id: data.patientProfileId },
         data: {
@@ -713,6 +776,9 @@ class NutritionistDashboardRepository {
             include: {
               user: true,
             },
+          },
+          bodyMeasurements: {
+            orderBy: { recordedAt: 'desc' },
           },
         },
       });

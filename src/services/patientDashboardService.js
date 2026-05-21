@@ -1,5 +1,11 @@
 const { AppError } = require('../errors/appError');
 const { isNutritionistRole } = require('../constants/roles');
+const {
+  buildAssessmentMeasurements,
+  formatMeasurementValue,
+  getLatestMeasurementsByType,
+  groupMeasurementsByDate,
+} = require('../utils/bodyMeasurements');
 
 const SHORT_MONTHS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 const ALLOWED_MEAL_TYPES = new Set([
@@ -24,6 +30,7 @@ const WEEKLY_WEIGHT_LIMITS = {
   min: 20,
   max: 350,
 };
+const CHAT_MESSAGE_MAX_LENGTH = 500;
 
 function normalizeEmail(value) {
   return String(value || '').trim().toLowerCase();
@@ -428,6 +435,51 @@ function buildWeightTimeline(patientProfile) {
   return [];
 }
 
+function buildFallbackBodyMeasurements(patientProfile) {
+  if (patientProfile.assessments?.length) {
+    return patientProfile.assessments.flatMap((assessment) => buildAssessmentMeasurements({
+      weight: assessment.weight,
+      height: assessment.height,
+      bodyFat: assessment.bodyFat,
+      imc: assessment.imc,
+      recordedAt: assessment.date,
+    }).map((measurement) => ({
+      id: `${assessment.id}:${measurement.key}`,
+      ...measurement,
+    })));
+  }
+
+  if (!patientProfile.currentWeight && !patientProfile.height && !patientProfile.bodyFat) {
+    return [];
+  }
+
+  const recordedAt = patientProfile.lastAssessmentAt || patientProfile.updatedAt || new Date();
+  const imc = patientProfile.currentWeight > 0 && patientProfile.height > 0
+    ? patientProfile.currentWeight / (patientProfile.height * patientProfile.height)
+    : 0;
+
+  return buildAssessmentMeasurements({
+    weight: patientProfile.currentWeight,
+    height: patientProfile.height,
+    bodyFat: patientProfile.bodyFat,
+    imc,
+    recordedAt,
+  })
+    .filter((measurement) => measurement.value > 0)
+    .map((measurement) => ({
+      id: `profile:${measurement.key}`,
+      ...measurement,
+    }));
+}
+
+function getBodyMeasurementsTimeline(patientProfile) {
+  if (patientProfile.bodyMeasurements?.length) {
+    return patientProfile.bodyMeasurements;
+  }
+
+  return buildFallbackBodyMeasurements(patientProfile);
+}
+
 class PatientDashboardService {
   constructor(patientDashboardRepository, userRepository) {
     this.patientDashboardRepository = patientDashboardRepository;
@@ -657,6 +709,10 @@ class PatientDashboardService {
       throw new AppError('Digite uma mensagem para enviar ao nutricionista.', 400);
     }
 
+    if (content.length > CHAT_MESSAGE_MAX_LENGTH) {
+      throw new AppError(`A mensagem deve ter ate ${CHAT_MESSAGE_MAX_LENGTH} caracteres.`, 400);
+    }
+
     const chatMessage = await this.patientDashboardRepository.createPatientMessage({
       patientProfileId: patientProfile.id,
       nutritionistId: patientProfile.nutritionistId,
@@ -742,6 +798,7 @@ class PatientDashboardService {
     const mealConsistencyTarget = 4;
     const dailySummaries = this.buildDailySummaries(patientProfile.mealEntries, calorieTarget);
     const weightTimeline = buildWeightTimeline(patientProfile);
+    const bodyMeasurements = getBodyMeasurementsTimeline(patientProfile);
     const calorieProgress = calculateTargetProgress(todayTotals.calories, calorieTarget);
     const proteinProgress = calculateTargetProgress(todayTotals.protein, proteinTarget);
     const mealProgress = calculateTargetProgress(todayMeals.length, mealConsistencyTarget);
@@ -863,6 +920,7 @@ class PatientDashboardService {
         trendLabel: this.getWeightTrendLabel(weightTimeline),
         history: this.toWeightHistoryDto(weightTimeline),
       },
+      bodyMeasurements: this.toBodyMeasurementsDto(bodyMeasurements),
       chat: this.toChatDto(patientProfile),
       clinical: {
         nextAppointment: nextAppointment
@@ -1073,6 +1131,35 @@ class PatientDashboardService {
         note: entry.note || '',
       };
     });
+  }
+
+  toBodyMeasurementsDto(measurements) {
+    const latestMeasurements = getLatestMeasurementsByType(measurements, 8);
+    const historyGroups = groupMeasurementsByDate(measurements, 6);
+
+    return {
+      latest: latestMeasurements.map((measurement) => ({
+        id: measurement.id,
+        key: measurement.key,
+        label: measurement.label,
+        unit: measurement.unit,
+        value: measurement.value,
+        valueLabel: formatMeasurementValue(measurement.value, measurement.unit, measurement.key),
+        dateLabel: formatShortDate(measurement.recordedAt),
+      })),
+      history: historyGroups.map((group) => ({
+        id: group.groupKey,
+        dateLabel: formatShortDate(group.recordedAt),
+        items: group.items.map((measurement) => ({
+          id: measurement.id,
+          key: measurement.key,
+          label: measurement.label,
+          unit: measurement.unit,
+          value: measurement.value,
+          valueLabel: formatMeasurementValue(measurement.value, measurement.unit, measurement.key),
+        })),
+      })),
+    };
   }
 
   toMealEntryDto(mealEntry) {

@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  engineType = "binary"
 }
 
 datasource db {
@@ -53,6 +54,7 @@ model PatientProfile {
   mealEntries       MealEntry[]
   weightEntries     WeightEntry[]
   progressSnapshots ProgressSnapshot[]
+  bodyMeasurements  BodyMeasurement[]
   challengeLinks    ChallengeParticipant[]
   goal              Goal?
 }
@@ -101,6 +103,26 @@ model Assessment {
   updatedAt        DateTime       @updatedAt
   patientProfile   PatientProfile @relation(fields: [patientProfileId], references: [id], onDelete: Cascade)
   nutritionist     User           @relation("NutritionistAssessments", fields: [nutritionistId], references: [id], onDelete: Cascade)
+  bodyMeasurements BodyMeasurement[]
+}
+
+model BodyMeasurement {
+  id               String         @id @default(uuid())
+  assessmentId     String
+  patientProfileId String
+  key              String
+  label            String
+  unit             String
+  value            Float
+  recordedAt       DateTime
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  assessment       Assessment     @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  patientProfile   PatientProfile @relation(fields: [patientProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([assessmentId, key])
+  @@index([patientProfileId, recordedAt])
+  @@index([patientProfileId, key, recordedAt])
 }
 
 model PatientMessage {

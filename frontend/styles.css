@@ -915,6 +915,160 @@ main .dashboard-card:nth-of-type(5) {
   box-shadow: 0 0 0 5px rgba(111, 150, 86, 0.16);
 }
 
+.dashboard-hero-grid {
+  display: grid;
+  gap: 1.25rem;
+  align-items: stretch;
+}
+
+.patient-hero-grid {
+  grid-template-columns: minmax(0, 1.18fr) minmax(300px, 0.82fr);
+}
+
+.premium-hero-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(202, 219, 191, 0.72);
+  background:
+    radial-gradient(circle at top right, rgba(111, 150, 86, 0.16), transparent 30%),
+    radial-gradient(circle at bottom left, rgba(39, 79, 120, 0.12), transparent 34%),
+    linear-gradient(160deg, rgba(255,255,255,0.98) 0%, rgba(245,249,242,0.92) 100%);
+  box-shadow:
+    0 32px 64px rgba(17, 29, 20, 0.12),
+    inset 0 1px 0 rgba(255,255,255,0.88);
+}
+
+.premium-hero-card::before {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  border-radius: inherit;
+  background:
+    linear-gradient(140deg, rgba(255,255,255,0.42), rgba(255,255,255,0)),
+    repeating-linear-gradient(120deg, rgba(255,255,255,0.08) 0 1px, transparent 1px 18px);
+  pointer-events: none;
+}
+
+.patient-premium-hero {
+  background:
+    radial-gradient(circle at top right, rgba(39, 79, 120, 0.14), transparent 30%),
+    radial-gradient(circle at bottom left, rgba(111, 150, 86, 0.16), transparent 34%),
+    linear-gradient(160deg, rgba(255,255,255,0.99) 0%, rgba(244,248,241,0.94) 100%);
+}
+
+.workspace-premium-hero {
+  background:
+    radial-gradient(circle at top right, rgba(111, 150, 86, 0.18), transparent 28%),
+    radial-gradient(circle at bottom left, rgba(39, 79, 120, 0.1), transparent 36%),
+    linear-gradient(160deg, rgba(255,255,255,0.99) 0%, rgba(245,249,242,0.94) 100%);
+}
+
+.patient-premium-hero::after,
+.workspace-premium-hero::after {
+  content: '';
+  position: absolute;
+  right: -10%;
+  bottom: -18%;
+  width: 280px;
+  aspect-ratio: 1;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(255,255,255,0.42), rgba(255,255,255,0));
+  filter: blur(12px);
+  pointer-events: none;
+}
+
+.premium-orb-cluster {
+  position: relative;
+  width: 180px;
+  min-width: 180px;
+  height: 128px;
+}
+
+.premium-orb {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(0.2px);
+  box-shadow: 0 16px 32px rgba(17, 28, 20, 0.12);
+}
+
+.premium-orb.is-emerald {
+  width: 92px;
+  height: 92px;
+  top: 6px;
+  left: 12px;
+  background: radial-gradient(circle at 30% 30%, #d8f0b8 0%, #83a966 52%, #45623b 100%);
+}
+
+.premium-orb.is-blue {
+  width: 72px;
+  height: 72px;
+  right: 18px;
+  top: 12px;
+  background: radial-gradient(circle at 35% 35%, #d7e6f5 0%, #6f96bc 58%, #33506e 100%);
+}
+
+.premium-orb.is-gold {
+  width: 64px;
+  height: 64px;
+  left: 76px;
+  bottom: 4px;
+  background: radial-gradient(circle at 35% 35%, #f3e5ba 0%, #c5a75b 55%, #8f6c2a 100%);
+}
+
+.premium-info-chip {
+  position: relative;
+  overflow: hidden;
+  border-radius: 24px;
+  border: 1px solid rgba(190, 211, 180, 0.76);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.94), rgba(247,250,244,0.9)),
+    radial-gradient(circle at top right, rgba(111,150,86,0.08), transparent 38%);
+  padding: 1rem 1.05rem;
+  box-shadow: 0 14px 26px rgba(16, 27, 19, 0.08);
+}
+
+.premium-info-chip span,
+.premium-inline-kpi span,
+.premium-mini-card span {
+  display: block;
+  color: #6d7d65;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.premium-info-chip strong,
+.premium-inline-kpi strong,
+.premium-mini-card strong {
+  display: block;
+  margin-top: 0.65rem;
+  color: #172116;
+  font-size: 1.45rem;
+  font-weight: 800;
+  letter-spacing: -0.05em;
+}
+
+.premium-inline-kpi {
+  min-width: 108px;
+  border-radius: 20px;
+  border: 1px solid rgba(190, 211, 180, 0.76);
+  background: linear-gradient(180deg, rgba(255,255,255,0.94), rgba(246,248,242,0.92));
+  padding: 0.9rem 1rem;
+  box-shadow: 0 12px 24px rgba(17, 29, 20, 0.08);
+  text-align: right;
+}
+
+.premium-mini-card {
+  border-radius: 22px;
+  border: 1px solid rgba(194, 214, 185, 0.72);
+  background:
+    radial-gradient(circle at top right, rgba(111, 150, 86, 0.1), transparent 34%),
+    linear-gradient(180deg, #ffffff 0%, #f7faf4 100%);
+  padding: 0.95rem 1rem;
+  box-shadow: 0 12px 22px rgba(16, 27, 19, 0.06);
+}
+
 .dashboard-highlight-grid {
   display: grid;
   gap: 1rem;
@@ -1287,6 +1441,60 @@ main .dashboard-card:nth-of-type(5) {
 .history-row:hover {
   background: rgba(243, 247, 241, 0.94);
   transform: translateX(2px);
+}
+
+#mealList .meal-item,
+#goalsList > article,
+#bodyMeasurementsSummary > article,
+#historyList > .history-row,
+#weightHistoryList > div,
+#latestMealPlans > div,
+#latestAssessments > div,
+#appointmentsList > div,
+#challengesList > div,
+#appointmentRemindersList > div,
+#activeChallengesList > div {
+  box-shadow: 0 16px 28px rgba(17, 29, 20, 0.06);
+}
+
+#mealList .meal-item,
+#bodyMeasurementsSummary > article,
+#latestMealPlans > div,
+#latestAssessments > div,
+#appointmentsList > div,
+#challengesList > div,
+#activeChallengesList > div {
+  border-radius: 26px;
+  border: 1px solid rgba(194, 214, 185, 0.68);
+  background:
+    radial-gradient(circle at top right, rgba(111, 150, 86, 0.08), transparent 34%),
+    linear-gradient(180deg, rgba(255,255,255,0.98), rgba(247,250,244,0.92));
+}
+
+#goalsList > article {
+  border-radius: 24px;
+  border: 1px solid rgba(194, 214, 185, 0.68);
+  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(247,250,244,0.92));
+}
+
+#historyList > .history-row,
+#weightHistoryList > div {
+  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(249,252,248,0.94));
+}
+
+#floatingChat {
+  border: 1px solid rgba(255,255,255,0.9) !important;
+  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(245,249,242,0.96)) !important;
+  box-shadow:
+    0 34px 72px rgba(8, 14, 10, 0.24),
+    inset 0 1px 0 rgba(255,255,255,0.9) !important;
+  backdrop-filter: blur(18px) saturate(130%);
+}
+
+#floatingChat .chat-stream {
+  background:
+    radial-gradient(circle at top right, rgba(111, 150, 86, 0.08), transparent 32%),
+    linear-gradient(180deg, rgba(243,247,241,0.95), rgba(238,244,236,0.94)) !important;
 }
 
 .admin-body {
@@ -2040,6 +2248,16 @@ main .dashboard-card:nth-of-type(5) {
 }
 
 @media (max-width: 1280px) {
+  .patient-hero-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .premium-orb-cluster {
+    width: 148px;
+    min-width: 148px;
+    height: 112px;
+  }
+
   .nutritionist-bars {
     min-height: 180px;
     gap: 10px;
@@ -2052,6 +2270,16 @@ main .dashboard-card:nth-of-type(5) {
 }
 
 @media (max-width: 768px) {
+  .premium-inline-kpi {
+    min-width: 0;
+    width: 100%;
+    text-align: left;
+  }
+
+  .premium-orb-cluster {
+    display: none;
+  }
+
   .nutritionist-bars {
     gap: 8px;
     min-height: 150px;

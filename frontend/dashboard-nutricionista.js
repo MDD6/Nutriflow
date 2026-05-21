@@ -287,82 +287,110 @@ function resetMealPlanBuilder(plan = null) {
   updateMealPlanTotals();
 }
 
+function parseBackendDate(dateStr) {
+  if (!dateStr) return new Date(0);
+  const months = {
+      'Jan': 0, 'Fev': 1, 'Mar': 2, 'Abr': 3, 'Mai': 4, 'Jun': 5,
+      'Jul': 6, 'Ago': 7, 'Set': 8, 'Out': 9, 'Nov': 10, 'Dez': 11
+  };
+  try {
+      const [datePart, timePart] = dateStr.split(' - ');
+      const [day, monthStr, year] = datePart.split(' ');
+      const [hours, minutes] = timePart.split(':');
+      return new Date(year, months[monthStr], day, hours, minutes);
+  } catch (e) {
+      console.error("Erro no parsing da data:", dateStr);
+      return new Date(0);
+  }
+}
+
 function renderGeneralLists() {
   const pId = state.activeFilterId;
+  const agora = new Date();
+  const limite24h = new Date(agora.getTime() + (24 * 60 * 60 * 1000));
 
-  // Filtra as listas se um paciente estiver selecionado
+  let allApps = [...state.appointments];
+  if (pId) allApps = allApps.filter(a => a.patientId === pId);
+
+  allApps.sort((a, b) => parseBackendDate(a.date) - parseBackendDate(b.date));
+
+  const list24h = [];
+  const listGeral = [];
+  const listHistorico = [];
+
+  allApps.forEach(app => {
+      const status = app.status ? app.status.toLowerCase() : 'agendada';
+      if (status === 'confirmada' || status === 'faltou') {
+          listHistorico.push(app);
+          return;
+      }
+
+      const dateObj = parseBackendDate(app.date);
+      if (dateObj >= agora && dateObj <= limite24h) {
+          list24h.push(app);
+      } else {
+          listGeral.push(app);
+      }
+  });
+
+  const cont24 = document.getElementById('appointmentRemindersList');
+  const sec24 = document.getElementById('section24h');
+  if (cont24) {
+      if (list24h.length > 0) {
+          sec24?.classList.remove('hidden');
+          cont24.innerHTML = list24h.map(a => renderAppointmentItem(a, true)).join('');
+      } else {
+          sec24?.classList.add('hidden');
+      }
+  }
+
+  const contGeral = document.getElementById('appointmentsList');
+  if (contGeral) {
+      contGeral.innerHTML = listGeral.length 
+          ? listGeral.map(a => renderAppointmentItem(a, false)).join('')
+          : '<p class="text-xs text-nutriflow-400 italic p-4">Nenhuma consulta agendada.</p>';
+  }
+
+  const contHist = document.getElementById('historyList');
+  if (contHist) {
+      contHist.innerHTML = listHistorico.length 
+          ? listHistorico.map(a => renderAppointmentItem(a, false)).join('')
+          : '<p class="text-xs text-nutriflow-400 italic p-4">Histórico vazio.</p>';
+  }
+
   const plans = pId ? state.mealPlans.filter(p => p.patientId === pId) : state.mealPlans;
-  const asss = pId ? state.assessments.filter(a => a.patientId === pId) : state.assessments;
-  const apps = pId ? state.appointments.filter(a => a.patientId === pId) : state.appointments;
-
   const plansContainer = document.getElementById('latestMealPlans');
-  plansContainer.innerHTML = plans.length ? plans.map(plan => `
-      <div class="bg-white border rounded-xl p-3 shadow-sm relative group">
-        <p class="text-xs font-bold text-nutriflow-500 uppercase">${plan.patient}</p>
-        <p class="text-sm font-bold text-nutriflow-950 mt-1 pr-12">${plan.title}</p>
-        <p class="text-xs font-semibold text-nutriflow-600">${plan.calories} kcal - ${plan.protein}g prot - ${plan.carbs || 0}g carb - ${plan.fats || 0}g gord</p>
-        <p class="mt-1 text-xs text-nutriflow-500">${plan.items?.length ? `${plan.items.length} alimentos cadastrados` : 'Sem alimentos detalhados'}</p>
-        <div class="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition">
-           <button onclick="window.duplicatePlan('${plan.id}')" title="Reaproveitar Plano" class="p-1 text-nutriflow-500 hover:text-nutriflow-900">📋</button>
-           <button onclick="window.deleteResource('meal-plans', '${plan.id}')" title="Excluir" class="p-1 text-red-400 hover:text-red-600">🗑️</button>
-        </div>
-      </div>
-    `).join('') : '<p class="text-sm text-nutriflow-500">Nenhum plano encontrado.</p>';
+  if (plansContainer) {
+      plansContainer.innerHTML = plans.length ? plans.map(plan => `
+          <div class="bg-white border rounded-xl p-3 shadow-sm relative group">
+              <p class="text-xs font-bold text-nutriflow-500 uppercase">${escapeHtml(plan.patient)}</p>
+              <p class="text-sm font-bold text-nutriflow-950 mt-1 pr-12">${escapeHtml(plan.title)}</p>
+              <div class="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition">
+                  <button onclick="window.deleteResource('meal-plans', '${plan.id}')" class="p-1 text-red-400" title="Excluir Plano">🗑️</button>
+              </div>
+          </div>
+      `).join('') : '<p class="text-xs p-2">Nenhum plano.</p>';
+  }
 
+  const asss = pId ? state.assessments.filter(a => a.patientId === pId) : state.assessments;
   const assContainer = document.getElementById('latestAssessments');
-  assContainer.innerHTML = asss.length ? asss.map(ass => `
+  if (assContainer) {
+    assContainer.innerHTML = asss.length ? asss.map(ass => `
       <div class="bg-white border rounded-xl p-3 shadow-sm relative group">
         <p class="text-xs font-bold text-nutriflow-500 uppercase">${ass.patient}</p>
         <p class="text-sm font-bold text-nutriflow-950 mt-1">Peso: ${ass.weight}kg</p>
-        <p class="text-xs font-semibold text-nutriflow-600">${new Date(ass.date).toLocaleDateString()}</p>
-        <button onclick="window.deleteResource('assessments', '${ass.id}')" class="absolute top-2 right-2 p-1 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition">🗑️</button>
+        <button onclick="window.deleteResource('assessments', '${ass.id}')" class="absolute top-2 right-2 p-1 text-red-400 opacity-0 group-hover:opacity-100">🗑️</button>
       </div>
-    `).join('') : '<p class="text-sm text-nutriflow-500">Nenhuma avaliação.</p>';
-
-  const agendaContainer = document.getElementById('appointmentsList');
-  const remindersContainer = document.getElementById('appointmentRemindersList');
-
-  if (remindersContainer) {
-    remindersContainer.innerHTML = state.reminders.length
-      ? state.reminders.map((reminder) => `
-        <div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
-          <p class="text-xs font-bold uppercase tracking-[0.12em] text-amber-700">${escapeHtml(reminder.reminder?.label || 'Lembrete')}</p>
-          <p class="mt-1 text-sm font-bold text-nutriflow-950">${escapeHtml(reminder.patient)} - ${escapeHtml(reminder.type)}</p>
-          <p class="text-xs text-nutriflow-700">${escapeHtml(reminder.date)} (${escapeHtml(String(reminder.reminder?.minutesUntil || 0))} min)</p>
-        </div>
-      `).join('')
-      : '<p class="text-sm text-nutriflow-500">Sem lembretes de consulta nas próximas 24h.</p>';
+    `).join('') : '<p class="text-xs p-2">Nenhuma avaliação.</p>';
   }
-
-  agendaContainer.innerHTML = apps.length ? apps.map(app => `
-      <div class="bg-white border rounded-xl p-3 shadow-sm flex justify-between items-center relative group">
-        <div>
-          <p class="text-sm font-bold text-nutriflow-950">${app.patient}</p>
-          <p class="text-xs font-bold text-nutriflow-500">${app.type}</p>
-          <p class="text-[11px] font-bold text-nutriflow-700 mt-1">Status: ${escapeHtml(APPOINTMENT_STATUS_LABELS[app.status] || app.status)}</p>
-        </div>
-        <div class="flex items-center gap-2">
-          <p class="text-xs font-bold bg-nutriflow-50 px-2 py-1 rounded-lg">${app.date}</p>
-          <button onclick="window.updateAppointmentStatus('${app.id}', 'confirmada')" class="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-700">Confirmar</button>
-          <button onclick="window.rescheduleAppointment('${app.id}')" class="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-bold text-amber-700">Remarcar</button>
-          <button onclick="window.updateAppointmentStatus('${app.id}', 'faltou')" class="rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-[11px] font-bold text-rose-700">Faltou</button>
-          <button onclick="window.deleteResource('appointments', '${app.id}')" class="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition">🗑️</button>
-        </div>
-      </div>
-    `).join('') : '<p class="text-sm text-nutriflow-500">Sem agenda.</p>';
 
   const challContainer = document.getElementById('challengesList');
   if (challContainer) {
     challContainer.innerHTML = state.challenges.length ? state.challenges.map(ch => `
-      <div class="bg-white border rounded-xl p-3 shadow-sm relative group mb-2">
-        <p class="text-sm font-bold text-nutriflow-950 pr-16">${ch.title}</p>
-        <p class="text-xs font-semibold text-nutriflow-600">${ch.target}</p>
-        <div class="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition">
-           <button onclick="window.openAddParticipant('${ch.id}')" title="Adicionar Paciente" class="p-1 bg-nutriflow-100 rounded text-xs font-bold">➕ Pct</button>
-           <button onclick="window.deleteResource('challenges', '${ch.id}')" title="Excluir" class="p-1 text-red-400 hover:text-red-600">🗑️</button>
-        </div>
+      <div class="bg-white border rounded-xl p-3 shadow-sm mb-2">
+        <p class="text-sm font-bold text-nutriflow-950">${ch.title}</p>
       </div>
-    `).join('') : '<p class="text-sm text-nutriflow-600">Nenhum desafio ativo.</p>';
+    `).join('') : '<p class="text-xs p-2">Nenhum desafio.</p>';
   }
 }
 
@@ -380,7 +408,6 @@ function populatePatientSelects() {
   });
 }
 
-// FUNÇÕES GLOBAIS DE AÇÃO (Excluir, Duplicar, Adicionar Participante)
 window.deleteResource = async function(resourceType, id) {
   if(!confirm('Tem certeza que deseja excluir este item permanentemente?')) return;
   try {
@@ -436,7 +463,6 @@ window.rescheduleAppointment = async function(appointmentId) {
   }
 };
 
-// MODAIS
 function openModal(modalId) {
   document.querySelectorAll('.nf-modal-overlay').forEach(m => { m.classList.add('hidden'); m.classList.remove('flex'); });
   const modal = document.getElementById(`${modalId}Modal`);
@@ -482,7 +508,6 @@ function bindButtons() {
   document.getElementById('logoutButton')?.addEventListener('click', () => { session.clear(); window.location.href = 'index.html'; });
 }
 
-// INTEGRAÇÕES REAIS
 document.getElementById('linkPatientForm')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const email = document.getElementById('linkPatientEmail').value;
@@ -534,7 +559,6 @@ document.getElementById('assessmentForm')?.addEventListener('submit', async (e) 
   } catch(err) { showToast('Erro ao salvar avaliação.'); }
 });
 
-// AQUI É A AGENDA SALVANDO DE VERDADE
 document.getElementById('appointmentForm')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const payload = {
@@ -563,7 +587,6 @@ document.getElementById('challengeForm')?.addEventListener('submit', async (e) =
   } catch(err) { showToast('Erro ao criar desafio.'); }
 });
 
-// ADICIONAR PACIENTE A DESAFIO EXISTENTE
 document.getElementById('addParticipantForm')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const patientId = document.getElementById('addPartPatient').value;
@@ -571,6 +594,141 @@ document.getElementById('addParticipantForm')?.addEventListener('submit', async 
     await apiRequest(`/api/nutritionist/challenges/${state.activeChallengeId}/participants`, { method: 'POST', body: JSON.stringify({ patientId }) });
     showToast('Paciente adicionado ao desafio!'); closeModal('addParticipant'); await fetchDatabaseData();
   } catch(err) { showToast('Erro ao adicionar paciente.'); }
+});
+
+function renderAppointmentItem(app, isHighPriority = false) {
+  const safePatientName = escapeHtml(app.patientName || app.patient || "Paciente");
+  const safeType = escapeHtml(app.type || "Consulta");
+  const displayDate = app.date || "Data não definida";
+  const statusClean = app.status ? app.status.toLowerCase() : 'agendada';
+  const isFinalizado = statusClean === 'confirmada' || statusClean === 'faltou';
+
+  const [dataPart, horaPart] = displayDate.includes(' - ') ? displayDate.split(' - ') : [displayDate, ''];
+
+  let statusBadge = '';
+  if (statusClean === 'confirmada') {
+      statusBadge = `<span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[9px] font-black uppercase rounded-full border border-emerald-200">✓ Confirmada</span>`;
+  } else if (statusClean === 'faltou') {
+      statusBadge = `<span class="px-2 py-0.5 bg-rose-100 text-rose-700 text-[9px] font-black uppercase rounded-full border border-rose-200">✕ Faltou</span>`;
+  }
+
+  const priorityClass = isHighPriority 
+      ? 'border-l-4 border-orange-500 bg-orange-50/40' 
+      : 'border-l-4 border-nutriflow-100 bg-white';
+
+  return `
+      <div class="border rounded-2xl p-4 shadow-sm transition-all ${priorityClass}">
+          <div class="flex justify-between items-start mb-3">
+              <div>
+                  <div class="flex items-center gap-2 mb-1">
+                      <p class="text-[10px] font-black text-nutriflow-400 uppercase tracking-tighter">${safeType}</p>
+                      ${isFinalizado ? statusBadge : ''}
+                  </div>
+                  <h4 class="text-base font-extrabold text-nutriflow-950">${safePatientName}</h4>
+              </div>
+              <button onclick="window.openDeleteAppointmentModal('${app.id}')" class="text-gray-300 hover:text-red-500 transition" title="Excluir agendamento">
+                  🗑️
+              </button>
+          </div>
+
+          <div class="bg-nutriflow-50 rounded-xl p-3 border border-nutriflow-100 mb-4">
+              <div class="flex items-center gap-3">
+                  <span class="text-2xl">📅</span>
+                  <div>
+                      <p class="text-lg font-black text-nutriflow-900 leading-none">${horaPart}</p>
+                      <p class="text-xs font-bold text-nutriflow-500 uppercase mt-1">${dataPart}</p>
+                  </div>
+              </div>
+          </div>
+
+          <div class="flex gap-2">
+              ${!isFinalizado ? `
+                  <button onclick="window.updateAppointmentStatus('${app.id}', 'confirmada')" class="flex-1 py-2 bg-emerald-600 text-white rounded-lg text-[10px] font-black uppercase hover:bg-emerald-700 transition">Confirmar</button>
+                  <button onclick="window.openRescheduleModal('${app.id}')" class="flex-1 py-2 bg-white border border-nutriflow-200 text-nutriflow-700 rounded-lg text-[10px] font-black uppercase hover:bg-nutriflow-50 transition">Remarcar</button>
+                  <button onclick="window.updateAppointmentStatus('${app.id}', 'faltou')" class="flex-1 py-2 bg-white border border-rose-100 text-rose-600 rounded-lg text-[10px] font-black uppercase hover:bg-rose-50 transition">Faltou</button>
+              ` : `
+                  <button onclick="window.openEditAppointmentModal('${app.id}')" class="w-full py-2 bg-gray-100 text-gray-600 rounded-lg text-[10px] font-black uppercase hover:bg-gray-200 transition text-center">✏️ Alterar Status</button>
+              `}
+          </div>
+      </div>
+  `;
+}
+
+let currentEditingId = null;
+window.openRescheduleModal = function(id) { currentEditingId = id; openModal('reschedule'); };
+
+window.openEditAppointmentModal = function(id) {
+  const app = state.appointments.find(a => a.id === id);
+  if(!app) return;
+  currentEditingId = id;
+  document.getElementById('editAppointmentContent').innerHTML = `
+    <p class="text-sm font-bold mb-2">Paciente: ${escapeHtml(app.patient)}</p>
+    <label class="nf-field">
+      <span>Mudar Status</span>
+      <select id="editStatusField" class="font-bold">
+        <option value="confirmada" ${app.status === 'confirmada' ? 'selected' : ''}>Confirmada</option>
+        <option value="faltou" ${app.status === 'faltou' ? 'selected' : ''}>Faltou</option>
+        <option value="agendada" ${app.status === 'agendada' ? 'selected' : ''}>Agendada</option>
+      </select>
+    </label>
+    <button onclick="window.saveAppointmentEdit()" class="mt-4 bg-nutriflow-900 text-white py-2 rounded-lg font-bold w-full">Salvar</button>
+  `;
+  openModal('editAppointment');
+};
+
+window.saveAppointmentEdit = async function() {
+  const status = document.getElementById('editStatusField').value;
+  await window.updateAppointmentStatus(currentEditingId, status);
+  closeModal('editAppointment');
+};
+
+document.getElementById('btnConfirmReschedule')?.addEventListener('click', async () => {
+  const newDate = document.getElementById('rescheduleDate').value;
+  if (!newDate) return showToast('Selecione uma data.');
+  try {
+    await apiRequest(`/api/nutritionist/appointments/${currentEditingId}/reschedule`, { method: 'PATCH', body: JSON.stringify({ scheduledAt: newDate }) });
+    showToast('Consulta remarcada!');
+    closeModal('reschedule');
+    await fetchDatabaseData();
+  } catch (error) { showToast('Erro ao remarcar.'); }
+});
+
+window.switchAgendaTab = function(tab) {
+  const btnAtual = document.getElementById('btnTabAgenda');
+  const btnHist = document.getElementById('btnTabHistorico');
+  const contentAtual = document.getElementById('tabContentAtual');
+  const contentHist = document.getElementById('tabContentHistorico');
+
+  if (tab === 'atual') {
+    contentAtual.classList.remove('hidden');
+    contentHist.classList.add('hidden');
+    btnAtual.className = "text-[10px] bg-nutriflow-950 text-white px-2 py-1 rounded-md font-bold transition";
+    btnHist.className = "text-[10px] bg-nutriflow-100 text-nutriflow-900 px-2 py-1 rounded-md font-bold transition";
+  } else {
+    contentAtual.classList.add('hidden');
+    contentHist.classList.remove('hidden');
+    btnHist.className = "text-[10px] bg-nutriflow-950 text-white px-2 py-1 rounded-md font-bold transition";
+    btnAtual.className = "text-[10px] bg-nutriflow-100 text-nutriflow-900 px-2 py-1 rounded-md font-bold transition";
+  }
+};
+
+let idParaExcluir = null;
+
+window.openDeleteAppointmentModal = function(id) {
+    idParaExcluir = id;
+    openModal('deleteConfirm');
+};
+
+document.getElementById('btnConfirmDelete')?.addEventListener('click', async () => {
+    if (!idParaExcluir) return;
+    try {
+        await apiRequest(`/api/nutritionist/appointments/${idParaExcluir}`, { method: 'DELETE' });
+        showToast('Consulta removida com sucesso!');
+        closeModal('deleteConfirm');
+        await fetchDatabaseData();
+    } catch (e) {
+        showToast('Erro ao excluir consulta.');
+    }
 });
 
 // START

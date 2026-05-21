@@ -3254,4 +3254,18 @@ main .dashboard-card:nth-of-type(5) {
     height: 140px;
     gap: 8px;
   }
+
+.appointment-date {
+    font-size: 1.1rem; 
+    font-weight: 700;  
+    color: #2c3e50;   
+    display: block;
+    margin-bottom: 4px;
+}
+
+.appointment-time {
+    font-size: 1rem;
+    color: #3498db;    
+    font-weight: 600;
+}
 }

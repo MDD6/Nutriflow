@@ -109,74 +109,101 @@
       </header>
 
       <main class="mt-6 space-y-6 pb-6">
-        <section id="visao-geral" class="grid gap-6   2xl:grid-cols-[1.2fr_.8fr]">
-          <article class="dashboard-surface dashboard-card rounded-[30px] p-6 md:p-7">
-            <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-              <div>
-                <span class="glass-pill">Dashboard de calorias</span>
-                <h2 class="mt-4 text-2xl font-bold tracking-[-0.05em] md:text-3xl">Resumo nutricional</h2>
-                <p class="mt-3 max-w-2xl text-sm leading-7 text-nutriflow-700">Acompanhe seu progresso e consistência diária.</p>
-              </div>
-              <div class="rounded-2xl border border-nutriflow-200 bg-nutriflow-50 px-4 py-3 text-right">
-                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-nutriflow-500">Aderência</p>
-                <p id="overviewAdherenceValue" class="mt-2 text-2xl font-bold tracking-[-0.05em] text-nutriflow-950">0%</p>
-                <p id="overviewAdherenceNote" class="text-xs text-nutriflow-600">Aguardando dados</p>
-              </div>
-            </div>
-
-            <div class="mt-8 grid gap-6 xl:grid-cols-[260px_1fr]">
-              <div class="rounded-[28px] bg-nutriflow-950 p-6 text-white">
-                <div class="metric-ring" style="--progress:82%; --ring-color:#9fd57b;">
-                  <div class="metric-ring-value">
-                    <strong id="calorieConsumedValue">0</strong>
-                    <span id="calorieTargetValue">de 0 kcal</span>
-                  </div>
+        <section id="visao-geral" class="grid gap-6 2xl:grid-cols-[1.2fr_.8fr]">
+          <div class="flex flex-col gap-6">
+            <article class="dashboard-surface dashboard-card rounded-[30px] p-6 md:p-7">
+              <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <span class="glass-pill">Dashboard de calorias</span>
+                  <h2 class="mt-4 text-2xl font-bold tracking-[-0.05em] md:text-3xl">Resumo nutricional</h2>
+                  <p class="mt-3 max-w-2xl text-sm leading-7 text-nutriflow-700">Acompanhe seu progresso e consistência diária.</p>
                 </div>
-                <div class="mt-6 grid grid-cols-2 gap-3 text-sm">
-                  <div class="rounded-2xl bg-white/10 p-3">
-                    <p class="text-white/70">Fibra</p>
-                    <p id="fiberValue" class="mt-2 text-lg font-semibold">0g</p>
-                  </div>
-                  <div class="rounded-2xl bg-white/10 p-3">
-                    <p class="text-white/70">Água</p>
-                    <p id="waterValue" class="mt-2 text-lg font-semibold">0.0L</p>
-                  </div>
+                <div class="rounded-2xl border border-nutriflow-200 bg-nutriflow-50 px-4 py-3 text-right">
+                  <p class="text-xs font-semibold uppercase tracking-[0.18em] text-nutriflow-500">Aderência</p>
+                  <p id="overviewAdherenceValue" class="mt-2 text-2xl font-bold tracking-[-0.05em] text-nutriflow-950">0%</p>
+                  <p id="overviewAdherenceNote" class="text-xs text-nutriflow-600">Aguardando dados</p>
                 </div>
               </div>
 
-              <div class="grid gap-4">
-                <div class="grid gap-4 sm:grid-cols-3">
-                  <article class="dashboard-stat rounded-[24px] p-4">
-                    <p class="text-sm font-bold text-nutriflow-700">Proteínas</p>
-                    <p id="proteinValue" class="mt-3 text-3xl font-bold text-nutriflow-950">0g</p>
-                    <div class="mini-progress mt-4"><span id="proteinProgress" style="width:0%"></span></div>
-                  </article>
-                  <article class="dashboard-stat rounded-[24px] p-4">
-                    <p class="text-sm font-bold text-nutriflow-700">Carboidratos</p>
-                    <p id="carbsValue" class="mt-3 text-3xl font-bold text-nutriflow-950">0g</p>
-                    <div class="mini-progress mt-4"><span id="carbsProgress" style="width:0%"></span></div>
-                  </article>
-                  <article class="dashboard-stat rounded-[24px] p-4">
-                    <p class="text-sm font-bold text-nutriflow-700">Gorduras</p>
-                    <p id="fatsValue" class="mt-3 text-3xl font-bold text-nutriflow-950">0g</p>
-                    <div class="mini-progress mt-4"><span id="fatsProgress" style="width:0%"></span></div>
-                  </article>
-                </div>
-
-                <article class="rounded-[26px] border border-nutriflow-200 bg-nutriflow-50 p-5">
-                  <div class="flex items-center justify-between gap-4">
-                    <div>
-                      <p class="text-sm font-bold text-nutriflow-700">Consumo dos últimos 7 dias</p>
-                      <p id="weeklyCaloriesHeadline" class="mt-2 text-lg font-semibold tracking-[-0.04em]">Carregando comportamento...</p>
+              <div class="mt-8 grid gap-6 xl:grid-cols-[260px_1fr]">
+                <div class="rounded-[28px] bg-nutriflow-950 p-6 text-white">
+                  <div class="metric-ring" style="--progress:0%; --ring-color:#9fd57b;">
+                    <div class="metric-ring-value">
+                      <strong id="calorieConsumedValue">0</strong>
+                      <span id="calorieTargetValue">de 0 kcal</span>
                     </div>
                   </div>
-                  <div id="weeklyCaloriesChart" class="mt-6"></div>
-                </article>
-              </div>
-            </div>
-          </article>
+                  <div class="mt-6 grid grid-cols-2 gap-3 text-sm">
+                    <div class="rounded-2xl bg-white/10 p-3 text-center">
+                      <p class="text-white/70">Fibra</p>
+                      <p id="fiberValue" class="mt-2 text-lg font-semibold">0g</p>
+                    </div>
+                    <div class="rounded-2xl bg-white/10 p-3 text-center">
+                      <p class="text-white/70">Água</p>
+                      <p id="waterValue" class="mt-2 text-lg font-semibold">0.0L</p>
+                    </div>
+                  </div>
+                </div>
 
-          <article class="dashboard-surface dashboard-card rounded-[30px] p-6 md:p-7">
+                <div class="grid gap-4">
+                  <div class="grid gap-4 sm:grid-cols-3">
+                    <article class="dashboard-stat rounded-[24px] p-4">
+                      <p class="text-sm font-bold text-nutriflow-700">Proteínas</p>
+                      <p id="proteinValue" class="mt-3 text-3xl font-bold text-nutriflow-950">0g</p>
+                      <div class="mini-progress mt-4"><span id="proteinProgress" style="width:0%"></span></div>
+                    </article>
+                    <article class="dashboard-stat rounded-[24px] p-4">
+                      <p class="text-sm font-bold text-nutriflow-700">Carbos</p>
+                      <p id="carbsValue" class="mt-3 text-3xl font-bold text-nutriflow-950">0g</p>
+                      <div class="mini-progress mt-4"><span id="carbsProgress" style="width:0%"></span></div>
+                    </article>
+                    <article class="dashboard-stat rounded-[24px] p-4">
+                      <p class="text-sm font-bold text-nutriflow-700">Gorduras</p>
+                      <p id="fatsValue" class="mt-3 text-3xl font-bold text-nutriflow-950">0g</p>
+                      <div class="mini-progress mt-4"><span id="fatsProgress" style="width:0%"></span></div>
+                    </article>
+                  </div>
+                  <article class="rounded-[26px] border border-nutriflow-200 bg-nutriflow-50 p-5">
+                    <p class="text-sm font-bold text-nutriflow-700">Consumo dos últimos 7 dias</p>
+                    <div id="weeklyCaloriesChart" class="mt-6"></div>
+                  </article>
+                </div>
+              </div>
+            </article>
+
+            <article class="dashboard-surface dashboard-card rounded-[30px] p-6 md:p-7">
+              <div class="flex items-center justify-between mb-6">
+                <div>
+                  <span class="glass-pill">Seus Agendamentos</span>
+                  <h2 class="mt-4 text-2xl font-bold tracking-[-0.05em]">Agenda com Nutri</h2>
+                </div>
+                <div class="flex gap-2">
+                  <button id="btnTabAgenda" onclick="window.switchPatientAgendaTab('atual')" class="text-[10px] bg-nutriflow-950 text-white px-3 py-2 rounded-xl font-black transition uppercase">Próximas</button>
+                  <button id="btnTabHistorico" onclick="window.switchPatientAgendaTab('historico')" class="text-[10px] bg-nutriflow-100 text-nutriflow-900 px-3 py-2 rounded-xl font-black transition uppercase">Histórico</button>
+                </div>
+              </div>
+
+              <div id="patientTabContentAtual" class="space-y-6">
+                <div id="patientSection24h" class="hidden">
+                  <p class="text-[12px] font-black uppercase tracking-[0.15em] text-orange-600 mb-3 flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 bg-orange-500 rounded-full animate-pulse"></span> É amanhã ou hoje!
+                  </p>
+                  <div id="patientAppointment24hList" class="space-y-4"></div>
+                  <div class="border-b border-nutriflow-100 my-6"></div>
+                </div>
+                <div>
+                  <p class="text-[11px] font-bold uppercase tracking-[0.14em] text-nutriflow-400 mb-3">Consultas Agendadas</p>
+                  <div id="patientAppointmentsList" class="space-y-4"></div>
+                </div>
+              </div>
+              <div id="patientTabContentHistorico" class="hidden">
+                <p class="text-[11px] font-bold uppercase tracking-[0.14em] text-emerald-700 mb-3">Consultas Realizadas</p>
+                <div id="patientHistoryList" class="space-y-4"></div>
+              </div>
+            </article>
+          </div>
+
+          <article class="dashboard-surface dashboard-card rounded-[30px] p-6 md:p-7 flex flex-col">
             <div class="flex items-center justify-between gap-4">
               <div>
                 <span class="glass-pill">Metas nutricionais</span>
@@ -186,14 +213,12 @@
             <div id="goalsList" class="mt-6 space-y-5"></div>
             <div class="mt-8 pt-6 border-t border-nutriflow-100">
               <p class="text-xs font-bold uppercase tracking-[0.16em] text-nutriflow-600">Desafios Ativos</p>
-              <div id="activeChallengesList" class="mt-4 space-y-3">
-                <p class="text-xs text-nutriflow-500 italic">Nenhum desafio ativo no momento.</p>
-              </div>
+              <div id="activeChallengesList" class="mt-4 space-y-3"></div>
             </div>
-            <div class="mt-8 grid gap-4">
+            <div class="mt-auto pt-8">
               <div class="rounded-[24px] border border-nutriflow-300 bg-nutriflow-50 p-4">
                 <p class="text-xs font-bold uppercase tracking-[0.16em] text-nutriflow-700">Foco principal</p>
-                <p id="goalFocusTitle" class="mt-3 text-lg font-semibold tracking-[-0.03em]">Aguardando carregamento...</p>
+                <p id="goalFocusTitle" class="mt-3 text-lg font-semibold tracking-[-0.03em]">Carregando foco...</p>
               </div>
             </div>
           </article>

@@ -23,7 +23,12 @@ const state = {
   selectedPatientId: null,
   activeFilterId: null, // Novo: Guarda se estamos filtrando a tela por um paciente
   activeChallengeId: null, // Para adicionar pacientes a desafios
-  mealPlans: [], assessments: [], appointments: [], challenges: [], messages: [], foods: [], reminders: []
+  mealPlans: [], assessments: [], appointments: [], challenges: [], messages: [], foods: [], reminders: [],
+  chatPatientId: null,
+  activeConversation: null,
+  lastConversationSignature: '',
+  isSendingChatMessage: false,
+  isLoadingConversation: false,
 };
 
 const APPOINTMENT_STATUS_LABELS = {
@@ -35,8 +40,115 @@ const APPOINTMENT_STATUS_LABELS = {
 
 const toast = document.getElementById('nutritionistToast');
 const toastController = createToastController(toast, { duration: 3000 });
+const chatModal = document.getElementById('floatingChat');
+const chatMessages = document.getElementById('chatMessages');
+const chatForm = document.getElementById('chatForm');
+const chatInput = document.getElementById('chatInput');
+const chatSubmitButton = document.getElementById('chatSubmitBtn');
+const chatPatientSelect = document.getElementById('chatPatientSelect');
+let nutritionistChatSyncIntervalId = null;
+let nutritionistChatSyncInFlight = false;
+
+if (chatInput) {
+  chatInput.maxLength = 500;
+}
+
 function showToast(message) { toastController.show(message); }
 function ensureNutritionistAccess() { return session.ensureAuthenticated(); }
+
+function getChatConversationMetaElement() {
+  let element = document.getElementById('chatConversationMeta');
+
+  if (element) {
+    return element;
+  }
+
+  const headerGroup = document.querySelector('#floatingChat h3')?.parentElement;
+
+  if (!headerGroup) {
+    return null;
+  }
+
+  element = document.createElement('p');
+  element.id = 'chatConversationMeta';
+  element.className = 'mt-1 text-[11px] text-white/65';
+  headerGroup.appendChild(element);
+  return element;
+}
+
+function clearActiveConversation() {
+  state.activeConversation = null;
+  state.lastConversationSignature = '';
+}
+
+function ensureValidPatientSelections() {
+  const patientIds = new Set(state.patients.map((patient) => patient.id));
+
+  if (!state.patients.length) {
+    state.selectedPatientId = null;
+    state.activeFilterId = null;
+    state.chatPatientId = null;
+    clearActiveConversation();
+    return;
+  }
+
+  if (!patientIds.has(state.selectedPatientId)) {
+    state.selectedPatientId = state.patients[0].id;
+  }
+
+  if (state.activeFilterId && !patientIds.has(state.activeFilterId)) {
+    state.activeFilterId = null;
+  }
+
+  if (!patientIds.has(state.chatPatientId)) {
+    state.chatPatientId = state.selectedPatientId;
+    clearActiveConversation();
+  }
+
+  if (state.activeConversation && state.activeConversation.patient?.id !== state.chatPatientId) {
+    clearActiveConversation();
+  }
+}
+
+function getChatPatient() {
+  return state.patients.find((patient) => patient.id === state.chatPatientId) || null;
+}
+
+function buildConversationSignature(conversation) {
+  const messages = Array.isArray(conversation?.messages) ? conversation.messages : [];
+  const latestMessage = messages[messages.length - 1] || null;
+
+  return JSON.stringify({
+    patientId: conversation?.patient?.id || '',
+    count: messages.length,
+    latestId: latestMessage?.id || '',
+    latestRole: latestMessage?.senderRole || '',
+    latestTime: latestMessage?.timeLabel || '',
+    pendingMessages: conversation?.patient?.pendingMessages || 0,
+  });
+}
+
+function updateChatPatientSummary(conversation) {
+  const patient = state.patients.find((item) => item.id === conversation?.patient?.id);
+
+  if (!patient || !conversation?.patient) {
+    return;
+  }
+
+  patient.pendingMessages = conversation.patient.pendingMessages || 0;
+  patient.lastMessageTime = conversation.patient.latestMessageTime || '';
+}
+
+async function fetchConversation(patientId) {
+  return apiRequest(`/api/nutritionist/conversation?patientId=${encodeURIComponent(patientId)}`);
+}
+
+async function sendNutritionistChatMessage(payload) {
+  return apiRequest('/api/nutritionist/messages', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
 
 // BUSCANDO DADOS 
 async function fetchDatabaseData() {
@@ -51,10 +163,9 @@ async function fetchDatabaseData() {
     state.messages = data.messages || [];
     state.foods = data.foods || [];
 
-    if (state.patients.length > 0 && !state.selectedPatientId) {
-      state.selectedPatientId = state.patients[0].id;
-    }
+    ensureValidPatientSelections();
     renderAll();
+    await syncNutritionistRealtimeChat({ forceRender: true, allowHidden: true, silent: true });
   } catch (error) { showToast('Erro ao conectar ao banco de dados.'); }
 }
 
@@ -64,6 +175,7 @@ function renderAll() {
   renderSelectedPatient();
   renderGeneralLists();
   populatePatientSelects();
+  renderChatPanel();
 }
 
 function renderHeader() {
@@ -88,6 +200,13 @@ function renderPatientsList() {
     const patientName = patient.name || 'Paciente';
     const isSelected = patient.id === state.selectedPatientId;
     const isFiltered = patient.id === state.activeFilterId;
+    const pendingMessages = Number(patient.pendingMessages || 0);
+    const pendingBadge = pendingMessages > 0
+      ? `<span class="inline-flex rounded-full bg-amber-100 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-amber-700">${pendingMessages} nova${pendingMessages === 1 ? '' : 's'}</span>`
+      : '';
+    const lastMessageTime = patient.lastMessageTime
+      ? `<span class="text-[11px] font-semibold text-nutriflow-500">Chat ${escapeHtml(patient.lastMessageTime)}</span>`
+      : '';
     
     const row = document.createElement('div');
     row.className = `p-4 flex items-center justify-between hover:bg-nutriflow-50 cursor-pointer transition ${isSelected ? 'bg-nutriflow-50 border-l-4 border-nutriflow-500' : ''} ${isFiltered ? 'ring-2 ring-nutriflow-200' : ''}`;
@@ -96,7 +215,8 @@ function renderPatientsList() {
       <div class="flex items-center gap-3">
         <div class="grid h-10 w-10 place-items-center rounded-xl bg-nutriflow-100 text-sm font-bold text-nutriflow-900">${getInitials(patientName)}</div>
         <div>
-          <p class="font-bold text-nutriflow-950 text-sm">${patientName}</p>
+          <p class="font-bold text-nutriflow-950 text-sm">${escapeHtml(patientName)}</p>
+          <div class="mt-1 flex flex-wrap gap-2">${pendingBadge}${lastMessageTime}</div>
           <p class="text-xs text-nutriflow-600">${patient.objective || 'Em avaliação'}</p>
         </div>
       </div>
@@ -107,7 +227,10 @@ function renderPatientsList() {
       if (!e.target.closest('button')) {
         state.selectedPatientId = patient.id;
         state.activeFilterId = patient.id; // Ativa o filtro para este paciente!
+        state.chatPatientId = patient.id;
+        clearActiveConversation();
         renderAll(); // Re-renderiza a tela para aplicar o filtro
+        void syncNutritionistRealtimeChat({ forceRender: true, allowHidden: true, silent: true });
       }
     });
     list.appendChild(row);
@@ -116,11 +239,21 @@ function renderPatientsList() {
 
 function renderSelectedPatient() {
   const patient = state.patients.find(p => p.id === state.selectedPatientId);
-  if (!patient) return;
+
+  if (!patient) {
+    document.getElementById('selectedPatientName').textContent = 'Nenhum selecionado';
+    document.getElementById('selectedPatientWeight').textContent = '--';
+    document.getElementById('selectedPatientHeight').textContent = '--';
+    document.getElementById('selectedPatientBodyFat').textContent = '--';
+    document.getElementById('selectedPatientViewButton').onclick = null;
+    document.getElementById('btnClearSelection')?.classList.add('hidden');
+    return;
+  }
   
   document.getElementById('selectedPatientName').textContent = patient.name;
   document.getElementById('selectedPatientWeight').textContent = patient.weight ? `${patient.weight}kg` : '--';
   document.getElementById('selectedPatientHeight').textContent = patient.height ? `${patient.height}m` : '--';
+  document.getElementById('selectedPatientBodyFat').textContent = patient.bodyFat ? `${patient.bodyFat}%` : '--';
   document.getElementById('selectedPatientViewButton').onclick = () => window.openPatientProfile(patient.id);
 
   const clearBtn = document.getElementById('btnClearSelection');
@@ -151,6 +284,38 @@ function renderPatientProfileModal(patient) {
       : patientAssessments.length
         ? patientAssessments.slice(0, 3).map(a => `<span class="bg-white border px-3 py-1 rounded-lg text-sm font-bold text-nutriflow-950">${a.weight}kg</span>`).join('')
       : '<span class="text-xs text-nutriflow-500 font-bold">Sem registros</span>';
+  }
+
+  const bodyMeasurements = patient.bodyMeasurements || { latest: [], history: [] };
+  const measurementsContainer = document.getElementById('patientProfileBodyMeasurements');
+  if (measurementsContainer) {
+    measurementsContainer.innerHTML = bodyMeasurements.latest?.length
+      ? bodyMeasurements.latest.map((measurement) => `
+          <div class="rounded-xl border border-nutriflow-100 bg-nutriflow-50 px-3 py-3">
+            <p class="text-[11px] font-bold uppercase tracking-[0.12em] text-nutriflow-500">${escapeHtml(measurement.label)}</p>
+            <p class="mt-2 text-base font-bold text-nutriflow-950">${escapeHtml(measurement.valueLabel)}</p>
+            <p class="text-[11px] text-nutriflow-500">${escapeHtml(measurement.dateLabel)}</p>
+          </div>
+        `).join('')
+      : '<p class="text-xs text-nutriflow-500">Nenhuma medida corporal registrada ainda.</p>';
+  }
+
+  const measurementsHistoryContainer = document.getElementById('patientProfileBodyMeasurementHistory');
+  if (measurementsHistoryContainer) {
+    measurementsHistoryContainer.innerHTML = bodyMeasurements.history?.length
+      ? bodyMeasurements.history.map((group) => `
+          <div class="rounded-xl border border-nutriflow-100 bg-nutriflow-50 px-3 py-3">
+            <p class="text-xs font-bold uppercase tracking-[0.12em] text-nutriflow-500">${escapeHtml(group.dateLabel)}</p>
+            <div class="mt-2 flex flex-wrap gap-2">
+              ${group.items.map((measurement) => `
+                <span class="rounded-full border border-white bg-white px-3 py-1 text-xs font-bold text-nutriflow-950">
+                  ${escapeHtml(measurement.label)}: ${escapeHtml(measurement.valueLabel)}
+                </span>
+              `).join('')}
+            </div>
+          </div>
+        `).join('')
+      : '<p class="text-xs text-nutriflow-500">Sem historico de medidas complementares por enquanto.</p>';
   }
 
   const mealsList = document.getElementById('patientProfileMealsList');
@@ -197,6 +362,96 @@ function buildMealTimeOptions(selectedMealTime = 'Almoco') {
   return MEAL_PLAN_MEAL_TIMES.map((mealTime) => `
     <option value="${mealTime}" ${mealTime === selectedMealTime ? 'selected' : ''}>${mealTime}</option>
   `).join('');
+}
+
+function toDateInputValue(date = new Date()) {
+  const baseDate = date instanceof Date ? date : new Date(date || Date.now());
+  const timezoneOffset = baseDate.getTimezoneOffset() * 60000;
+  return new Date(baseDate.getTime() - timezoneOffset).toISOString().slice(0, 10);
+}
+
+function getSelectedPatient() {
+  return state.patients.find((patient) => patient.id === state.selectedPatientId) || state.patients[0] || null;
+}
+
+function getAssessmentMeasurementsPayload(options = {}) {
+  const allowIncomplete = options.allowIncomplete === true;
+
+  return Array.from(document.querySelectorAll('[data-assessment-measurement-row]')).map((row) => {
+    const label = row.querySelector('[data-assessment-measurement-label]')?.value || '';
+    const value = row.querySelector('[data-assessment-measurement-value]')?.value || '';
+    const unit = row.querySelector('[data-assessment-measurement-unit]')?.value || '';
+
+    return {
+      label: label.trim(),
+      value: value.trim(),
+      unit: unit.trim(),
+    };
+  }).filter((measurement) => (
+    allowIncomplete
+      ? (measurement.label || measurement.value || measurement.unit)
+      : (measurement.label && measurement.value)
+  ));
+}
+
+function addAssessmentMeasurementRow(measurement = {}) {
+  const list = document.getElementById('assessmentMeasurementsList');
+
+  if (!list) {
+    return;
+  }
+
+  const row = document.createElement('div');
+  row.className = 'grid gap-2 rounded-lg border border-white bg-white p-2 shadow-sm md:grid-cols-[1.2fr_140px_110px_auto]';
+  row.dataset.assessmentMeasurementRow = 'true';
+  row.innerHTML = `
+    <input class="rounded-lg border border-nutriflow-200 px-3 py-2 text-sm font-bold" data-assessment-measurement-label type="text" maxlength="40" placeholder="Ex: Cintura" value="${escapeHtml(measurement.label || '')}" />
+    <input class="rounded-lg border border-nutriflow-200 px-3 py-2 text-sm font-bold" data-assessment-measurement-value type="number" min="0.1" max="500" step="0.1" placeholder="82.5" value="${escapeHtml(String(measurement.value || ''))}" />
+    <input class="rounded-lg border border-nutriflow-200 px-3 py-2 text-sm font-bold" data-assessment-measurement-unit type="text" maxlength="12" placeholder="cm" value="${escapeHtml(measurement.unit || 'cm')}" />
+    <button class="rounded-lg border border-red-100 px-3 py-2 text-xs font-bold text-red-500" type="button" data-remove-assessment-measurement>Remover</button>
+  `;
+
+  row.querySelector('[data-remove-assessment-measurement]')?.addEventListener('click', () => {
+    row.remove();
+  });
+
+  list.appendChild(row);
+}
+
+function resetAssessmentForm() {
+  document.getElementById('assessmentForm')?.reset();
+
+  const patient = getSelectedPatient();
+  const patientSelect = document.getElementById('assessmentPatient');
+  const dateInput = document.getElementById('assessmentDate');
+  const weightInput = document.getElementById('assessmentWeight');
+  const heightInput = document.getElementById('assessmentHeight');
+  const bodyFatInput = document.getElementById('assessmentBodyFat');
+  const measurementsList = document.getElementById('assessmentMeasurementsList');
+
+  if (patientSelect && patient?.id) {
+    patientSelect.value = patient.id;
+  }
+
+  if (dateInput) {
+    dateInput.value = toDateInputValue(new Date());
+  }
+
+  if (weightInput) {
+    weightInput.value = patient?.weight || '';
+  }
+
+  if (heightInput) {
+    heightInput.value = patient?.height || '';
+  }
+
+  if (bodyFatInput) {
+    bodyFatInput.value = patient?.bodyFat || '';
+  }
+
+  if (measurementsList) {
+    measurementsList.innerHTML = '';
+  }
 }
 
 function getMealPlanItemsPayload(options = {}) {
@@ -287,6 +542,233 @@ function resetMealPlanBuilder(plan = null) {
   updateMealPlanTotals();
 }
 
+function getPendingMessagesLabel(count) {
+  if (!count) {
+    return 'Conversa em dia.';
+  }
+
+  return count === 1
+    ? '1 mensagem aguardando resposta.'
+    : `${count} mensagens aguardando resposta.`;
+}
+
+function syncChatComposerState(patient) {
+  const isLoadingLocked = state.isLoadingConversation && !state.activeConversation;
+  const isDisabled = !patient || state.isSendingChatMessage || isLoadingLocked;
+
+  if (chatInput) {
+    chatInput.disabled = isDisabled;
+    chatInput.placeholder = patient
+      ? `Responder ${patient.name}...`
+      : 'Selecione um paciente para iniciar o chat';
+  }
+
+  if (chatSubmitButton) {
+    chatSubmitButton.disabled = isDisabled;
+    chatSubmitButton.textContent = state.isSendingChatMessage ? 'Enviando...' : 'Enviar';
+    chatSubmitButton.classList.toggle('opacity-50', isDisabled);
+    chatSubmitButton.classList.toggle('cursor-not-allowed', isDisabled);
+  }
+}
+
+function renderChatPanel(options = {}) {
+  const patient = getChatPatient();
+  const conversation = state.activeConversation;
+  const messages = Array.isArray(conversation?.messages) ? conversation.messages : [];
+  const metaElement = getChatConversationMetaElement();
+
+  if (chatPatientSelect && chatPatientSelect.value !== (state.chatPatientId || '')) {
+    chatPatientSelect.value = state.chatPatientId || '';
+  }
+
+  if (metaElement) {
+    if (!patient) {
+      metaElement.textContent = 'Selecione um paciente para carregar a conversa.';
+    } else if (state.isLoadingConversation && !conversation) {
+      metaElement.textContent = `Carregando conversa com ${patient.name}...`;
+    } else if (conversation?.patient?.pendingMessages) {
+      metaElement.textContent = getPendingMessagesLabel(conversation.patient.pendingMessages);
+    } else if (conversation?.patient?.latestMessageTime) {
+      metaElement.textContent = `Ultima atividade: ${conversation.patient.latestMessageTime}`;
+    } else {
+      metaElement.textContent = `Sem mensagens com ${patient.name} ainda.`;
+    }
+  }
+
+  syncChatComposerState(patient);
+
+  if (!chatMessages) {
+    return;
+  }
+
+  if (!patient) {
+    chatMessages.innerHTML = '<p class="mt-10 text-center text-xs text-nutriflow-500">Selecione um paciente para iniciar.</p>';
+    return;
+  }
+
+  if (state.isLoadingConversation && !conversation) {
+    chatMessages.innerHTML = '<p class="mt-10 text-center text-xs font-bold uppercase tracking-[0.12em] text-nutriflow-500">Carregando conversa...</p>';
+    return;
+  }
+
+  if (!messages.length) {
+    chatMessages.innerHTML = `
+      <div class="rounded-[24px] border border-dashed border-nutriflow-200 bg-white p-5 text-sm leading-7 text-nutriflow-600">
+        Nenhuma mensagem com ${escapeHtml(patient.name)} ainda. Use o campo abaixo para iniciar a conversa.
+      </div>
+    `;
+    return;
+  }
+
+  chatMessages.innerHTML = messages.map((message) => {
+    const isNutritionistMessage = message.senderRole === 'NUTRITIONIST';
+    const senderName = message.senderName || (isNutritionistMessage ? state.currentUser?.name : patient.name);
+
+    return `
+      <div class="chat-row${isNutritionistMessage ? ' is-user' : ''}">
+        ${isNutritionistMessage ? '' : `<div class="chat-avatar">${escapeHtml(getInitials(patient.name))}</div>`}
+        <div class="chat-bubble${isNutritionistMessage ? ' is-user' : ''}">
+          <p class="${isNutritionistMessage ? 'text-xs font-semibold uppercase tracking-[0.14em] text-white/60' : 'text-xs font-semibold uppercase tracking-[0.14em] text-nutriflow-500'}">
+            ${escapeHtml(senderName)} - ${escapeHtml(message.timeLabel || 'agora')}
+          </p>
+          <p class="mt-2 text-sm leading-7">${escapeHtml(message.content)}</p>
+          ${!isNutritionistMessage && message.pending ? '<span class="mt-2 inline-flex rounded-full bg-amber-100 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-amber-700">Aguardando resposta</span>' : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  if (options.scrollToEnd !== false) {
+    window.requestAnimationFrame(() => {
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    });
+  }
+}
+
+async function syncNutritionistRealtimeChat(options = {}) {
+  const patientId = String(options.patientId || state.chatPatientId || '').trim();
+
+  if (!patientId || nutritionistChatSyncInFlight || !session.getToken() || (document.hidden && !options.allowHidden)) {
+    return;
+  }
+
+  const requestedPatientId = patientId;
+  nutritionistChatSyncInFlight = true;
+  state.isLoadingConversation = true;
+
+  if (options.forceRender) {
+    renderChatPanel();
+  }
+
+  try {
+    const conversation = await fetchConversation(requestedPatientId);
+
+    if (state.chatPatientId && state.chatPatientId !== requestedPatientId && !options.overrideSelection) {
+      return;
+    }
+
+    state.chatPatientId = requestedPatientId;
+    updateChatPatientSummary(conversation);
+
+    const nextSignature = buildConversationSignature(conversation);
+    const shouldRender = options.forceRender || nextSignature !== state.lastConversationSignature || !state.activeConversation;
+
+    state.activeConversation = conversation;
+    state.lastConversationSignature = nextSignature;
+
+    if (shouldRender) {
+      renderPatientsList();
+      renderSelectedPatient();
+      populatePatientSelects();
+      renderChatPanel();
+    }
+  } catch (error) {
+    if (!options.silent && error.message !== 'Sessao invalida.') {
+      showToast(error.message || 'Nao foi possivel carregar a conversa.');
+    }
+  } finally {
+    state.isLoadingConversation = false;
+    nutritionistChatSyncInFlight = false;
+    renderChatPanel({ scrollToEnd: false });
+  }
+}
+
+function stopNutritionistRealtimeChat() {
+  if (!nutritionistChatSyncIntervalId) {
+    return;
+  }
+
+  window.clearInterval(nutritionistChatSyncIntervalId);
+  nutritionistChatSyncIntervalId = null;
+}
+
+function startNutritionistRealtimeChat() {
+  if (nutritionistChatSyncIntervalId || !session.getToken()) {
+    return;
+  }
+
+  nutritionistChatSyncIntervalId = window.setInterval(() => {
+    void syncNutritionistRealtimeChat({ silent: true });
+  }, 3500);
+}
+
+function syncNutritionistRealtimeAvailability() {
+  if (!session.getToken()) {
+    stopNutritionistRealtimeChat();
+    return;
+  }
+
+  startNutritionistRealtimeChat();
+}
+
+async function handleNutritionistChatSubmit(event) {
+  event.preventDefault();
+
+  const patient = getChatPatient();
+  const content = chatInput?.value.trim() || '';
+
+  if (!patient) {
+    showToast('Selecione um paciente para enviar a mensagem.');
+    return;
+  }
+
+  if (!content) {
+    showToast('Digite uma mensagem para enviar.');
+    chatInput?.focus();
+    return;
+  }
+
+  state.isSendingChatMessage = true;
+  renderChatPanel();
+
+  try {
+    const result = await sendNutritionistChatMessage({
+      patientId: patient.id,
+      content,
+    });
+
+    if (chatInput) {
+      chatInput.value = '';
+    }
+
+    await syncNutritionistRealtimeChat({
+      patientId: patient.id,
+      forceRender: true,
+      allowHidden: true,
+      silent: true,
+      overrideSelection: true,
+    });
+
+    showToast(result.message || 'Resposta enviada para o paciente.');
+  } catch (error) {
+    showToast(error.message || 'Nao foi possivel enviar a resposta.');
+  } finally {
+    state.isSendingChatMessage = false;
+    renderChatPanel();
+    chatInput?.focus();
+  }
+}
+
 function renderGeneralLists() {
   const pId = state.activeFilterId;
 
@@ -315,6 +797,7 @@ function renderGeneralLists() {
         <p class="text-xs font-bold text-nutriflow-500 uppercase">${ass.patient}</p>
         <p class="text-sm font-bold text-nutriflow-950 mt-1">Peso: ${ass.weight}kg</p>
         <p class="text-xs font-semibold text-nutriflow-600">${new Date(ass.date).toLocaleDateString()}</p>
+        <p class="mt-1 text-xs text-nutriflow-500">${ass.measurements?.length ? `${ass.measurements.length} medidas registradas` : 'Sem medidas complementares'}</p>
         <button onclick="window.deleteResource('assessments', '${ass.id}')" class="absolute top-2 right-2 p-1 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition">🗑️</button>
       </div>
     `).join('') : '<p class="text-sm text-nutriflow-500">Nenhuma avaliação.</p>';
@@ -367,7 +850,15 @@ function renderGeneralLists() {
 }
 
 function populatePatientSelects() {
-  const options = state.patients.map((p) => `<option value="${p.id}">${p.name}</option>`).join('');
+  const options = state.patients.map((patient) => {
+    const pendingMessages = Number(patient.pendingMessages || 0);
+    const label = pendingMessages > 0
+      ? `${patient.name} (${pendingMessages} nova${pendingMessages === 1 ? '' : 's'})`
+      : patient.name;
+
+    return `<option value="${patient.id}">${escapeHtml(label)}</option>`;
+  }).join('');
+
   ['mealPlanPatient', 'assessmentPatient', 'appointmentPatient', 'chatPatientSelect', 'challengePatient', 'addPartPatient'].forEach(id => {
     const el = document.getElementById(id);
     if(el) {
@@ -375,7 +866,11 @@ function populatePatientSelects() {
       else if (id === 'challengePatient') el.innerHTML = '<option value="">Todos os pacientes (Geral)</option>' + options;
       else el.innerHTML = options;
       
-      if (state.selectedPatientId && id !== 'chatPatientSelect' && id !== 'challengePatient' && id !== 'addPartPatient') el.value = state.selectedPatientId;
+      if (id === 'chatPatientSelect') {
+        el.value = state.chatPatientId || '';
+      } else if (state.selectedPatientId && id !== 'challengePatient' && id !== 'addPartPatient') {
+        el.value = state.selectedPatientId;
+      }
     }
   });
 }
@@ -450,6 +945,7 @@ function closeModal(modalId) {
 
 window.openPatientProfile = function(patientId) {
   state.selectedPatientId = patientId;
+  state.chatPatientId = patientId;
   renderSelectedPatient();
   renderPatientProfileModal(state.patients.find(p => p.id === patientId));
   openModal('patientProfile');
@@ -463,7 +959,7 @@ function bindButtons() {
     resetMealPlanBuilder();
     openModal('mealPlan');
   });
-  document.getElementById('btnOpenAssessment')?.addEventListener('click', () => { document.getElementById('assessmentForm').reset(); openModal('assessment'); });
+  document.getElementById('btnOpenAssessment')?.addEventListener('click', () => { resetAssessmentForm(); openModal('assessment'); });
   document.getElementById('btnOpenAppointment')?.addEventListener('click', () => { document.getElementById('appointmentForm').reset(); openModal('appointment'); });
   document.getElementById('btnOpenChallenge')?.addEventListener('click', () => { document.getElementById('challengeForm').reset(); openModal('challenge'); });
   
@@ -474,12 +970,31 @@ function bindButtons() {
     openModal('mealPlan');
   });
   document.getElementById('btnAddMealPlanItem')?.addEventListener('click', () => addMealPlanItemRow());
-  document.getElementById('btnProfileNewAssessment')?.addEventListener('click', () => { document.getElementById('assessmentForm').reset(); openModal('assessment'); });
+  document.getElementById('btnAddAssessmentMeasurement')?.addEventListener('click', () => addAssessmentMeasurementRow());
+  document.getElementById('btnProfileNewAssessment')?.addEventListener('click', () => { resetAssessmentForm(); openModal('assessment'); });
 
   document.querySelectorAll('[data-close]').forEach(btn => {
     btn.addEventListener('click', (e) => { e.preventDefault(); closeModal(e.target.dataset.close); });
   });
   document.getElementById('logoutButton')?.addEventListener('click', () => { session.clear(); window.location.href = 'index.html'; });
+
+  chatPatientSelect?.addEventListener('change', (event) => {
+    state.chatPatientId = event.target.value || null;
+    clearActiveConversation();
+    renderChatPanel();
+
+    if (state.chatPatientId) {
+      void syncNutritionistRealtimeChat({ forceRender: true, allowHidden: true, silent: true });
+    }
+  });
+
+  chatForm?.addEventListener('submit', handleNutritionistChatSubmit);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      void syncNutritionistRealtimeChat({ forceRender: true, silent: true });
+    }
+  });
+  window.addEventListener('beforeunload', stopNutritionistRealtimeChat);
 }
 
 // INTEGRAÇÕES REAIS
@@ -521,12 +1036,16 @@ document.getElementById('mealPlanForm')?.addEventListener('submit', async (e) =>
 
 document.getElementById('assessmentForm')?.addEventListener('submit', async (e) => {
   e.preventDefault();
+  const dateValue = document.getElementById('assessmentDate').value;
+  const recordedAt = dateValue ? new Date(`${dateValue}T12:00:00`) : new Date();
   const payload = {
     patientId: document.getElementById('assessmentPatient').value,
     weight: document.getElementById('assessmentWeight').value,
     height: document.getElementById('assessmentHeight').value,
     bodyFat: document.getElementById('assessmentBodyFat').value,
-    date: new Date().toISOString()
+    notes: document.getElementById('assessmentNotes').value,
+    measurements: getAssessmentMeasurementsPayload(),
+    date: Number.isNaN(recordedAt.getTime()) ? new Date().toISOString() : recordedAt.toISOString()
   };
   try {
     await apiRequest('/api/nutritionist/assessments', { method: 'POST', body: JSON.stringify(payload) });
@@ -573,10 +1092,47 @@ document.getElementById('addParticipantForm')?.addEventListener('submit', async 
   } catch(err) { showToast('Erro ao adicionar paciente.'); }
 });
 
+// LOGIC PARA O CHAT FLUTUANTE
+function openChatModal() {
+  if (!chatModal) {
+    return;
+  }
+
+  if (!state.chatPatientId && state.selectedPatientId) {
+    state.chatPatientId = state.selectedPatientId;
+  }
+
+  chatModal.classList.remove('chat-hidden');
+  chatModal.classList.add('chat-visible');
+  renderChatPanel();
+  void syncNutritionistRealtimeChat({ forceRender: true, allowHidden: true, silent: true });
+}
+
+function closeChatModal() {
+  if (!chatModal) {
+    return;
+  }
+
+  chatModal.classList.add('chat-hidden');
+  chatModal.classList.remove('chat-visible');
+}
+
+document.getElementById('btnToggleChat')?.addEventListener('click', () => {
+  if (chatModal?.classList.contains('chat-hidden')) {
+    openChatModal();
+    return;
+  }
+
+  closeChatModal();
+});
+
+document.getElementById('btnCloseChat')?.addEventListener('click', closeChatModal);
+
 // START
 async function init() {
   if (!ensureNutritionistAccess()) return;
-  bindButtons(); 
+  bindButtons();
+  syncNutritionistRealtimeAvailability();
   await fetchDatabaseData();
 }
 init();

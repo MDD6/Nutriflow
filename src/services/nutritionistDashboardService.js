@@ -1,5 +1,14 @@
 const { AppError } = require('../errors/appError');
 const { isPatientRole } = require('../constants/roles');
+const {
+  CORE_BODY_MEASUREMENT_KEYS,
+  buildAssessmentMeasurements,
+  formatMeasurementValue,
+  getLatestMeasurementsByType,
+  groupMeasurementsByDate,
+  normalizeMeasurementKey,
+  roundMeasurementValue,
+} = require('../utils/bodyMeasurements');
 
 function normalizeEmail(value) {
   return String(value || '').trim().toLowerCase();
@@ -93,6 +102,14 @@ const APPOINTMENT_STATUSES = {
 };
 
 const ALLOWED_APPOINTMENT_STATUSES = new Set(Object.values(APPOINTMENT_STATUSES));
+const BODY_MEASUREMENT_RULES = {
+  maxItems: 12,
+  minValue: 0.1,
+  maxValue: 500,
+  maxLabelLength: 40,
+  maxUnitLength: 12,
+};
+const CHAT_MESSAGE_MAX_LENGTH = 500;
 
 function normalizeAppointmentStatus(value) {
   const normalized = normalizeText(value).toLowerCase();
@@ -158,6 +175,128 @@ function buildWeightTimeline(patientProfile) {
   return patientProfile.currentWeight
     ? [{ weight: patientProfile.currentWeight, recordedAt: new Date() }]
     : [];
+}
+
+function buildFallbackBodyMeasurements(patientProfile) {
+  if (patientProfile.assessments?.length) {
+    return patientProfile.assessments.flatMap((assessment) => buildAssessmentMeasurements({
+      weight: assessment.weight,
+      height: assessment.height,
+      bodyFat: assessment.bodyFat,
+      imc: assessment.imc,
+      recordedAt: assessment.date,
+    }).map((measurement) => ({
+      id: `${assessment.id}:${measurement.key}`,
+      ...measurement,
+    })));
+  }
+
+  if (!patientProfile.currentWeight && !patientProfile.height && !patientProfile.bodyFat) {
+    return [];
+  }
+
+  const recordedAt = patientProfile.lastAssessmentAt || patientProfile.updatedAt || new Date();
+  const imc = patientProfile.currentWeight > 0 && patientProfile.height > 0
+    ? patientProfile.currentWeight / (patientProfile.height * patientProfile.height)
+    : 0;
+
+  return buildAssessmentMeasurements({
+    weight: patientProfile.currentWeight,
+    height: patientProfile.height,
+    bodyFat: patientProfile.bodyFat,
+    imc,
+    recordedAt,
+  })
+    .filter((measurement) => measurement.value > 0)
+    .map((measurement) => ({
+      id: `profile:${measurement.key}`,
+      ...measurement,
+    }));
+}
+
+function getBodyMeasurementsTimeline(patientProfile) {
+  if (patientProfile.bodyMeasurements?.length) {
+    return patientProfile.bodyMeasurements;
+  }
+
+  return buildFallbackBodyMeasurements(patientProfile);
+}
+
+function parseAdditionalMeasurements(measurements) {
+  if (!Array.isArray(measurements)) {
+    return [];
+  }
+
+  const normalizedRows = measurements
+    .map((measurement) => ({
+      label: normalizeText(measurement?.label),
+      unit: normalizeText(measurement?.unit),
+      value: measurement?.value,
+    }))
+    .filter((measurement) => (
+      measurement.label
+      || measurement.unit
+      || String(measurement.value ?? '').trim() !== ''
+    ));
+
+  if (normalizedRows.length > BODY_MEASUREMENT_RULES.maxItems) {
+    throw new AppError(
+      `Adicione no maximo ${BODY_MEASUREMENT_RULES.maxItems} medidas complementares por avaliacao.`,
+      400,
+    );
+  }
+
+  const parsedMeasurements = [];
+  const seenKeys = new Set(CORE_BODY_MEASUREMENT_KEYS);
+
+  normalizedRows.forEach((measurement, index) => {
+    const position = index + 1;
+
+    if (!measurement.label || measurement.label.length < 2 || measurement.label.length > BODY_MEASUREMENT_RULES.maxLabelLength) {
+      throw new AppError(
+        `Informe um nome valido entre 2 e ${BODY_MEASUREMENT_RULES.maxLabelLength} caracteres para a medida ${position}.`,
+        400,
+      );
+    }
+
+    const key = normalizeMeasurementKey(measurement.label);
+
+    if (!key) {
+      throw new AppError(`Nao foi possivel identificar a medida ${position}.`, 400);
+    }
+
+    if (seenKeys.has(key)) {
+      throw new AppError(`A medida "${measurement.label}" ja foi informada nesta avaliacao.`, 400);
+    }
+
+    const parsedValue = Number(measurement.value);
+
+    if (!Number.isFinite(parsedValue) || parsedValue < BODY_MEASUREMENT_RULES.minValue || parsedValue > BODY_MEASUREMENT_RULES.maxValue) {
+      throw new AppError(
+        `O valor da medida "${measurement.label}" deve ficar entre ${BODY_MEASUREMENT_RULES.minValue} e ${BODY_MEASUREMENT_RULES.maxValue}.`,
+        400,
+      );
+    }
+
+    const unit = measurement.unit || 'cm';
+
+    if (unit.length > BODY_MEASUREMENT_RULES.maxUnitLength) {
+      throw new AppError(
+        `A unidade da medida "${measurement.label}" deve ter ate ${BODY_MEASUREMENT_RULES.maxUnitLength} caracteres.`,
+        400,
+      );
+    }
+
+    parsedMeasurements.push({
+      key,
+      label: measurement.label,
+      unit,
+      value: roundMeasurementValue(parsedValue, { key, unit }),
+    });
+    seenKeys.add(key);
+  });
+
+  return parsedMeasurements;
 }
 
 function parseMealPlanItems(items) {
@@ -337,11 +476,20 @@ class NutritionistDashboardService {
     const imc = toNumber(payload.imc, weight && height ? weight / (height * height) : 0);
     const bodyFat = toNumber(payload.bodyFat, patient.bodyFat);
     const notes = String(payload.notes || '').trim() || 'Avaliacao registrada.';
+    const extraMeasurements = parseAdditionalMeasurements(payload.measurements);
     const lastSnapshot = patient.progressSnapshots[patient.progressSnapshots.length - 1];
     const adherenceBase = lastSnapshot ? lastSnapshot.adherence : patient.progress;
     const nextAdherence = Math.min(99, Math.max(0, Math.round(adherenceBase + 3)));
     const nextProgress = Math.min(99, Math.max(patient.progress, Math.round((patient.progress + nextAdherence) / 2)));
     const snapshotLabel = `S${patient.progressSnapshots.length + 1}`;
+    const measurements = buildAssessmentMeasurements({
+      weight,
+      height,
+      bodyFat,
+      imc,
+      recordedAt: date,
+      extraMeasurements,
+    });
 
     const assessment = await this.nutritionistDashboardRepository.createAssessment({
       nutritionistId: nutritionist.id,
@@ -352,6 +500,7 @@ class NutritionistDashboardService {
       imc,
       bodyFat,
       notes,
+      measurements,
       adherence: nextAdherence,
       progress: nextProgress,
       status: nextProgress < 45 ? 'Atrasado' : 'Ativo',
@@ -483,7 +632,7 @@ class NutritionistDashboardService {
 
   async sendMessage(nutritionist, payload) {
     const patientProfileId = String(payload.patientId || '').trim();
-    const content = String(payload.content || '').trim();
+    const content = normalizeText(payload.content);
 
     if (!patientProfileId) {
       throw new AppError('Informe o paciente para enviar a mensagem.', 400);
@@ -491,6 +640,10 @@ class NutritionistDashboardService {
 
     if (!content) {
       throw new AppError('Digite uma mensagem para responder ao paciente.', 400);
+    }
+
+    if (content.length > CHAT_MESSAGE_MAX_LENGTH) {
+      throw new AppError(`A mensagem deve ter ate ${CHAT_MESSAGE_MAX_LENGTH} caracteres.`, 400);
     }
 
     const patientProfile = await this.nutritionistDashboardRepository.findPatientConversation(
@@ -716,6 +869,7 @@ class NutritionistDashboardService {
           },
         ];
     const weightTimeline = buildWeightTimeline(patientProfile);
+    const bodyMeasurements = getBodyMeasurementsTimeline(patientProfile);
 
     return {
       id: patientProfile.id,
@@ -745,6 +899,7 @@ class NutritionistDashboardService {
         date: formatShortDate(entry.recordedAt),
         note: entry.note || '',
       })),
+      bodyMeasurements: this.toBodyMeasurementsDto(bodyMeasurements),
       lastMessagePreview: latestMessage?.content || 'Sem mensagens recentes.',
       lastMessageTime: latestMessage ? formatMessageTime(latestMessage.sentAt) : '',
       pendingMessages,
@@ -797,6 +952,16 @@ class NutritionistDashboardService {
   }
 
   toAssessmentDto(assessment) {
+    const measurements = assessment.bodyMeasurements?.length
+      ? assessment.bodyMeasurements
+      : buildAssessmentMeasurements({
+          weight: assessment.weight,
+          height: assessment.height,
+          bodyFat: assessment.bodyFat,
+          imc: assessment.imc,
+          recordedAt: assessment.date,
+        });
+
     return {
       id: assessment.id,
       patientId: assessment.patientProfileId,
@@ -807,6 +972,47 @@ class NutritionistDashboardService {
       imc: assessment.imc,
       bodyFat: assessment.bodyFat,
       notes: assessment.notes,
+      measurements: this.toAssessmentMeasurementItemsDto(measurements),
+    };
+  }
+
+  toAssessmentMeasurementItemsDto(measurements) {
+    return measurements.map((measurement) => ({
+      id: measurement.id || `${measurement.key}:${measurement.recordedAt || 'assessment'}`,
+      key: measurement.key,
+      label: measurement.label,
+      unit: measurement.unit,
+      value: measurement.value,
+      valueLabel: formatMeasurementValue(measurement.value, measurement.unit, measurement.key),
+    }));
+  }
+
+  toBodyMeasurementsDto(measurements) {
+    const latestMeasurements = getLatestMeasurementsByType(measurements, 8);
+    const historyGroups = groupMeasurementsByDate(measurements, 6);
+
+    return {
+      latest: latestMeasurements.map((measurement) => ({
+        id: measurement.id,
+        key: measurement.key,
+        label: measurement.label,
+        unit: measurement.unit,
+        value: measurement.value,
+        valueLabel: formatMeasurementValue(measurement.value, measurement.unit, measurement.key),
+        dateLabel: formatShortDate(measurement.recordedAt),
+      })),
+      history: historyGroups.map((group) => ({
+        id: group.groupKey,
+        dateLabel: formatShortDate(group.recordedAt),
+        items: group.items.map((measurement) => ({
+          id: measurement.id,
+          key: measurement.key,
+          label: measurement.label,
+          unit: measurement.unit,
+          value: measurement.value,
+          valueLabel: formatMeasurementValue(measurement.value, measurement.unit, measurement.key),
+        })),
+      })),
     };
   }
 

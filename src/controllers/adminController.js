@@ -43,6 +43,12 @@ class AdminController {
     const result = await this.adminService.createFood(request.body || {});
     response.status(201).json(result);
   }
+
+  async deleteFood(request, response) {
+    await this.sessionService.requireAdmin(request);
+    const result = await this.adminService.deleteFood(request.params.foodId);
+    response.status(200).json(result);
+  }
 }
 
 module.exports = {

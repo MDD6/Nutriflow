@@ -322,4 +322,12 @@ contactForm?.addEventListener('submit', (event) => {
 });
 
 setAuthView('login');
+
+const requestedAuthView = new URLSearchParams(window.location.search).get('auth')
+  || window.location.hash.replace('#', '');
+
+if (requestedAuthView === 'login' || requestedAuthView === 'register') {
+  openModal(requestedAuthView);
+}
+
 window.NutriFlowUi?.setupSectionNavigation({ linkSelector: '.landing-nav-link' });

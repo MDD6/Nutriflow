@@ -134,10 +134,15 @@
       </div>
 
       <main class="mt-4 space-y-6 pb-6">
-        <section id="visao-geral" class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div id="adminStatusMessage" class="hidden rounded-[22px] border border-nutriflow-100 bg-white/90 px-5 py-4 text-sm font-semibold text-nutriflow-700 shadow-[0_16px_32px_rgba(28,38,24,.08)]"></div>
+
+        <section id="visao-geral" class="grid gap-4 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
           <nf-stat-card variant="admin-summary-card" label="Usuarios" value-id="summaryTotalUsers" description="Base total da plataforma"></nf-stat-card>
           <nf-stat-card variant="admin-summary-card" label="Pacientes" value-id="summaryTotalPatients" description="Contas em acompanhamento"></nf-stat-card>
           <nf-stat-card variant="admin-summary-card" label="Nutricionistas" value-id="summaryTotalNutritionists" description="Profissionais conectados"></nf-stat-card>
+          <nf-stat-card variant="admin-summary-card" label="Administradores" value-id="summaryTotalAdmins" description="Governanca da plataforma"></nf-stat-card>
+          <nf-stat-card variant="admin-summary-card" label="Usuarios ativos" value-id="summaryActiveUsers" description="Contas liberadas para uso"></nf-stat-card>
+          <nf-stat-card variant="admin-summary-card" label="Usuarios inativos" value-id="summaryBlockedUsers" description="Contas bloqueadas"></nf-stat-card>
           <nf-stat-card variant="admin-summary-card" label="Alimentos" value-id="summaryTotalFoods" description="Base nutricional cadastrada"></nf-stat-card>
         </section>
 
@@ -255,24 +260,24 @@
             <form id="foodForm" class="mt-6 grid gap-4">
               <label class="rounded-2xl border border-nutriflow-100 bg-white px-4 py-3 text-sm text-nutriflow-700">
                 <span class="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Nome</span>
-                <input id="foodName" class="w-full bg-transparent outline-none placeholder:text-nutriflow-400" type="text" placeholder="Ex: Aveia em flocos" />
+                <input id="foodName" class="w-full bg-transparent outline-none placeholder:text-nutriflow-400" type="text" placeholder="Ex: Aveia em flocos" required />
               </label>
               <div class="grid gap-4 sm:grid-cols-2">
                 <label class="rounded-2xl border border-nutriflow-100 bg-white px-4 py-3 text-sm text-nutriflow-700">
                   <span class="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Calorias</span>
-                  <input id="foodCalories" class="w-full bg-transparent outline-none" type="number" min="0" placeholder="120" />
+                  <input id="foodCalories" class="w-full bg-transparent outline-none" type="number" min="0" step="1" placeholder="120" required />
                 </label>
                 <label class="rounded-2xl border border-nutriflow-100 bg-white px-4 py-3 text-sm text-nutriflow-700">
                   <span class="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Proteina</span>
-                  <input id="foodProtein" class="w-full bg-transparent outline-none" type="number" min="0" placeholder="5" />
+                  <input id="foodProtein" class="w-full bg-transparent outline-none" type="number" min="0" step="1" placeholder="5" required />
                 </label>
                 <label class="rounded-2xl border border-nutriflow-100 bg-white px-4 py-3 text-sm text-nutriflow-700">
                   <span class="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Carboidrato</span>
-                  <input id="foodCarbs" class="w-full bg-transparent outline-none" type="number" min="0" placeholder="18" />
+                  <input id="foodCarbs" class="w-full bg-transparent outline-none" type="number" min="0" step="1" placeholder="18" required />
                 </label>
                 <label class="rounded-2xl border border-nutriflow-100 bg-white px-4 py-3 text-sm text-nutriflow-700">
                   <span class="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-nutriflow-500">Gordura</span>
-                  <input id="foodFat" class="w-full bg-transparent outline-none" type="number" min="0" placeholder="3" />
+                  <input id="foodFat" class="w-full bg-transparent outline-none" type="number" min="0" step="1" placeholder="3" required />
                 </label>
               </div>
               <button id="foodSubmitButton" class="rounded-2xl bg-nutriflow-950 px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-nutriflow-800" type="submit">Cadastrar alimento</button>

@@ -10,6 +10,7 @@ function createAdminRoutes(adminController) {
   router.delete('/users/:userId', asyncHandler(adminController.deleteUser.bind(adminController)));
   router.get('/foods', asyncHandler(adminController.getFoods.bind(adminController)));
   router.post('/foods', asyncHandler(adminController.createFood.bind(adminController)));
+  router.delete('/foods/:foodId', asyncHandler(adminController.deleteFood.bind(adminController)));
 
   return router;
 }

@@ -118,6 +118,28 @@ class AdminRepository {
       data,
     });
   }
+
+  findFoodById(foodId) {
+    return this.prisma.food.findUnique({
+      where: { id: foodId },
+    });
+  }
+
+  async countFoodUsages(foodId) {
+    const [foodLogs, mealPlanItems, mealEntryItems] = await Promise.all([
+      this.prisma.foodLog.count({ where: { foodId } }),
+      this.prisma.mealPlanItem.count({ where: { foodId } }),
+      this.prisma.mealEntryItem.count({ where: { foodId } }),
+    ]);
+
+    return foodLogs + mealPlanItems + mealEntryItems;
+  }
+
+  deleteFood(foodId) {
+    return this.prisma.food.delete({
+      where: { id: foodId },
+    });
+  }
 }
 
 module.exports = {

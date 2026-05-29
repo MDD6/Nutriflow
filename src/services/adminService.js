@@ -115,6 +115,7 @@ class AdminService {
         protein: food.protein,
         carbs: food.carbs,
         fat: food.fat,
+        createdAt: formatDate(food.createdAt),
       })),
     };
   }
@@ -143,7 +144,31 @@ class AdminService {
         protein: food.protein,
         carbs: food.carbs,
         fat: food.fat,
+        createdAt: formatDate(food.createdAt),
       },
+    };
+  }
+
+  async deleteFood(foodId) {
+    const food = await this.adminRepository.findFoodById(foodId);
+
+    if (!food) {
+      throw new AppError('Alimento nao encontrado.', 404);
+    }
+
+    const usageCount = await this.adminRepository.countFoodUsages(foodId);
+
+    if (usageCount > 0) {
+      throw new AppError(
+        'Este alimento ja esta vinculado a registros, planos ou refeicoes e nao pode ser removido sem preservar o historico.',
+        409,
+      );
+    }
+
+    await this.adminRepository.deleteFood(foodId);
+
+    return {
+      message: 'Alimento removido com sucesso.',
     };
   }
 

@@ -8,7 +8,7 @@ const {
 } = window.NutriFlowCore;
 
 const session = createSessionManager({
-  redirectTo: 'index.html',
+  redirectTo: 'index.html?auth=login',
 });
 
 const state = {
@@ -17,6 +17,8 @@ const state = {
   users: [],
   foods: [],
   isSavingFood: false,
+  isLoadingUsers: false,
+  isLoadingFoods: false,
 };
 
 const adminGlobalSearch = document.getElementById('adminGlobalSearch');
@@ -32,11 +34,13 @@ const foodsList = document.getElementById('foodsList');
 const foodSubmitButton = document.getElementById('foodSubmitButton');
 const adminToast = document.getElementById('adminToast');
 const adminLogoutButton = document.getElementById('adminLogoutButton');
+const adminStatusMessage = document.getElementById('adminStatusMessage');
 const toastController = createToastController(adminToast, { duration: 2400 });
 const apiRequest = createApiClient({
   getToken: session.getToken,
   onUnauthorized(message) {
-    showToast(message || 'Sua sessao expirou.');
+    showPanelStatus('Acesso negado. Redirecionando para login...', 'error');
+    showToast(message || 'Acesso negado. Faca login novamente.');
     window.setTimeout(clearSessionAndRedirect, 700);
   },
   invalidResponseMessage: 'Resposta invalida do servidor.',
@@ -53,6 +57,29 @@ function ensureAdminAccess() {
 
 function showToast(message) {
   toastController.show(message);
+}
+
+function showPanelStatus(message, variant = 'info') {
+  if (!adminStatusMessage || !message) {
+    return;
+  }
+
+  const baseClass = 'rounded-[22px] px-5 py-4 text-sm font-semibold shadow-[0_16px_32px_rgba(28,38,24,.08)]';
+  const variantClass = variant === 'error'
+    ? 'border border-red-200 bg-red-50 text-red-700'
+    : 'border border-nutriflow-100 bg-white/90 text-nutriflow-700';
+
+  adminStatusMessage.className = `${baseClass} ${variantClass}`;
+  adminStatusMessage.textContent = message;
+}
+
+function hidePanelStatus() {
+  if (!adminStatusMessage) {
+    return;
+  }
+
+  adminStatusMessage.classList.add('hidden');
+  adminStatusMessage.textContent = '';
 }
 
 function setTextContent(target, value) {
@@ -86,6 +113,23 @@ function formatDecimal(value) {
 function formatCount(value, singular, plural) {
   const total = toNumber(value);
   return `${total} ${total === 1 ? singular : plural}`;
+}
+
+function readRequiredNumber(inputId, label) {
+  const input = document.getElementById(inputId);
+  const rawValue = String(input?.value || '').trim();
+
+  if (!rawValue) {
+    throw new Error(`Informe ${label}.`);
+  }
+
+  const parsed = Number(rawValue);
+
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new Error(`Informe um valor valido para ${label}.`);
+  }
+
+  return Math.round(parsed);
 }
 
 function normalizeRole(profile) {
@@ -299,6 +343,9 @@ function renderSummary() {
   setTextContent('summaryTotalUsers', metrics.totalUsers);
   setTextContent('summaryTotalPatients', metrics.totalPatients);
   setTextContent('summaryTotalNutritionists', metrics.totalNutritionists);
+  setTextContent('summaryTotalAdmins', metrics.totalAdmins);
+  setTextContent('summaryActiveUsers', metrics.activeUsers);
+  setTextContent('summaryBlockedUsers', metrics.blockedUsers);
   setTextContent('summaryTotalFoods', metrics.totalFoods);
 
   setTextContent('adminSidebarUsers', metrics.activeUsers);
@@ -341,6 +388,18 @@ function renderSummary() {
   setTextContent('adminMetricExecutivePulse', recommendation.pulse);
   setTextContent('adminRecommendationTitle', recommendation.title);
   setTextContent('adminRecommendationBody', recommendation.body);
+}
+
+function setSummaryLoading() {
+  [
+    'summaryTotalUsers',
+    'summaryTotalPatients',
+    'summaryTotalNutritionists',
+    'summaryTotalAdmins',
+    'summaryActiveUsers',
+    'summaryBlockedUsers',
+    'summaryTotalFoods',
+  ].forEach((id) => setTextContent(id, '...'));
 }
 
 function renderDistribution() {
@@ -402,6 +461,38 @@ function getFilteredUsers() {
 
     return matchesSearch && matchesRole;
   });
+}
+
+function setUsersLoading(isLoading) {
+  state.isLoadingUsers = isLoading;
+
+  if (!adminUsersList || !adminEmptyUsers) {
+    return;
+  }
+
+  if (!isLoading) {
+    return;
+  }
+
+  adminEmptyUsers.classList.add('hidden');
+  adminUsersList.innerHTML = `
+    <div class="px-6 py-10 text-center text-sm font-semibold text-nutriflow-600">
+      Carregando usuarios reais do backend...
+    </div>
+  `;
+}
+
+function renderUsersError(message) {
+  if (!adminUsersList || !adminEmptyUsers) {
+    return;
+  }
+
+  adminEmptyUsers.classList.add('hidden');
+  adminUsersList.innerHTML = `
+    <div class="px-6 py-10 text-center text-sm font-semibold text-red-700">
+      ${escapeHtml(message || 'Nao foi possivel carregar os usuarios.')}
+    </div>
+  `;
 }
 
 function renderUsers() {
@@ -475,6 +566,8 @@ function renderUsers() {
 
   adminUsersList.querySelectorAll('[data-toggle-user]').forEach((button) => {
     button.addEventListener('click', async () => {
+      button.disabled = true;
+
       try {
         await apiRequest(`/api/admin/users/${button.dataset.toggleUser}/status`, {
           method: 'PATCH',
@@ -482,26 +575,43 @@ function renderUsers() {
             isActive: button.dataset.nextStatus === 'true',
           }),
         });
-        await refreshUsers();
-        await refreshSummary();
+        await Promise.all([refreshUsers(), refreshSummary()]);
+        hidePanelStatus();
         showToast('Status do usuario atualizado.');
       } catch (error) {
+        showPanelStatus(error.message, 'error');
         showToast(error.message);
+      } finally {
+        button.disabled = false;
       }
     });
   });
 
   adminUsersList.querySelectorAll('[data-delete-user]').forEach((button) => {
     button.addEventListener('click', async () => {
+      const user = state.users.find((candidate) => candidate.id === button.dataset.deleteUser);
+      const confirmed = window.confirm(
+        `Remover ${user?.name || 'este usuario'}? Esta acao nao pode ser desfeita.`,
+      );
+
+      if (!confirmed) {
+        return;
+      }
+
+      button.disabled = true;
+
       try {
         await apiRequest(`/api/admin/users/${button.dataset.deleteUser}`, {
           method: 'DELETE',
         });
-        await refreshUsers();
-        await refreshSummary();
+        await Promise.all([refreshUsers(), refreshSummary()]);
+        hidePanelStatus();
         showToast('Usuario removido com sucesso.');
       } catch (error) {
+        showPanelStatus(error.message, 'error');
         showToast(error.message);
+      } finally {
+        button.disabled = false;
       }
     });
   });
@@ -529,6 +639,36 @@ function getFoodMacroShare(food) {
     carbsWidth: Math.round((carbs / total) * 100),
     fatWidth: Math.round((fat / total) * 100),
   };
+}
+
+function setFoodsLoading(isLoading) {
+  state.isLoadingFoods = isLoading;
+
+  if (!foodsList) {
+    return;
+  }
+
+  if (!isLoading) {
+    return;
+  }
+
+  foodsList.innerHTML = `
+    <div class="rounded-[22px] border border-dashed border-nutriflow-200 bg-white p-4 text-sm font-semibold text-nutriflow-600 md:col-span-2">
+      Carregando alimentos reais do backend...
+    </div>
+  `;
+}
+
+function renderFoodsError(message) {
+  if (!foodsList) {
+    return;
+  }
+
+  foodsList.innerHTML = `
+    <div class="rounded-[22px] border border-red-100 bg-red-50 p-4 text-sm font-semibold text-red-700 md:col-span-2">
+      ${escapeHtml(message || 'Nao foi possivel carregar os alimentos.')}
+    </div>
+  `;
 }
 
 function renderFoods() {
@@ -562,7 +702,11 @@ function renderFoods() {
   }
 
   if (!foods.length) {
-    foodsList.innerHTML = '<div class="rounded-[22px] border border-dashed border-nutriflow-200 bg-white p-4 text-sm text-nutriflow-600 md:col-span-2">Nenhum alimento encontrado para o filtro atual.</div>';
+    const emptyMessage = allFoods.length
+      ? 'Nenhum alimento encontrado para o filtro atual.'
+      : 'Nenhum alimento cadastrado ainda. Use o formulario ao lado para criar o primeiro item da base nutricional.';
+
+    foodsList.innerHTML = `<div class="rounded-[22px] border border-dashed border-nutriflow-200 bg-white p-4 text-sm text-nutriflow-600 md:col-span-2">${emptyMessage}</div>`;
     return;
   }
 
@@ -574,9 +718,12 @@ function renderFoods() {
         <div class="admin-food-card-header">
           <div>
             <strong>${escapeHtml(food.name)}</strong>
-            <span>Distribuicao estimada de macros por porcao cadastrada.</span>
+            <span>Cadastrado em ${escapeHtml(food.createdAt || 'data nao informada')}.</span>
           </div>
-          <span class="admin-food-chip">${escapeHtml(String(food.calories))} kcal</span>
+          <div class="flex shrink-0 flex-col items-end gap-2">
+            <span class="admin-food-chip">${escapeHtml(String(food.calories))} kcal</span>
+            <button class="rounded-full bg-[#fff1f1] px-3 py-2 text-xs font-semibold text-[#a74242]" type="button" data-delete-food="${escapeHtml(food.id)}">Remover</button>
+          </div>
         </div>
         <div class="admin-food-meters">
           <div class="admin-food-meter">
@@ -604,30 +751,89 @@ function renderFoods() {
       </article>
     `;
   }).join('');
+
+  foodsList.querySelectorAll('[data-delete-food]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const food = state.foods.find((candidate) => candidate.id === button.dataset.deleteFood);
+      const confirmed = window.confirm(
+        `Remover ${food?.name || 'este alimento'} do catalogo? Esta acao nao pode ser desfeita.`,
+      );
+
+      if (!confirmed) {
+        return;
+      }
+
+      button.disabled = true;
+
+      try {
+        await apiRequest(`/api/admin/foods/${button.dataset.deleteFood}`, {
+          method: 'DELETE',
+        });
+        await Promise.all([refreshFoods(), refreshSummary()]);
+        hidePanelStatus();
+        showToast('Alimento removido com sucesso.');
+      } catch (error) {
+        showPanelStatus(error.message, 'error');
+        showToast(error.message);
+      } finally {
+        button.disabled = false;
+      }
+    });
+  });
 }
 
-async function refreshSummary() {
+async function refreshSummary({ showLoading = false } = {}) {
+  if (showLoading) {
+    setSummaryLoading();
+  }
+
   const payload = await apiRequest('/api/admin/summary');
-  state.summary = payload.summary;
-  state.currentUser = payload.admin;
-  session.persistUser(payload.admin);
-  setHeader(payload.admin);
+  state.summary = payload.summary || {};
+
+  if (payload.admin) {
+    state.currentUser = payload.admin;
+    session.persistUser(payload.admin);
+    setHeader(payload.admin);
+  }
+
   renderSummary();
 }
 
-async function refreshUsers() {
-  const payload = await apiRequest('/api/admin/users');
-  state.users = Array.isArray(payload.users) ? payload.users.map((user) => ({
-    ...user,
-    role: normalizeRole(user.role || user.profile),
-  })) : [];
-  renderUsers();
+async function refreshUsers({ showLoading = false } = {}) {
+  if (showLoading) {
+    setUsersLoading(true);
+  }
+
+  try {
+    const payload = await apiRequest('/api/admin/users');
+    state.users = Array.isArray(payload.users) ? payload.users.map((user) => ({
+      ...user,
+      role: normalizeRole(user.role || user.profile),
+    })) : [];
+    renderUsers();
+  } catch (error) {
+    renderUsersError(error.message);
+    throw error;
+  } finally {
+    state.isLoadingUsers = false;
+  }
 }
 
-async function refreshFoods() {
-  const payload = await apiRequest('/api/admin/foods');
-  state.foods = Array.isArray(payload.foods) ? payload.foods : [];
-  renderFoods();
+async function refreshFoods({ showLoading = false } = {}) {
+  if (showLoading) {
+    setFoodsLoading(true);
+  }
+
+  try {
+    const payload = await apiRequest('/api/admin/foods');
+    state.foods = Array.isArray(payload.foods) ? payload.foods : [];
+    renderFoods();
+  } catch (error) {
+    renderFoodsError(error.message);
+    throw error;
+  } finally {
+    state.isLoadingFoods = false;
+  }
 }
 
 async function handleFoodSubmit(event) {
@@ -638,13 +844,23 @@ async function handleFoodSubmit(event) {
   }
 
   const name = document.getElementById('foodName').value.trim();
-  const calories = document.getElementById('foodCalories').value.trim();
-  const protein = document.getElementById('foodProtein').value.trim();
-  const carbs = document.getElementById('foodCarbs').value.trim();
-  const fat = document.getElementById('foodFat').value.trim();
+  let calories;
+  let protein;
+  let carbs;
+  let fat;
 
   if (!name) {
     showToast('Informe o nome do alimento.');
+    return;
+  }
+
+  try {
+    calories = readRequiredNumber('foodCalories', 'as calorias');
+    protein = readRequiredNumber('foodProtein', 'a proteina');
+    carbs = readRequiredNumber('foodCarbs', 'os carboidratos');
+    fat = readRequiredNumber('foodFat', 'as gorduras');
+  } catch (error) {
+    showToast(error.message);
     return;
   }
 
@@ -661,10 +877,11 @@ async function handleFoodSubmit(event) {
       body: JSON.stringify({ name, calories, protein, carbs, fat }),
     });
     foodForm.reset();
-    await refreshFoods();
-    await refreshSummary();
+    await Promise.all([refreshFoods(), refreshSummary()]);
+    hidePanelStatus();
     showToast('Alimento cadastrado com sucesso.');
   } catch (error) {
+    showPanelStatus(error.message, 'error');
     showToast(error.message);
   } finally {
     state.isSavingFood = false;
@@ -722,16 +939,24 @@ async function init() {
 
   initStaticUi();
   bindEvents();
+  showPanelStatus('Carregando dados reais do backend administrativo...');
 
-  try {
-    await refreshSummary();
-    await Promise.all([
-      refreshUsers(),
-      refreshFoods(),
-    ]);
-  } catch (error) {
-    showToast(error.message || 'Nao foi possivel carregar o painel admin.');
+  const results = await Promise.allSettled([
+    refreshSummary({ showLoading: true }),
+    refreshUsers({ showLoading: true }),
+    refreshFoods({ showLoading: true }),
+  ]);
+
+  const rejected = results.find((result) => result.status === 'rejected');
+
+  if (rejected) {
+    const message = rejected.reason?.message || 'Nao foi possivel carregar o painel admin.';
+    showPanelStatus(message, 'error');
+    showToast(message);
+    return;
   }
+
+  hidePanelStatus();
 }
 
 void init();

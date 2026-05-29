@@ -110,6 +110,56 @@
       </header>
 
       <main class="mt-6 space-y-6 pb-6">
+        <section class="dashboard-hero-grid patient-hero-grid">
+          <article class="dashboard-surface dashboard-card premium-hero-card patient-premium-hero rounded-[34px] p-6 md:p-7">
+            <div class="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+              <div class="max-w-3xl">
+                <span class="glass-pill">Jornada do paciente</span>
+                <h2 id="patientExperienceTitle" class="mt-5 text-3xl font-extrabold tracking-[-0.06em] md:text-4xl">Seu cuidado nutricional com mais clareza</h2>
+                <p id="patientExperienceSubtitle" class="mt-4 max-w-2xl text-sm leading-7 text-nutriflow-700 md:text-[15px]">Acompanhe o que importa agora, com contexto clinico e ritmo diario em um so lugar.</p>
+              </div>
+              <div class="premium-orb-cluster" aria-hidden="true">
+                <span class="premium-orb is-emerald"></span>
+                <span class="premium-orb is-blue"></span>
+                <span class="premium-orb is-gold"></span>
+              </div>
+            </div>
+
+            <div class="mt-8 grid gap-3 md:grid-cols-3">
+              <article class="premium-info-chip">
+                <span>Plano ativo</span>
+                <strong id="patientExperiencePlan">Sem plano ativo</strong>
+              </article>
+              <article class="premium-info-chip">
+                <span>Proxima consulta</span>
+                <strong id="patientExperienceAppointment">Sem agenda</strong>
+              </article>
+              <article class="premium-info-chip">
+                <span>Nutricionista</span>
+                <strong id="patientExperienceNutritionist">Sem vinculo</strong>
+              </article>
+            </div>
+          </article>
+
+          <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
+            <article class="dashboard-highlight-card is-dark rounded-[30px] p-5">
+              <p>Aderencia do dia</p>
+              <strong id="patientHeroAdherence">0%</strong>
+              <span id="patientHeroAdherenceMeta">Sem registros suficientes por enquanto.</span>
+            </article>
+            <article class="dashboard-highlight-card rounded-[30px] p-5">
+              <p>Ritmo de refeicoes</p>
+              <strong id="patientHeroMealTarget">0</strong>
+              <span id="patientHeroMealMeta">Meta diaria ainda indisponivel.</span>
+            </article>
+            <article class="dashboard-highlight-card rounded-[30px] p-5">
+              <p>Status do chat</p>
+              <strong id="patientHeroChatStatus">Sem historico</strong>
+              <span id="patientHeroChatMeta">Abra o chat para alinhar ajustes com sua nutricionista.</span>
+            </article>
+          </div>
+        </section>
+
         <section id="visao-geral" class="grid gap-6   2xl:grid-cols-[1.2fr_.8fr]">
           <article class="dashboard-surface dashboard-card rounded-[30px] p-6 md:p-7">
             <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
@@ -170,6 +220,10 @@
                       <p class="text-sm font-bold text-nutriflow-700">Consumo dos últimos 7 dias</p>
                       <p id="weeklyCaloriesHeadline" class="mt-2 text-lg font-semibold tracking-[-0.04em]">Carregando comportamento...</p>
                     </div>
+                    <div class="premium-inline-kpi">
+                      <span>Ritmo</span>
+                      <strong id="weeklyTrendPercent">0%</strong>
+                    </div>
                   </div>
                   <div id="weeklyCaloriesChart" class="mt-6"></div>
                 </article>
@@ -195,6 +249,10 @@
               <div class="rounded-[24px] border border-nutriflow-300 bg-nutriflow-50 p-4">
                 <p class="text-xs font-bold uppercase tracking-[0.16em] text-nutriflow-700">Foco principal</p>
                 <p id="goalFocusTitle" class="mt-3 text-lg font-semibold tracking-[-0.03em]">Aguardando carregamento...</p>
+              </div>
+              <div class="rounded-[24px] border border-nutriflow-200 bg-white p-4">
+                <p class="text-xs font-bold uppercase tracking-[0.16em] text-nutriflow-600">Observacao clinica</p>
+                <p id="clinicalObservationNote" class="mt-3 text-sm leading-7 text-nutriflow-700">Sem observacoes clinicas registradas ate o momento.</p>
               </div>
             </div>
           </article>
@@ -275,10 +333,11 @@
                 <div class="rounded-[22px] border border-nutriflow-200 bg-white p-4"><p class="text-sm font-bold text-nutriflow-600">Meta</p><p id="targetWeightValue" class="mt-2 text-2xl font-bold text-nutriflow-950">--</p></div>
                 <div class="rounded-[22px] border border-nutriflow-200 bg-white p-4"><p class="text-sm font-bold text-nutriflow-600">Variação</p><p id="weightVariationValue" class="mt-2 text-2xl font-bold text-nutriflow-950">--</p></div>
               </div>
-              <div class="mt-4 grid gap-4 sm:grid-cols-3">
+              <div class="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <div class="rounded-[22px] border border-nutriflow-200 bg-white p-4"><p class="text-sm font-bold text-nutriflow-600">Inicial</p><p id="initialWeightValue" class="mt-2 text-xl font-bold text-nutriflow-950">--</p></div>
                 <div class="rounded-[22px] border border-nutriflow-200 bg-white p-4"><p class="text-sm font-bold text-nutriflow-600">Media semanal</p><p id="weeklyWeightAverageValue" class="mt-2 text-xl font-bold text-nutriflow-950">--</p></div>
                 <div class="rounded-[22px] border border-nutriflow-200 bg-white p-4"><p class="text-sm font-bold text-nutriflow-600">Tendencia</p><p id="weightTrendValue" class="mt-2 text-xl font-bold text-nutriflow-950">--</p></div>
+                <div class="rounded-[22px] border border-nutriflow-200 bg-white p-4"><p class="text-sm font-bold text-nutriflow-600">Cadencia</p><p id="paceValue" class="mt-2 text-xl font-bold text-nutriflow-950">--</p></div>
               </div>
               <div class="mt-5 overflow-hidden rounded-[22px] border border-nutriflow-200 bg-white">
                 <div class="grid grid-cols-[.9fr_.7fr_.7fr_1.4fr] bg-nutriflow-50 px-4 py-3 text-xs font-bold uppercase tracking-[0.14em] text-nutriflow-600">

@@ -889,6 +889,57 @@ function renderHighlights() {
   setTextContent('#sidebarAppointment', clinical?.nextAppointment?.dateLabel || 'Sem agenda');
 }
 
+function renderPatientExperience() {
+  const patient = getPatientData();
+  const nutritionist = getNutritionistData();
+  const overview = state.dashboard?.overview || {};
+  const goals = state.dashboard?.goals || {};
+  const clinical = state.dashboard?.clinical || {};
+  const plan = state.dashboard?.plan || null;
+  const chat = state.dashboard?.chat || {};
+  const meals = state.dashboard?.meals || [];
+  const mealTarget = getDailyMealTarget();
+
+  setTextContent(
+    document.getElementById('patientExperienceTitle'),
+    goals.focusTitle || `Mantenha seu plano em movimento, ${getFirstName(patient.name)}.`,
+  );
+  setTextContent(
+    document.getElementById('patientExperienceSubtitle'),
+    clinical.insight || 'Seu painel foi organizado para destacar o que pede atencao agora: plano, refeicoes, chat e acompanhamento clinico.',
+  );
+  setTextContent(document.getElementById('patientExperiencePlan'), plan?.title || 'Sem plano ativo');
+  setTextContent(document.getElementById('patientExperienceAppointment'), clinical?.nextAppointment?.dateLabel || 'Sem agenda');
+  setTextContent(document.getElementById('patientExperienceNutritionist'), nutritionist.name || 'Sem vinculo');
+
+  setTextContent(document.getElementById('patientHeroAdherence'), `${overview.adherencePercent || 0}%`);
+  setTextContent(
+    document.getElementById('patientHeroAdherenceMeta'),
+    meals.length
+      ? `${pluralize(meals.length, 'refeicao registrada', 'refeicoes registradas')} hoje.`
+      : 'Comece registrando a primeira refeicao do dia.',
+  );
+
+  setTextContent(
+    document.getElementById('patientHeroMealTarget'),
+    mealTarget > 0 ? `${meals.length}/${mealTarget}` : String(meals.length),
+  );
+  setTextContent(
+    document.getElementById('patientHeroMealMeta'),
+    mealTarget > 0
+      ? `Meta diaria de ${mealTarget} refeicoes.`
+      : 'Sua meta de frequencia aparece aqui quando estiver disponivel.',
+  );
+
+  setTextContent(document.getElementById('patientHeroChatStatus'), chat.responseTimeLabel || 'Sem historico');
+  setTextContent(
+    document.getElementById('patientHeroChatMeta'),
+    nutritionist.name
+      ? `Canal direto com ${getFirstName(nutritionist.name)} para ajustes rapidos.`
+      : 'Conecte sua conta a uma nutricionista para liberar acompanhamento.',
+  );
+}
+
 function setInteractionsEnabled(isEnabled) {
   [addMealButton, quickAddMealButton, addWeeklyWeightButton].forEach((button) => {
     if (button) {
@@ -1485,6 +1536,7 @@ window.handleCompleteChallenge = async function(challengeId) {
 function renderDashboard() {
   renderHeader();
   renderHighlights();
+  renderPatientExperience();
   renderConnectionPanel();
   renderSidebar();
   renderOverview();
